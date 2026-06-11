@@ -153,3 +153,8 @@ export async function api(baseUrl, pathName, options = {}) {
   const body = text ? JSON.parse(text) : null;
   return { response, body };
 }
+
+export function authHeaders(result) {
+  const cookie = result.response.headers.get("set-cookie");
+  return cookie ? { cookie: cookie.split(";")[0] } : {};
+}

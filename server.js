@@ -15,6 +15,13 @@ loadLocalEnv(path.join(root, ".env"));
 
 const port = Number(process.env.PORT || 4173);
 const sessions = new Map();
+const authAttempts = new Map();
+const sessionCookieName = "madinah_session";
+const sessionTtlMs = Number(process.env.SESSION_TTL_MS || 7 * 24 * 60 * 60 * 1000);
+const authWindowMs = Number(process.env.AUTH_RATE_WINDOW_MS || 15 * 60 * 1000);
+const authMaxByIdentity = Number(process.env.AUTH_RATE_MAX_IDENTITY || 8);
+const authMaxByIp = Number(process.env.AUTH_RATE_MAX_IP || 40);
+const maxXpIncreasePerSave = Number(process.env.MAX_XP_INCREASE_PER_SAVE || 100);
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -32,6 +39,22 @@ const publicStaticFiles = new Set([
   "/design/font-comparison-home.svg",
   "/design/font-comparison-home.svg.png"
 ]);
+
+const baseSecurityHeaders = {
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "same-origin",
+  "x-frame-options": "DENY",
+  "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+};
+
+const planEntitlements = {
+  free: {
+    books: ["book-1"]
+  },
+  paid: {
+    books: ["book-1", "book-2", "book-3"]
+  }
+};
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -90,18 +113,108 @@ function verifyPassword(password, storedHash) {
 
 function createSession(user) {
   const token = crypto.randomBytes(32).toString("hex");
-  sessions.set(token, { userId: user.userId, createdAt: new Date().toISOString() });
+  sessions.set(token, {
+    userId: user.userId,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + sessionTtlMs
+  });
   return token;
 }
 
+function parseCookies(header = "") {
+  return Object.fromEntries(
+    String(header)
+      .split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const separator = part.indexOf("=");
+        if (separator === -1) return [part, ""];
+        return [decodeURIComponent(part.slice(0, separator)), decodeURIComponent(part.slice(separator + 1))];
+      })
+  );
+}
+
+function sessionTokenFromRequest(request) {
+  const headerToken = String(request.headers["x-session-token"] || "").trim();
+  if (headerToken) return headerToken;
+  return parseCookies(request.headers.cookie)[sessionCookieName] || "";
+}
+
+function sessionFromToken(token) {
+  if (!token) return null;
+  const session = sessions.get(token);
+  if (!session) return null;
+  if (Number(session.expiresAt || 0) <= Date.now()) {
+    sessions.delete(token);
+    return null;
+  }
+  return session;
+}
+
+function isSecureRequest(request) {
+  return request.socket.encrypted || request.headers["x-forwarded-proto"] === "https" || process.env.COOKIE_SECURE === "true";
+}
+
+function sessionCookie(token, request) {
+  const attributes = [
+    `${sessionCookieName}=${encodeURIComponent(token)}`,
+    "HttpOnly",
+    "Path=/",
+    "SameSite=Lax",
+    `Max-Age=${Math.floor(sessionTtlMs / 1000)}`
+  ];
+  if (isSecureRequest(request)) attributes.push("Secure");
+  return attributes.join("; ");
+}
+
+function clearSessionCookie(request) {
+  const attributes = [
+    `${sessionCookieName}=`,
+    "HttpOnly",
+    "Path=/",
+    "SameSite=Lax",
+    "Max-Age=0"
+  ];
+  if (isSecureRequest(request)) attributes.push("Secure");
+  return attributes.join("; ");
+}
+
 function userFromRequest(request) {
-  const token = request.headers["x-session-token"];
-  return sessions.get(token)?.userId || "demo-user";
+  return sessionFromToken(sessionTokenFromRequest(request))?.userId || "demo-user";
 }
 
 function authenticatedUserFromRequest(request) {
-  const token = request.headers["x-session-token"];
-  return sessions.get(token)?.userId || "";
+  return sessionFromToken(sessionTokenFromRequest(request))?.userId || "";
+}
+
+function clientIp(request) {
+  const forwarded = String(request.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return forwarded || request.socket.remoteAddress || "unknown";
+}
+
+function touchRateLimit(key, maxAttempts) {
+  const now = Date.now();
+  const recent = (authAttempts.get(key) || []).filter((time) => now - time < authWindowMs);
+  if (recent.length >= maxAttempts) {
+    authAttempts.set(key, recent);
+    throw requestError("Too many attempts. Please wait before trying again.", 429);
+  }
+  recent.push(now);
+  authAttempts.set(key, recent);
+}
+
+function enforceAuthRateLimit(request, purpose, email) {
+  const ip = clientIp(request);
+  const normalizedEmail = normalizeEmail(email) || "unknown";
+  touchRateLimit(`${purpose}:ip:${ip}`, authMaxByIp);
+  touchRateLimit(`${purpose}:identity:${ip}:${normalizedEmail}`, authMaxByIdentity);
+}
+
+function clearAuthRateLimit(request, purpose, email) {
+  const ip = clientIp(request);
+  const normalizedEmail = normalizeEmail(email) || "unknown";
+  authAttempts.delete(`${purpose}:identity:${ip}:${normalizedEmail}`);
 }
 
 function normalizeSubscriptionPlan(plan) {
@@ -133,6 +246,239 @@ function publicUserFromRecord(user) {
     user.subscriptionStatus,
     user.subscriptionEndsAt
   );
+}
+
+function planKeyForUser(user) {
+  return user && !user.isDemo && user.subscriptionPlan === "paid" && user.subscriptionStatus === "active" ? "paid" : "free";
+}
+
+function accessibleBookSlugs(user) {
+  return new Set((planEntitlements[planKeyForUser(user)] || planEntitlements.free).books);
+}
+
+function bookScoped(item, allowedBookSlugs) {
+  return !item.bookSlug || allowedBookSlugs.has(item.bookSlug);
+}
+
+function resourceAllowed(resource, allowedBookSlugs) {
+  const text = `${resource.id || ""} ${resource.title || ""} ${resource.description || ""}`.toLowerCase();
+  if (text.includes("book-2") || text.includes("book 2")) return allowedBookSlugs.has("book-2");
+  if (text.includes("book-3") || text.includes("book 3")) return allowedBookSlugs.has("book-3");
+  if (text.includes("all lesson")) return allowedBookSlugs.has("book-2") && allowedBookSlugs.has("book-3");
+  return true;
+}
+
+function filteredBooks(books, allowedBookSlugs) {
+  return books.map((book) => {
+    if (allowedBookSlugs.has(book.slug)) return book;
+    return {
+      ...book,
+      status: "locked",
+      premiumRequired: true
+    };
+  });
+}
+
+function entitlementContext(curriculum, user) {
+  const allowedBookSlugs = accessibleBookSlugs(user);
+  const lessons = curriculum.lessons.filter((lesson) => allowedBookSlugs.has(lesson.bookSlug));
+  const vocabulary = curriculum.vocabulary.filter((word) => allowedBookSlugs.has(word.bookSlug));
+  const grammar = curriculum.grammar.filter((rule) => bookScoped(rule, allowedBookSlugs));
+  const exercises = curriculum.exercises.filter((exercise) => allowedBookSlugs.has(exercise.bookSlug));
+
+  return {
+    allowedBookSlugs,
+    lessons,
+    vocabulary,
+    grammar,
+    exercises,
+    lessonIds: new Set(lessons.map((lesson) => lesson.id)),
+    vocabularyIds: new Set(vocabulary.map((word) => word.id)),
+    exerciseIds: new Set(exercises.map((exercise) => exercise.id))
+  };
+}
+
+function filterProgressForUser(progress, curriculum, user) {
+  const context = entitlementContext(curriculum, user);
+  const lessonIds = context.lessonIds;
+  const vocabularyIds = context.vocabularyIds;
+  const currentLessonId = lessonIds.has(progress.currentLessonId)
+    ? progress.currentLessonId
+    : context.lessons[0]?.id || "lesson-1";
+
+  return {
+    ...progress,
+    currentLessonId,
+    activeBookSlug: context.allowedBookSlugs.has(progress.activeBookSlug) ? progress.activeBookSlug : "book-1",
+    completedLessonIds: (progress.completedLessonIds || []).filter((id) => lessonIds.has(id)),
+    learnedVocabularyIds: (progress.learnedVocabularyIds || []).filter((id) => vocabularyIds.has(id)),
+    exerciseAttempts: filterProgressMap(progress.exerciseAttempts, (key) => progressKeyAllowed(key, context)),
+    vocabularyStats: filterProgressMap(progress.vocabularyStats, (key) => vocabularyIds.has(key)),
+    mistakes: filterProgressMap(progress.mistakes, (key, mistake) => mistakeAllowed(key, mistake, context)),
+    writingAttempts: filterProgressMap(progress.writingAttempts, (key) => progressKeyAllowed(key, context)),
+    exerciseAnswers: filterProgressMap(progress.exerciseAnswers, (key) => progressKeyAllowed(key, context))
+  };
+}
+
+function filterProgressMap(map, predicate) {
+  return Object.fromEntries(
+    Object.entries(map || {}).filter(([key, value]) => predicate(key, value))
+  );
+}
+
+function progressKeyAllowed(key, context) {
+  const normalized = String(key || "");
+  if (context.exerciseIds.has(normalized)) return true;
+  if (Array.from(context.vocabularyIds).some((id) => normalized.includes(id))) return true;
+  return context.lessons.some((lesson) =>
+    normalized === `vocab-${lesson.id}` ||
+    normalized.startsWith(`vocab-${lesson.id}-`) ||
+    normalized.startsWith(`book-${lesson.id}-`) ||
+    normalized.startsWith(`write-book-${lesson.id}-`)
+  );
+}
+
+function mistakeAllowed(key, mistake, context) {
+  if (mistake?.lessonId && !context.lessonIds.has(mistake.lessonId)) return false;
+  if (mistake?.wordId && !context.vocabularyIds.has(mistake.wordId)) return false;
+  return progressKeyAllowed(key, context);
+}
+
+function filterBootstrapPayload(payload, curriculum, user) {
+  const context = entitlementContext(curriculum, user);
+  const progress = filterProgressForUser(payload.progress, curriculum, user);
+  return {
+    ...payload,
+    books: filteredBooks(payload.books, context.allowedBookSlugs),
+    lessons: payload.lessons.filter((lesson) => context.allowedBookSlugs.has(lesson.bookSlug)),
+    vocabulary: payload.vocabulary.filter((word) => context.allowedBookSlugs.has(word.bookSlug)),
+    grammar: payload.grammar.filter((rule) => bookScoped(rule, context.allowedBookSlugs)),
+    exercises: payload.exercises.filter((exercise) => context.allowedBookSlugs.has(exercise.bookSlug)),
+    resources: payload.resources.filter((resource) => resourceAllowed(resource, context.allowedBookSlugs)),
+    progress
+  };
+}
+
+function sanitizeProgressPatch(patch, current, curriculum, user) {
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+    throw requestError("Progress update must be an object.", 400);
+  }
+
+  const context = entitlementContext(curriculum, user);
+  const sanitized = {};
+
+  if (context.allowedBookSlugs.has(patch.activeBookSlug)) {
+    sanitized.activeBookSlug = patch.activeBookSlug;
+  }
+
+  if (context.lessonIds.has(patch.currentLessonId)) {
+    sanitized.currentLessonId = patch.currentLessonId;
+  }
+
+  if (Array.isArray(patch.completedLessonIds)) {
+    sanitized.completedLessonIds = unique(patch.completedLessonIds.filter((id) => context.lessonIds.has(id)));
+  }
+
+  if (Array.isArray(patch.learnedVocabularyIds)) {
+    sanitized.learnedVocabularyIds = unique(patch.learnedVocabularyIds.filter((id) => context.vocabularyIds.has(id)));
+  }
+
+  if (patch.weeklyGoalCompleted !== undefined) {
+    const goal = Number(current.weeklyGoalTarget || 0);
+    const value = Number(patch.weeklyGoalCompleted);
+    if (Number.isFinite(value)) sanitized.weeklyGoalCompleted = Math.max(0, Math.min(goal, Math.floor(value)));
+  }
+
+  if (patch.xp !== undefined) {
+    const currentXp = Number(current.xp || 0);
+    const requestedXp = Number(patch.xp);
+    if (!Number.isFinite(requestedXp) || requestedXp < currentXp || requestedXp - currentXp > maxXpIncreasePerSave) {
+      throw requestError("Progress XP increase is outside the allowed range.", 400);
+    }
+    sanitized.xp = Math.floor(requestedXp);
+  }
+
+  const statusValues = new Set(["correct", "incorrect", "complete"]);
+  sanitized.exerciseAttempts = sanitizeStatusMap(patch.exerciseAttempts, context, statusValues);
+  sanitized.writingAttempts = sanitizeStatusMap(patch.writingAttempts, context, new Set(["correct", "incorrect"]));
+  sanitized.exerciseAnswers = sanitizeStatusMap(patch.exerciseAnswers, context, new Set(["correct", "incorrect"]));
+  sanitized.vocabularyStats = sanitizeVocabularyStats(patch.vocabularyStats, context);
+  sanitized.mistakes = sanitizeMistakes(patch.mistakes, context);
+
+  return Object.fromEntries(
+    Object.entries(sanitized).filter(([, value]) => {
+      if (value && typeof value === "object" && !Array.isArray(value)) return Object.keys(value).length > 0;
+      return value !== undefined;
+    })
+  );
+}
+
+function sanitizeStatusMap(map, context, allowedValues) {
+  if (!map || typeof map !== "object" || Array.isArray(map)) return {};
+  return Object.fromEntries(
+    Object.entries(map)
+      .filter(([key, value]) => progressKeyAllowed(key, context) && allowedValues.has(value))
+      .slice(0, 200)
+  );
+}
+
+function sanitizeVocabularyStats(map, context) {
+  if (!map || typeof map !== "object" || Array.isArray(map)) return {};
+  return Object.fromEntries(
+    Object.entries(map)
+      .filter(([wordId]) => context.vocabularyIds.has(wordId))
+      .slice(0, 200)
+      .map(([wordId, value]) => [wordId, sanitizeVocabularyStat(value)])
+  );
+}
+
+function sanitizeVocabularyStat(value = {}) {
+  const level = boundedInteger(value.level, 0, 5);
+  return {
+    level,
+    correct: boundedInteger(value.correct, 0, 10_000),
+    incorrect: boundedInteger(value.incorrect, 0, 10_000),
+    attempts: boundedInteger(value.attempts, 0, 10_000),
+    lastReviewedAt: safeIsoDate(value.lastReviewedAt),
+    dueAt: safeIsoDate(value.dueAt)
+  };
+}
+
+function sanitizeMistakes(map, context) {
+  if (!map || typeof map !== "object" || Array.isArray(map)) return {};
+  return Object.fromEntries(
+    Object.entries(map)
+      .filter(([key, value]) => value && typeof value === "object" && !Array.isArray(value) && mistakeAllowed(key, value, context))
+      .slice(0, 200)
+      .map(([key, value]) => [key, {
+        id: boundedString(value.id || key, 120),
+        type: boundedString(value.type, 80),
+        prompt: boundedString(value.prompt, 300),
+        arabic: boundedString(value.arabic, 300),
+        given: boundedString(value.given, 300),
+        expected: boundedString(value.expected, 300),
+        lessonId: context.lessonIds.has(value.lessonId) ? value.lessonId : "",
+        wordId: context.vocabularyIds.has(value.wordId) ? value.wordId : "",
+        resolved: Boolean(value.resolved),
+        createdAt: safeIsoDate(value.createdAt),
+        resolvedAt: value.resolved ? safeIsoDate(value.resolvedAt) : ""
+      }])
+  );
+}
+
+function boundedInteger(value, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return min;
+  return Math.max(min, Math.min(max, Math.floor(number)));
+}
+
+function boundedString(value, maxLength) {
+  return String(value || "").slice(0, maxLength);
+}
+
+function safeIsoDate(value) {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
 }
 
 function defaultProgressForUser(curriculum, user) {
@@ -294,7 +640,8 @@ function createMongoStore(database, fallbackCurriculum) {
         database.collection("users").findOne({ userId }, { projection: { _id: 0, passwordHash: 0 } })
       ]);
 
-      return {
+      const publicRecord = user ? publicUserFromRecord(user) : publicUser("demo-user", progress.displayName);
+      return filterBootstrapPayload({
         books,
         lessons,
         vocabulary,
@@ -302,19 +649,22 @@ function createMongoStore(database, fallbackCurriculum) {
         exercises,
         resources,
         progress,
-        user: user ? publicUserFromRecord(user) : publicUser("demo-user", progress.displayName),
+        user: publicRecord,
         databaseMode: "mongodb"
-      };
+      }, fallbackCurriculum, publicRecord);
     },
     async updateProgress(userId, patch) {
       const current = await getProgress(userId);
-      const progress = mergeProgress(current, patch);
+      const userRecord = await database.collection("users").findOne({ userId }, { projection: { _id: 0, passwordHash: 0 } });
+      const user = userRecord ? publicUserFromRecord(userRecord) : publicUser(userId);
+      const sanitizedPatch = sanitizeProgressPatch(patch, current, fallbackCurriculum, user);
+      const progress = mergeProgress(current, sanitizedPatch);
       await database.collection("userProgress").updateOne(
         { userId },
         { $set: { ...progress, updatedAt: new Date() } },
         { upsert: true }
       );
-      return progress;
+      return filterProgressForUser(progress, fallbackCurriculum, user);
     },
     async register({ displayName, email, password }) {
       const normalizedEmail = normalizeEmail(email);
@@ -393,7 +743,7 @@ function createJsonStore(curriculum) {
     mode: "json",
     async bootstrap(userId = "demo-user") {
       const user = findUser(userId);
-      return {
+      return filterBootstrapPayload({
         books: curriculum.books,
         lessons: curriculum.lessons,
         vocabulary: curriculum.vocabulary,
@@ -403,13 +753,15 @@ function createJsonStore(curriculum) {
         progress: getJsonProgress(user),
         user,
         databaseMode: "local-json"
-      };
+      }, curriculum, user);
     },
     async updateProgress(userId, patch) {
       const user = findUser(userId);
-      const progress = mergeProgress(getJsonProgress(user), patch);
+      const current = getJsonProgress(user);
+      const sanitizedPatch = sanitizeProgressPatch(patch, current, curriculum, user);
+      const progress = mergeProgress(current, sanitizedPatch);
       writeJsonProgress(user.userId, progress);
-      return progress;
+      return filterProgressForUser(progress, curriculum, user);
     },
     async register({ displayName, email, password }) {
       const normalizedEmail = normalizeEmail(email);
@@ -483,8 +835,12 @@ function mergeProgress(current, patch) {
   };
 }
 
-function sendJson(response, statusCode, value) {
-  response.writeHead(statusCode, { "content-type": "application/json; charset=utf-8" });
+function responseHeaders(headers = {}) {
+  return { ...baseSecurityHeaders, ...headers };
+}
+
+function sendJson(response, statusCode, value, headers = {}) {
+  response.writeHead(statusCode, responseHeaders({ "content-type": "application/json; charset=utf-8", ...headers }));
   response.end(JSON.stringify(value));
 }
 
@@ -495,29 +851,29 @@ function sendStatic(request, response) {
   const relativePath = path.relative(root, filePath);
 
   if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-    response.writeHead(403);
+    response.writeHead(403, responseHeaders());
     response.end("Forbidden");
     return;
   }
 
   if (!publicStaticFiles.has(pathname)) {
-    response.writeHead(404);
+    response.writeHead(404, responseHeaders());
     response.end("Not found");
     return;
   }
 
   fs.readFile(filePath, (error, data) => {
     if (error) {
-      response.writeHead(404);
+      response.writeHead(404, responseHeaders());
       response.end("Not found");
       return;
     }
 
     const extension = path.extname(filePath);
-    response.writeHead(200, {
+    response.writeHead(200, responseHeaders({
       "content-type": contentTypes[extension] || "application/octet-stream",
       "cache-control": "no-store"
-    });
+    }));
     response.end(data);
   });
 }
@@ -546,23 +902,39 @@ async function start() {
       }
 
       if (request.method === "POST" && parsedUrl.pathname === "/api/auth/register") {
-        const user = await store.register(await readBody(request));
+        const body = await readBody(request);
+        enforceAuthRateLimit(request, "register", body.email);
+        const user = await store.register(body);
         const sessionToken = createSession(user);
-        sendJson(response, 200, { user, sessionToken, progress: (await store.bootstrap(user.userId)).progress });
+        clearAuthRateLimit(request, "register", body.email);
+        sendJson(
+          response,
+          200,
+          { user, progress: (await store.bootstrap(user.userId)).progress },
+          { "set-cookie": sessionCookie(sessionToken, request) }
+        );
         return;
       }
 
       if (request.method === "POST" && parsedUrl.pathname === "/api/auth/login") {
-        const user = await store.login(await readBody(request));
+        const body = await readBody(request);
+        enforceAuthRateLimit(request, "login", body.email);
+        const user = await store.login(body);
         const sessionToken = createSession(user);
-        sendJson(response, 200, { user, sessionToken, progress: (await store.bootstrap(user.userId)).progress });
+        clearAuthRateLimit(request, "login", body.email);
+        sendJson(
+          response,
+          200,
+          { user, progress: (await store.bootstrap(user.userId)).progress },
+          { "set-cookie": sessionCookie(sessionToken, request) }
+        );
         return;
       }
 
       if (request.method === "POST" && parsedUrl.pathname === "/api/auth/logout") {
-        const token = request.headers["x-session-token"];
+        const token = sessionTokenFromRequest(request);
         if (token) sessions.delete(token);
-        sendJson(response, 200, { ok: true });
+        sendJson(response, 200, { ok: true }, { "set-cookie": clearSessionCookie(request) });
         return;
       }
 

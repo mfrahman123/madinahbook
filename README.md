@@ -97,6 +97,9 @@ Current coverage includes:
 - Vocabulary translation hygiene and pronunciation-note checks
 - Slash formatting for paired verb forms
 - Auth login/register/logout/session behavior
+- HttpOnly cookie session behavior
+- Server-side free vs premium entitlement filtering
+- Login rate limiting and progress update validation
 - Password-hash response leakage checks
 - Missing forgotten-password endpoint checks
 - Static-file exposure checks for `.env`, user JSON, and source files
@@ -120,4 +123,8 @@ The following are ignored:
 
 ## Production Notes
 
-The free/premium split is currently implemented in the app UI. Before accepting real payments, add server-side entitlement enforcement so protected Book 2/3 content and premium review data are not returned to unauthorized users.
+The free/premium split is enforced server-side for bootstrap data as well as in the UI. Free and anonymous users receive Book 1 content plus locked Book 2/3 metadata; premium users receive the full Book 1-3 curriculum.
+
+Security controls currently include HttpOnly same-site session cookies, in-memory session expiry, login/register throttling, progress update validation, static asset allowlisting, and baseline browser security headers.
+
+Before production launch, rotate any MongoDB credentials that were shared outside `.env`, set `COOKIE_SECURE=true` behind HTTPS, and consider moving sessions/rate limits to a shared store if the app runs on more than one server process.

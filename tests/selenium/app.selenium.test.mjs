@@ -59,6 +59,11 @@ describe("Madinah Arabic Selenium flows", () => {
     assert.match(bodyText, /Free/);
     assert.match(bodyText, /Sign out/);
     assert.doesNotMatch(bodyText, /Sign In/);
+
+    const storedToken = await driver.executeScript("return window.localStorage.getItem('madinah-session-token');");
+    const visibleCookies = await driver.executeScript("return document.cookie;");
+    assert.equal(storedToken, null);
+    assert.doesNotMatch(visibleCookies, /madinah_session/);
   });
 
   it("locks premium content for the free plan", async () => {
@@ -226,6 +231,7 @@ async function buildDriver() {
 
 async function openFreshHome(driver, baseUrl) {
   await driver.get(baseUrl);
+  await driver.manage().deleteAllCookies();
   await driver.executeScript("window.localStorage.clear();");
   await driver.get(baseUrl);
 }

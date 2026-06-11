@@ -23,7 +23,7 @@ const state = {
   writingFeedback: {},
   authMode: null,
   authError: "",
-  sessionToken: localStorage.getItem("madinah-session-token") || "",
+  sessionToken: "",
   user: null
 };
 
@@ -1450,9 +1450,9 @@ async function loadApp() {
 function authFetchOptions(options = {}) {
   return {
     ...options,
+    credentials: "same-origin",
     headers: {
-      ...(options.headers || {}),
-      ...(state.sessionToken ? { "x-session-token": state.sessionToken } : {})
+      ...(options.headers || {})
     }
   };
 }
@@ -1480,6 +1480,7 @@ async function submitAuth(form) {
   const endpoint = state.authMode === "register" ? "/api/auth/register" : "/api/auth/login";
   const response = await fetch(endpoint, {
     method: "POST",
+    credentials: "same-origin",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload)
   });
@@ -1490,10 +1491,9 @@ async function submitAuth(form) {
     return;
   }
 
-  state.sessionToken = data.sessionToken;
+  state.sessionToken = "";
   state.user = data.user;
   state.progress = data.progress;
-  localStorage.setItem("madinah-session-token", data.sessionToken);
   state.authMode = null;
   state.authError = "";
   render();
@@ -1501,7 +1501,6 @@ async function submitAuth(form) {
 
 async function signOut() {
   await fetch("/api/auth/logout", authFetchOptions({ method: "POST" }));
-  localStorage.removeItem("madinah-session-token");
   state.sessionToken = "";
   state.user = null;
   state.route = "home";

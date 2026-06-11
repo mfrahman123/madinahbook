@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { api, paidTestUser, startTestServer, testUser } from "../helpers/test-server.mjs";
+import { api, authHeaders, paidTestUser, startTestServer, testUser } from "../helpers/test-server.mjs";
 
 describe("Madinah Arabic API and static app", () => {
   let server;
@@ -13,7 +13,7 @@ describe("Madinah Arabic API and static app", () => {
     await server?.stop();
   });
 
-  it("serves the Book 1, Book 2 and Book 3 curriculum", async () => {
+  it("serves only free Book 1 curriculum to anonymous visitors", async () => {
     const { response, body } = await api(server.baseUrl, "/api/bootstrap");
 
     assert.equal(response.status, 200);
@@ -21,10 +21,26 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(body.user.isDemo, true);
     assert.equal(body.books.length, 3);
     assert.equal(body.books.find((book) => book.slug === "book-1").status, "available");
-    assert.equal(body.books.find((book) => book.slug === "book-2").status, "available");
-    assert.equal(body.books.find((book) => book.slug === "book-3").status, "available");
+    assert.equal(body.books.find((book) => book.slug === "book-2").status, "locked");
+    assert.equal(body.books.find((book) => book.slug === "book-3").status, "locked");
     assert.equal(body.books.find((book) => book.slug === "book-2").lessonCount, 31);
     assert.equal(body.books.find((book) => book.slug === "book-3").lessonCount, 34);
+    assert.equal(body.lessons.length, 23);
+    assert.equal(body.vocabulary.length, 423);
+    assert.equal(body.vocabulary.filter((word) => word.bookSlug === "book-1").length, 423);
+    assert.equal(body.lessons.some((lesson) => lesson.bookSlug === "book-2" || lesson.bookSlug === "book-3"), false);
+    assert.equal(body.vocabulary.some((word) => word.bookSlug === "book-2" || word.bookSlug === "book-3"), false);
+    assert.equal(body.exercises.some((exercise) => exercise.bookSlug === "book-2" || exercise.bookSlug === "book-3"), false);
+  });
+
+  it("serves the full Book 1, Book 2 and Book 3 curriculum to premium users", async () => {
+    const { body } = await bootstrapAs(server, paidTestUser);
+
+    assert.equal(body.user.email, paidTestUser.email);
+    assert.equal(body.books.length, 3);
+    assert.equal(body.books.find((book) => book.slug === "book-1").status, "available");
+    assert.equal(body.books.find((book) => book.slug === "book-2").status, "available");
+    assert.equal(body.books.find((book) => book.slug === "book-3").status, "available");
     assert.equal(body.lessons.length, 88);
     assert.equal(body.vocabulary.length, 1292);
     assert.equal(body.vocabulary.filter((word) => word.bookSlug === "book-1").length, 423);
@@ -33,7 +49,7 @@ describe("Madinah Arabic API and static app", () => {
   });
 
   it("keeps paired verb forms readable with slash separators", async () => {
-    const { body } = await api(server.baseUrl, "/api/bootstrap");
+    const { body } = await bootstrapAs(server, paidTestUser);
     const vocabularyById = new Map(body.vocabulary.map((word) => [word.id, word]));
     const slashSeparatedWords = body.vocabulary.filter((word) => word.arabic.includes(" / "));
     const colonSeparatedArabicPair = /[\u0600-\u06ff]\s*:\s*[\u0600-\u06ff]/;
@@ -47,7 +63,7 @@ describe("Madinah Arabic API and static app", () => {
   });
 
   it("serves clean vocabulary records without undefined values or legacy mistranslations", async () => {
-    const { body } = await api(server.baseUrl, "/api/bootstrap");
+    const { body } = await bootstrapAs(server, paidTestUser);
     const brokenWords = body.vocabulary.filter((word) => {
       const searchable = `${word.arabic || ""} ${word.english || ""} ${word.transliteration || ""}`;
       return !word.arabic || !word.english || /undefined/i.test(searchable);
@@ -61,7 +77,7 @@ describe("Madinah Arabic API and static app", () => {
   });
 
   it("serves pronunciation notes with final vowels and apostrophes for ayn", async () => {
-    const { body } = await api(server.baseUrl, "/api/bootstrap");
+    const { body } = await bootstrapAs(server, paidTestUser);
     const wordsById = new Map(body.vocabulary.map((word) => [word.id, word]));
     const emptyNotes = body.vocabulary.filter((word) => !word.transliteration);
     const numberNotes = body.vocabulary.filter((word) => /[0-9]/.test(word.transliteration));
@@ -78,7 +94,7 @@ describe("Madinah Arabic API and static app", () => {
   });
 
   it("keeps displayed Arabic free of conflicting vowel marks", async () => {
-    const { body } = await api(server.baseUrl, "/api/bootstrap");
+    const { body } = await bootstrapAs(server, paidTestUser);
     const arabicSamples = [
       ...body.lessons.map((lesson) => [lesson.id, "lesson.arabic", lesson.arabic]),
       ...body.lessons.flatMap((lesson) => (lesson.examples || []).map((example) => [lesson.id, `lesson.example.${example.label}`, example.arabic])),
@@ -92,7 +108,7 @@ describe("Madinah Arabic API and static app", () => {
   });
 
   it("serves three ordered Learn examples for every lesson", async () => {
-    const { body } = await api(server.baseUrl, "/api/bootstrap");
+    const { body } = await bootstrapAs(server, paidTestUser);
 
     body.lessons.forEach((lesson) => {
       assert.equal(lesson.examples.length, 3, `${lesson.id} should have three Learn examples`);
@@ -110,7 +126,7 @@ describe("Madinah Arabic API and static app", () => {
   });
 
   it("links vocabulary and grammar metadata for every available lesson", async () => {
-    const { body } = await api(server.baseUrl, "/api/bootstrap");
+    const { body } = await bootstrapAs(server, paidTestUser);
     const availableBookSlugs = new Set(body.books.filter((book) => book.status === "available").map((book) => book.slug));
     const vocabularyIds = new Set(body.vocabulary.map((word) => word.id));
     const grammarIds = new Set(body.grammar.map((rule) => rule.id));
@@ -137,16 +153,20 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(login.body.user.email, testUser.email);
     assert.equal(login.body.user.subscriptionPlan, "free");
     assert.equal(login.body.user.subscriptionStatus, "active");
-    assert.ok(login.body.sessionToken);
+    assert.equal(login.body.sessionToken, undefined);
+    assert.match(login.response.headers.get("set-cookie") || "", /madinah_session=.*HttpOnly.*SameSite=Lax/);
 
     const authed = await api(server.baseUrl, "/api/bootstrap", {
-      headers: { "x-session-token": login.body.sessionToken }
+      headers: authHeaders(login)
     });
 
     assert.equal(authed.body.user.email, testUser.email);
     assert.equal(authed.body.user.subscriptionPlan, "free");
     assert.equal(authed.body.progress.userId, testUser.userId);
     assert.deepEqual(authed.body.progress.completedLessonIds, []);
+    assert.equal(authed.body.books.find((book) => book.slug === "book-2").status, "locked");
+    assert.equal(authed.body.lessons.some((lesson) => lesson.bookSlug === "book-2" || lesson.bookSlug === "book-3"), false);
+    assert.equal(authed.body.vocabulary.some((word) => word.bookSlug === "book-2" || word.bookSlug === "book-3"), false);
   });
 
   it("logs in with the seeded premium account and exposes paid entitlements", async () => {
@@ -167,7 +187,7 @@ describe("Madinah Arabic API and static app", () => {
       body: JSON.stringify({ email: testUser.email, password: testUser.password })
     });
     const bootstrap = await api(server.baseUrl, "/api/bootstrap", {
-      headers: { "x-session-token": login.body.sessionToken }
+      headers: authHeaders(login)
     });
     const registered = await api(server.baseUrl, "/api/auth/register", {
       method: "POST",
@@ -189,6 +209,21 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(login.response.status, 401);
     assert.match(login.body.error, /invalid email or password/i);
     assert.equal(login.body.sessionToken, undefined);
+  });
+
+  it("rate limits repeated login attempts", async () => {
+    const email = uniqueEmail("rate-limit");
+    let latest;
+
+    for (let attempt = 0; attempt < 9; attempt += 1) {
+      latest = await api(server.baseUrl, "/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password: "wrong-password" })
+      });
+    }
+
+    assert.equal(latest.response.status, 429);
+    assert.match(latest.body.error, /too many attempts/i);
   });
 
   it("registers a new account with fresh learner progress", async () => {
@@ -274,16 +309,16 @@ describe("Madinah Arabic API and static app", () => {
 
     const updated = await api(server.baseUrl, "/api/progress", {
       method: "PATCH",
-      headers: { "x-session-token": login.body.sessionToken },
+      headers: authHeaders(login),
       body: JSON.stringify({
-        xp: 120,
+        xp: 80,
         completedLessonIds: ["lesson-1"],
         learnedVocabularyIds: ["v-hadha"]
       })
     });
 
     assert.equal(updated.response.status, 200);
-    assert.equal(updated.body.progress.xp, 120);
+    assert.equal(updated.body.progress.xp, 80);
     assert.ok(updated.body.progress.completedLessonIds.includes("lesson-1"));
     assert.ok(updated.body.progress.learnedVocabularyIds.includes("v-hadha"));
 
@@ -292,26 +327,66 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(demo.body.progress.xp, 4280);
   });
 
-  it("invalidates a session token on logout", async () => {
+  it("rejects oversized XP jumps in progress updates", async () => {
     const login = await api(server.baseUrl, "/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email: testUser.email, password: testUser.password })
     });
 
+    const blocked = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      headers: authHeaders(login),
+      body: JSON.stringify({ xp: 9999 })
+    });
+
+    assert.equal(blocked.response.status, 400);
+    assert.match(blocked.body.error, /xp increase/i);
+  });
+
+  it("does not persist premium progress IDs for free accounts", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: testUser.email, password: testUser.password })
+    });
+
+    const updated = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      headers: authHeaders(login),
+      body: JSON.stringify({
+        completedLessonIds: ["book-2-lesson-1"],
+        learnedVocabularyIds: ["v2-l1-inna"],
+        exerciseAttempts: { "ex-book-2-lesson-1": "correct" }
+      })
+    });
+
+    assert.equal(updated.response.status, 200);
+    assert.equal(updated.body.progress.completedLessonIds.includes("book-2-lesson-1"), false);
+    assert.equal(updated.body.progress.learnedVocabularyIds.includes("v2-l1-inna"), false);
+    assert.equal(updated.body.progress.exerciseAttempts["ex-book-2-lesson-1"], undefined);
+  });
+
+  it("invalidates a session cookie on logout", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: testUser.email, password: testUser.password })
+    });
+    const headers = authHeaders(login);
+
     const logout = await api(server.baseUrl, "/api/auth/logout", {
       method: "POST",
-      headers: { "x-session-token": login.body.sessionToken }
+      headers
     });
     const afterLogout = await api(server.baseUrl, "/api/bootstrap", {
-      headers: { "x-session-token": login.body.sessionToken }
+      headers
     });
     const blockedSave = await api(server.baseUrl, "/api/progress", {
       method: "PATCH",
-      headers: { "x-session-token": login.body.sessionToken },
+      headers,
       body: JSON.stringify({ xp: 320 })
     });
 
     assert.equal(logout.response.status, 200);
+    assert.match(logout.response.headers.get("set-cookie") || "", /madinah_session=.*Max-Age=0/);
     assert.equal(afterLogout.body.user.isDemo, true);
     assert.equal(blockedSave.response.status, 401);
   });
@@ -323,34 +398,34 @@ describe("Madinah Arabic API and static app", () => {
       body: JSON.stringify({ displayName: "Merge Learner", email, password: "test123" })
     });
 
-    const token = created.body.sessionToken;
+    const headers = authHeaders(created);
     const firstSave = await api(server.baseUrl, "/api/progress", {
       method: "PATCH",
-      headers: { "x-session-token": token },
+      headers,
       body: JSON.stringify({
         xp: 40,
-        exerciseAttempts: { "lesson-1-choice": "correct" },
+        exerciseAttempts: { "ex-lesson-1": "correct" },
         vocabularyStats: { "v-hadha": { attempts: 1, correct: 1 } }
       })
     });
 
     const secondSave = await api(server.baseUrl, "/api/progress", {
       method: "PATCH",
-      headers: { "x-session-token": token },
+      headers,
       body: JSON.stringify({
-        xp: 10,
-        exerciseAttempts: { "lesson-2-choice": "incorrect" },
-        vocabularyStats: { "v-bayt": { attempts: 1, correct: 0 } }
+        xp: 40,
+        exerciseAttempts: { "ex-lesson-2": "incorrect" },
+        vocabularyStats: { "v-baytun": { attempts: 1, correct: 0 } }
       })
     });
 
     assert.equal(firstSave.response.status, 200);
     assert.equal(secondSave.response.status, 200);
     assert.equal(secondSave.body.progress.xp, 40);
-    assert.equal(secondSave.body.progress.exerciseAttempts["lesson-1-choice"], "correct");
-    assert.equal(secondSave.body.progress.exerciseAttempts["lesson-2-choice"], "incorrect");
-    assert.deepEqual(secondSave.body.progress.vocabularyStats["v-hadha"], { attempts: 1, correct: 1 });
-    assert.deepEqual(secondSave.body.progress.vocabularyStats["v-bayt"], { attempts: 1, correct: 0 });
+    assert.equal(secondSave.body.progress.exerciseAttempts["ex-lesson-1"], "correct");
+    assert.equal(secondSave.body.progress.exerciseAttempts["ex-lesson-2"], "incorrect");
+    assert.equal(secondSave.body.progress.vocabularyStats["v-hadha"].correct, 1);
+    assert.equal(secondSave.body.progress.vocabularyStats["v-baytun"].attempts, 1);
   });
 
   it("does not expose private files through static routes", async () => {
@@ -367,6 +442,8 @@ describe("Madinah Arabic API and static app", () => {
     ];
 
     assert.equal(publicApp.status, 200);
+    assert.equal(publicApp.headers.get("x-content-type-options"), "nosniff");
+    assert.match(publicApp.headers.get("content-security-policy") || "", /default-src 'self'/);
 
     for (const pathname of blockedPaths) {
       const response = await fetch(`${server.baseUrl}${pathname}`);
@@ -388,6 +465,7 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(app, /শব্দভান্ডার/);
     assert.doesNotMatch(app, /data-language-toggle/);
     assert.doesNotMatch(app, /data-vocab-tester-mode/);
+    assert.doesNotMatch(app, /madinah-session-token/);
   });
 
   it("does not configure transliteration prompts in vocabulary quizzes", async () => {
@@ -406,6 +484,16 @@ describe("Madinah Arabic API and static app", () => {
 
 function uniqueEmail(prefix) {
   return `${prefix}-${Date.now()}-${Math.round(Math.random() * 1_000_000)}@example.test`;
+}
+
+async function bootstrapAs(server, user) {
+  const login = await api(server.baseUrl, "/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email: user.email, password: user.password })
+  });
+  return api(server.baseUrl, "/api/bootstrap", {
+    headers: authHeaders(login)
+  });
 }
 
 function pronunciationFinalVowelIssues(word) {
