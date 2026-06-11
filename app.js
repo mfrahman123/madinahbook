@@ -1,0 +1,3703 @@
+const state = {
+  route: "home",
+  selectedLessonId: new URLSearchParams(window.location.search).get("lesson") || "lesson-4",
+  data: null,
+  progress: null,
+  search: "",
+  theme: new URLSearchParams(window.location.search).get("theme") || localStorage.getItem("madinah-theme") || "dark",
+  language: "en",
+  lessonTab: new URLSearchParams(window.location.search).get("tab") || "learn",
+  selectedExerciseId: null,
+  exerciseFeedback: {},
+  vocabularyQuizByLesson: {},
+  vocabularyQuizFeedback: {},
+  vocabularyTab: new URLSearchParams(window.location.search).get("vocabTab") || "list",
+  selectedVocabularyBookSlug: new URLSearchParams(window.location.search).get("vocabBook") || "book-1",
+  vocabTesterFilters: {
+    bookSlugs: ["book-1"],
+    lessonKey: "all",
+    focus: ["all"]
+  },
+  vocabTester: null,
+  vocabTesterFeedback: {},
+  writingFeedback: {},
+  authMode: null,
+  authError: "",
+  sessionToken: localStorage.getItem("madinah-session-token") || "",
+  user: null
+};
+
+const iconPaths = {
+  home: '<path d="m3 10 9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
+  book: '<path d="M12 7v14"/><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H12v19H7.5A3.5 3.5 0 0 0 4 17.5z"/><path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H12v19h4.5a3.5 3.5 0 0 1 3.5-3.5z"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  words: '<path d="M5 8h8"/><path d="M7 4h1"/><path d="M10 4h1"/><path d="M9 8c-.4 3-1.9 5.2-4 6.8"/><path d="M6.5 11.5c1 1.2 2.3 2.2 3.8 3"/><path d="M14 20l3.5-8 3.5 8"/><path d="M15.2 17h4.6"/>',
+  grammar: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>',
+  exercises: '<path d="M9 4h6l1 2h3v15H5V6h3z"/><path d="m9 14 2 2 4-5"/>',
+  resources: '<path d="M3 7h7l2 2h9v10H3z"/><path d="M3 7v12"/>',
+  progress: '<path d="M4 19V5"/><path d="M4 19h17"/><path d="M8 16v-5"/><path d="M13 16V8"/><path d="M18 16v-9"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  flame: '<path d="M12 22c4 0 7-2.7 7-6.7 0-2.4-1.2-4.6-3.5-6.5.1 1.6-.4 2.9-1.5 3.7.1-3-1.4-5.3-4.2-7.5.2 3.2-.8 4.9-2.7 6.8A6.3 6.3 0 0 0 5 16c0 3.8 3 6 7 6z"/>',
+  spark: '<path d="M13 2 5 14h7l-1 8 8-12h-7z"/>',
+  arrow: '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
+  play: '<path d="M8 5v14l11-7z"/>',
+  speaker: '<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16 9.5c.8.8 1.2 1.6 1.2 2.5s-.4 1.7-1.2 2.5"/>',
+  check: '<path d="m5 12 4 4L19 6"/>',
+  x: '<path d="m6 6 12 12"/><path d="m18 6-12 12"/>',
+  target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3"/><path d="M22 12h-3"/><path d="M12 22v-3"/><path d="M2 12h3"/>',
+  menu: '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  moon: '<path d="M20 14.6A8.5 8.5 0 0 1 9.4 4 7 7 0 1 0 20 14.6z"/>'
+};
+
+const routes = [
+  { id: "home", label: "Home", icon: "home" },
+  { id: "book-1", label: "Book 1", icon: "book" },
+  { id: "book-2", label: "Book 2", icon: "book" },
+  { id: "book-3", label: "Book 3", icon: "book" },
+  { id: "vocabulary", label: "Vocabulary", icon: "words" },
+  { id: "grammar", label: "Grammar", icon: "grammar" },
+  { id: "exercises", label: "Exercises", icon: "exercises" },
+  { id: "review", label: "Mistakes", icon: "target" },
+  { id: "resources", label: "Resources", icon: "resources" },
+  { id: "progress", label: "Progress", icon: "progress" },
+  { id: "account", label: "Account", icon: "user" }
+];
+
+const planEntitlements = {
+  free: {
+    label: "Free",
+    books: ["book-1"],
+    lessonTabs: ["learn"],
+    testerBooks: ["book-1"],
+    testerFocus: ["all", "new", "learned"],
+    paidRoutes: ["book-2", "book-3", "exercises", "review", "progress"]
+  },
+  paid: {
+    label: "Premium",
+    books: ["book-1", "book-2", "book-3"],
+    lessonTabs: ["learn", "book-exercises", "quiz", "review"],
+    testerBooks: ["book-1", "book-2", "book-3"],
+    testerFocus: ["all", "new", "learned", "due", "mistakes"],
+    paidRoutes: []
+  }
+};
+
+const uiText = {
+  bn: {
+    home: "হোম",
+    "book-1": "বই ১",
+    "book-2": "বই ২",
+    "book-3": "বই ৩",
+    vocabulary: "শব্দভান্ডার",
+    grammar: "ব্যাকরণ",
+    exercises: "অনুশীলন",
+    review: "ভুলগুলো",
+    resources: "রিসোর্স",
+    progress: "অগ্রগতি",
+    account: "অ্যাকাউন্ট",
+    booksActive: "বই ১-৩ চালু",
+    comingSoon: "শীঘ্রই আসছে",
+    privateProgress: "ব্যক্তিগত অগ্রগতি",
+    signIn: "সাইন ইন",
+    signInTitle: "সাইন ইন",
+    signInToStart: "শুরু করতে সাইন ইন করুন",
+    openAccount: "অ্যাকাউন্ট খুলুন",
+    unableSignIn: "সাইন ইন করা যায়নি।",
+    signInLearning: "শেখা চালিয়ে যেতে সাইন ইন করুন।",
+    signInLessons: "পাঠ খুলতে সাইন ইন করুন।",
+    loadError: "পাঠের ডেটা লোড করতে লোকাল সার্ভার দরকার।",
+    today: "আজ",
+    searchPlaceholder: "পাঠ বা শব্দ খুঁজুন",
+    searchAria: "পাঠ বা শব্দ খুঁজুন",
+    streak: "ধারাবাহিকতা",
+    totalPoints: "মোট পয়েন্ট",
+    available: "উপলব্ধ",
+    words: "শব্দ",
+    light: "লাইট",
+    dark: "ডার্ক",
+    toggleTheme: "থিম বদলান",
+    language: "বাংলা",
+    toggleLanguage: "ভাষা বদলান",
+    createAccount: "অ্যাকাউন্ট তৈরি করুন",
+    createNewAccount: "নতুন অ্যাকাউন্ট তৈরি করুন",
+    alreadyAccount: "আমার অ্যাকাউন্ট আছে",
+    accountLabel: "অ্যাকাউন্ট",
+    name: "নাম",
+    email: "ইমেইল",
+    password: "পাসওয়ার্ড",
+    close: "বন্ধ করুন",
+    landingLabel: "মদিনা আরবি বই ১-৩",
+    landingTitle: "নিয়মিত পাঠ, অনুশীলন ও রিভিউ দিয়ে আরবি শিখুন।",
+    landingText: "মদিনা আরবি বই ১, ২ ও ৩-এর জন্য সাজানো পাঠ, শব্দভান্ডার রিভিউ, পরীক্ষিত অনুশীলন, লেখা, কুইজ ও অগ্রগতি ট্র্যাকিং।",
+    continueLearning: "পড়া চালিয়ে যান",
+    checkedPractice: "যাচাই করা অনুশীলন",
+    mistakeReview: "ভুল রিভিউ",
+    vocabTester: "শব্দ টেস্টার",
+    guidedPath: "গাইডেড পথ",
+    guidedPathText: "প্রতিটি পাঠে শেখা, অনুশীলন, কুইজ ও রিভিউ।",
+    spacedVocabulary: "পরিকল্পিত শব্দ রিভিউ",
+    spacedVocabularyText: "অগ্রগতির ভিত্তিতে ঠিক সময়ে শব্দগুলো রিভিউ করুন।",
+    writingPractice: "লেখার অনুশীলন",
+    writingPracticeText: "উত্তর লিখুন, যাচাই করুন, আর ভুলগুলো রিভিউতে পাঠান।",
+    fullVocabTester: "সম্পূর্ণ শব্দ টেস্টার",
+    fullVocabTesterText: "পুরো শব্দভান্ডার থেকে নতুন আরবি-বাংলা টেস্ট তৈরি করুন।",
+    privateWorkspace: "ব্যক্তিগত শেখার জায়গা",
+    signInContinue: "চালিয়ে যেতে সাইন ইন করুন",
+    signInGateText: "লগইন করার পর আপনার পাঠ, কুইজ, শব্দ রিভিউ ও অগ্রগতি দেখা যাবে।",
+    lesson: "পাঠ",
+    lessons: "পাঠ",
+    sections: "অংশ",
+    section: "অংশ",
+    continue: "চালিয়ে যান",
+    quickAccess: "দ্রুত প্রবেশ",
+    rules: "নিয়ম",
+    drills: "ড্রিল",
+    mistakes: "ভুল",
+    items: "আইটেম",
+    learn: "শিখুন",
+    practice: "অনুশীলন",
+    quiz: "কুইজ",
+    examples: "উদাহরণ",
+    lessonPattern: "পাঠের ধরন",
+    total: "মোট",
+    foundation: "ভিত্তি",
+    build: "গঠন",
+    challenge: "চ্যালেঞ্জ",
+    bookModel: "বইয়ের উদাহরণ",
+    practiceModel: "অনুশীলন উদাহরণ",
+    lessonNotes: "পাঠ নোট",
+    exercisesFromKey: "বইয়ের অনুশীলন",
+    bookExercises: "বইয়ের অনুশীলন",
+    practiceTask: "অনুশীলনের কাজ",
+    exampleQuestions: "উদাহরণ প্রশ্ন",
+    checkedPractice: "যাচাই করা অনুশীলন",
+    yourAnswer: "আপনার উত্তর",
+    checkAnswer: "উত্তর যাচাই করুন",
+    correct: "সঠিক",
+    notQuite: "পুরোপুরি নয়। সঠিক উত্তর:",
+    correctSaved: "সঠিক। শব্দটি অগ্রগতিতে সংরক্ষিত হয়েছে।",
+    done: "সম্পন্ন",
+    markPracticeDone: "অনুশীলন সম্পন্ন করুন",
+    correctAnswer: "সঠিক উত্তর",
+    playAudio: "অডিও চালান",
+    markComplete: "সম্পন্ন করুন",
+    reviewComplete: "রিভিউ সম্পন্ন",
+    book: "বই",
+    wordList: "শব্দ তালিকা",
+    arabic: "আরবি",
+    transliteration: "উচ্চারণ",
+    english: "অর্থ",
+    meaning: "অর্থ",
+    audio: "অডিও",
+    viewAll: "সব দেখুন",
+    availableBooks: "উপলব্ধ বই",
+    selectedWords: "নির্বাচিত শব্দ",
+    correctCount: "সঠিক",
+    generateNew: "নতুন তৈরি করুন",
+    generateNewTest: "নতুন টেস্ট তৈরি করুন",
+    books: "বই",
+    days: "দিন",
+    soon: "শীঘ্রই",
+    allSelectedSections: "নির্বাচিত সব অংশ",
+    focus: "ফোকাস",
+    anyProgress: "যেকোনো অগ্রগতি",
+    new: "নতুন",
+    learned: "শেখা হয়েছে",
+    due: "বাকি",
+    noVocabularyMatches: "এই নির্বাচনের সঙ্গে কোনো শব্দ মেলেনি।",
+    answered: "উত্তর দেওয়া হয়েছে",
+    spacedRepetition: "পরিকল্পিত রিভিউ",
+    wordsDue: "শব্দ বাকি",
+    noDueWords: "এখন কোনো শব্দ বাকি নেই।",
+    reviewQueue: "রিভিউ সারি",
+    openVocabulary: "শব্দভান্ডার খুলুন",
+    noMistakes: "এখন রিভিউ করার মতো ভুল নেই।",
+    openReviewPage: "রিভিউ পেজ খুলুন",
+    resourcesTitle: "রিসোর্স",
+    open: "খুলুন",
+    learningOverview: "শেখার সারাংশ",
+    learningGoals: "শেখার লক্ষ্য",
+    completedLessons: "সম্পন্ন পাঠ",
+    vocabularyLearned: "শেখা শব্দ",
+    lessonsCompleted: "সম্পন্ন পাঠ",
+    profileDetails: "প্রোফাইল তথ্য",
+    signedInAs: "লগইন করা হয়েছে",
+    viewProgress: "অগ্রগতি দেখুন",
+    signOut: "সাইন আউট",
+    currentBook: "বর্তমান বই",
+    currentLesson: "বর্তমান পাঠ",
+    xpPoints: "XP পয়েন্ট",
+    dailyStreak: "দৈনিক ধারাবাহিকতা",
+    weeklyGoal: "সাপ্তাহিক লক্ষ্য",
+    accountData: "অ্যাকাউন্ট ডেটা",
+    privateAccountData: "এই লগইনের জন্য শেখার অগ্রগতি ব্যক্তিগত",
+    privateAccountDataText: "সম্পন্ন পাঠ, শব্দ রিভিউ, লেখার চেষ্টা, ভুল, ধারাবাহিকতা ও XP এই অ্যাকাউন্টে সংরক্ষিত।",
+    userId: "ইউজার আইডি",
+    storage: "স্টোরেজ",
+    savedAccount: "আপনার অ্যাকাউন্টে সংরক্ষিত",
+    keepHabit: "অভ্যাসটি ধরে রাখুন",
+    openMistakes: "খোলা ভুল",
+    thisWeek: "এই সপ্তাহ",
+    lessonPath: "পাঠের পথ",
+    mastery: "দক্ষতা",
+    inProgress: "চলমান",
+    completed: "সম্পন্ন",
+    bookProgress: "অগ্রগতি",
+    primaryNavigation: "প্রধান নেভিগেশন",
+    openNavigation: "নেভিগেশন খুলুন",
+    openAccountDetails: "অ্যাকাউন্টের তথ্য খুলুন",
+    accountDetails: "অ্যাকাউন্টের তথ্য",
+    coursePreview: "কোর্স প্রিভিউ",
+    quickAccess: "দ্রুত প্রবেশ",
+    guidedLessonPath: "গাইডেড পাঠের পথ",
+    lessonSections: "পাঠের অংশ",
+    vocabularySections: "শব্দভান্ডারের অংশ",
+    vocabularyBooks: "শব্দভান্ডারের বই",
+    vocabularyBank: "শব্দভান্ডার ব্যাংক",
+    supplemental: "অতিরিক্ত",
+    arabicCourseFocus: "এই পাঠে আরবি বাক্য, শব্দ ও ব্যাকরণ ধাপে ধাপে অনুশীলন করা হবে।",
+    grammarSummary: "এই পাঠের মূল ব্যাকরণ ধারণা আরবি উদাহরণের মাধ্যমে অনুশীলন করুন।",
+    thisBookUnavailable: "এই বইটি এখনো উপলব্ধ নয়।",
+    searchSignIn: "কোর্সে খুঁজতে সাইন ইন করুন।",
+    noWordsDue: "এখন কোনো শব্দ রিভিউ বাকি নেই।",
+    noVocabularyDue: "এখন কোনো শব্দভান্ডার রিভিউ বাকি নেই।",
+    bookOneSummary: "বই ১-এর সম্পূর্ণ পাঠ, পরিষ্কার আরবি উদাহরণ ও শব্দভান্ডার।",
+    bookTwoSummary: "বই ২-এ ৩১টি পাঠ, সাজানো শব্দভান্ডার, পাঠ কুইজ ও বইয়ের অনুশীলন আছে।",
+    bookThreeSummary: "বই ৩-এ ৩৪টি পাঠ, বইয়ের অনুশীলন ও সাজানো শব্দভান্ডার আছে।"
+    ,
+    freePlan: "ফ্রি",
+    premiumPlan: "প্রিমিয়াম",
+    currentPlan: "বর্তমান প্ল্যান",
+    subscriptionStatus: "সাবস্ক্রিপশন অবস্থা",
+    active: "চালু",
+    upgradeRequired: "প্রিমিয়াম দরকার",
+    upgradeToPremium: "প্রিমিয়ামে আপগ্রেড করুন",
+    premiumUnlocks: "প্রিমিয়ামে আনলক হবে",
+    viewPlan: "প্ল্যান দেখুন",
+    continueBookOne: "বই ১ চালিয়ে যান",
+    premiumFeature: "প্রিমিয়াম ফিচার",
+    included: "অন্তর্ভুক্ত",
+    lockedPremium: "প্রিমিয়াম",
+    freePlanText: "বই ১-এর শেখা, শব্দ তালিকা, অডিও এবং বেসিক ৩-প্রশ্নের শব্দ টেস্ট।",
+    premiumPlanText: "বই ২-৩, সব অনুশীলন, পাঠ কুইজ, ভুল রিভিউ, spaced review, উন্নত অগ্রগতি এবং সম্পূর্ণ শব্দ টেস্টার।",
+    paidBookText: "এই বইটি প্রিমিয়াম প্ল্যানে আছে। বই ১ ফ্রিতে চালিয়ে যেতে পারবেন।",
+    paidLessonTabText: "এই পাঠের অনুশীলন, কুইজ ও রিভিউ প্রিমিয়ামে আনলক হবে।",
+    paidProgressText: "সম্পূর্ণ অগ্রগতি, ভুল রিভিউ ও spaced repetition প্রিমিয়াম প্ল্যানে আছে।",
+    paidTesterText: "বই ২-৩, due words, mistake filters এবং সম্পূর্ণ শব্দ টেস্টার প্রিমিয়ামে আনলক হবে।",
+    basicTester: "বেসিক টেস্টার",
+    allBooks: "সব বই",
+    allBooksText: "বই ১, বই ২, বই ৩",
+    allExercises: "সব অনুশীলন",
+    allExercisesText: "ভাঁজ করা অনুশীলন, লেখা যাচাই, কুইজ",
+    advancedReview: "উন্নত রিভিউ",
+    advancedReviewText: "ভুল, বাকি শব্দ, পরিকল্পিত রিভিউ",
+    paymentLater: "পেমেন্ট চেকআউট পরে যুক্ত করা যাবে।"
+  }
+};
+
+const bengaliMeanings = {
+  "what is this? this is a book.": "এটা কী? এটা একটি বই।",
+  "this is a pen.": "এটা একটি কলম।",
+  "is this a house? yes, this is a house.": "এটা কি একটি বাড়ি? হ্যাঁ, এটা একটি বাড়ি।",
+  "this is a book.": "এটা একটি বই।",
+  "the book is on the desk.": "বইটি ডেস্কের উপর আছে।",
+  "where is the teacher's book?": "শিক্ষকের বই কোথায়?",
+  "the teacher entered the classroom.": "শিক্ষক শ্রেণিকক্ষে প্রবেশ করলেন।",
+  "bilal went to the mosque.": "বিলাল মসজিদে গেল।",
+  "indeed, the house is new.": "নিশ্চয়ই বাড়িটি নতুন।",
+  "i will not go tomorrow.": "আমি আগামীকাল যাব না।",
+  "lesson quiz": "পাঠ কুইজ",
+  "vocabulary": "শব্দভান্ডার",
+  "vocabulary quiz": "শব্দভান্ডার কুইজ",
+  "vocab tester": "শব্দ টেস্টার",
+  "random vocabulary quiz": "র‌্যান্ডম শব্দভান্ডার কুইজ",
+  "writing practice": "লেখার অনুশীলন",
+  "resources": "রিসোর্স",
+  "practice set": "অনুশীলন সেট",
+  "progress tool": "অগ্রগতি টুল",
+  "review tool": "রিভিউ টুল",
+  "answer questions": "প্রশ্নের উত্তর",
+  "fill the blanks": "শূন্যস্থান পূরণ",
+  "transform the sentence": "বাক্য রূপান্তর",
+  "plural practice": "বহুবচন অনুশীলন",
+  "correction drill": "সংশোধন অনুশীলন",
+  "counting drill": "গণনা অনুশীলন",
+  "matching drill": "মেলানো অনুশীলন",
+  "read and write": "পড়ুন ও লিখুন",
+  "book practice": "বইয়ের অনুশীলন",
+  "practice": "অনুশীলন",
+  "review this item.": "এই বিষয়টি রিভিউ করুন।",
+  "blank": "খালি",
+  "lesson mistakes": "পাঠের ভুল",
+  "mistakes and due vocabulary": "ভুল ও বাকি শব্দভান্ডার",
+  "complete book 1 curriculum extracted from the attached english key, with cleaned arabic examples and vocabulary.": "বই ১-এর সম্পূর্ণ পাঠ, পরিষ্কার আরবি উদাহরণ ও শব্দভান্ডার।",
+  "book 2 is now available with 31 lessons, curated vocabulary from the attached vocabulary pdf, lesson quizzes, and exercise prompts from the english key.": "বই ২-এ ৩১টি পাঠ, সাজানো শব্দভান্ডার, পাঠ কুইজ ও বইয়ের অনুশীলন আছে।",
+  "book 3 is now available with 34 lessons, ocr-backed exercise prompts from the english key, and curated vocabulary from the attached vocabulary pdf.": "বই ৩-এ ৩৪টি পাঠ, বইয়ের অনুশীলন ও সাজানো শব্দভান্ডার আছে।",
+  "book 1 lesson path": "বই ১ পাঠের পথ",
+  "book 2 lesson path": "বই ২ পাঠের পথ",
+  "book 3 lesson path": "বই ৩ পাঠের পথ",
+  "all lesson readers, quizzes, and collapsible exercise sections for the available books.": "উপলব্ধ বইগুলোর সব পাঠ, কুইজ ও ভাঁজ করা অনুশীলন অংশ।",
+  "expanded vocabulary table with arabic, transliteration, english, lesson number, and audio playback.": "আরবি, উচ্চারণ, অর্থ, পাঠ নম্বর ও অডিওসহ বিস্তৃত শব্দ তালিকা।",
+  "interactive lesson and vocabulary quizzes for every available lesson.": "প্রতিটি উপলব্ধ পাঠের জন্য ইন্টারঅ্যাক্টিভ পাঠ ও শব্দ কুইজ।",
+  "account progress": "অ্যাকাউন্ট অগ্রগতি",
+  "private streak, xp, completed lessons, learned words, and mistake review.": "ব্যক্তিগত ধারাবাহিকতা, XP, সম্পন্ন পাঠ, শেখা শব্দ ও ভুল রিভিউ।",
+  "audio practice": "অডিও অনুশীলন",
+  "tap any arabic sentence or vocabulary item to hear pronunciation using the browser voice.": "ব্রাউজারের কণ্ঠ দিয়ে উচ্চারণ শুনতে যেকোনো আরবি বাক্য বা শব্দে চাপুন।",
+  "checked writing practice": "যাচাই করা লেখার অনুশীলন",
+  "write answers for book exercises, check them instantly, and save mistakes for review.": "বইয়ের অনুশীলনে উত্তর লিখুন, সঙ্গে সঙ্গে যাচাই করুন, আর ভুলগুলো রিভিউয়ের জন্য সংরক্ষণ করুন।",
+  "based on lesson completion, checked exercises, writing practice, quizzes, and vocabulary review.": "পাঠ সম্পন্ন করা, যাচাই করা অনুশীলন, লেখার অনুশীলন, কুইজ ও শব্দভান্ডার রিভিউয়ের উপর ভিত্তি করে।",
+  "no lesson quiz has been added for this lesson yet.": "এই পাঠে এখনো কোনো কুইজ যোগ করা হয়নি।",
+  "no vocabulary is available for this lesson yet.": "এই পাঠের জন্য এখনো কোনো শব্দভান্ডার নেই।",
+  "no ocr exercise prompts were found for this lesson.": "এই পাঠের জন্য বই থেকে কোনো অনুশীলন পাওয়া যায়নি।",
+  "this book is not available yet.": "এই বইটি এখনো উপলব্ধ নয়।",
+  "read this aloud, then write it from memory.": "এটি জোরে পড়ুন, তারপর মুখস্থ থেকে লিখুন।",
+  "compare your writing with the model sentence.": "আপনার লেখা নমুনা বাক্যের সঙ্গে মিলিয়ে দেখুন।",
+  "match this arabic word to its english meaning.": "এই আরবি শব্দটির বাংলা অর্থের সঙ্গে মিল করুন।",
+  "use this word in the requested number pattern.": "চাওয়া সংখ্যা-প্যাটার্নে এই শব্দটি ব্যবহার করুন।",
+  "translate this sentence into english.": "এই বাক্যটির বাংলা অর্থ লিখুন।",
+  "what does this word mean?": "এই শব্দের অর্থ কী?",
+  "fill the blank, then read the full sentence.": "শূন্যস্থান পূরণ করুন, তারপর পুরো বাক্য পড়ুন।",
+  "fill the blank using the lesson sentence pattern.": "পাঠের বাক্য-প্যাটার্ন ব্যবহার করে শূন্যস্থান পূরণ করুন।",
+  "type the arabic model sentence from memory.": "মুখস্থ থেকে আরবি নমুনা বাক্যটি লিখুন।",
+  "answer using the lesson pattern:": "পাঠের ধরন ব্যবহার করে উত্তর দিন:",
+  "use the lesson example and vocabulary to complete this book exercise.": "পাঠের উদাহরণ ও শব্দভান্ডার ব্যবহার করে এই বইয়ের অনুশীলন সম্পন্ন করুন।",
+  "read and copy the lesson examples with the correct endings.": "সঠিক শেষ-চিহ্নসহ পাঠের উদাহরণগুলো পড়ুন ও কপি করুন।",
+  "answer short questions using the lesson pattern.": "পাঠের ধরন ব্যবহার করে ছোট প্রশ্নের উত্তর দিন।",
+  "fill in blanks with suitable words from this lesson.": "এই পাঠের উপযুক্ত শব্দ দিয়ে শূন্যস্থান পূরণ করুন।",
+  "translate between arabic and english using the lesson vocabulary.": "পাঠের শব্দভান্ডার ব্যবহার করে আরবি ও বাংলার মধ্যে অর্থ অনুশীলন করুন।",
+  "book": "বই",
+  "house": "বাড়ি",
+  "mosque": "মসজিদ",
+  "door": "দরজা",
+  "pen": "কলম",
+  "key": "চাবি",
+  "star": "তারা",
+  "boy": "ছেলে",
+  "man": "পুরুষ",
+  "merchant": "ব্যবসায়ী",
+  "dog": "কুকুর",
+  "cat": "বিড়াল",
+  "donkey": "গাধা",
+  "horse": "ঘোড়া",
+  "camel": "উট",
+  "rooster": "মোরগ",
+  "chair": "চেয়ার",
+  "stone": "পাথর",
+  "sugar": "চিনি",
+  "milk": "দুধ",
+  "open": "খোলা",
+  "broken": "ভাঙা",
+  "rich": "ধনী",
+  "poor": "গরিব",
+  "tall": "লম্বা",
+  "short": "খাটো",
+  "cold": "ঠান্ডা",
+  "hot": "গরম",
+  "sitting": "বসা",
+  "standing": "দাঁড়ানো",
+  "old": "পুরোনো",
+  "far": "দূর",
+  "dirty": "নোংরা",
+  "big": "বড়",
+  "heavy": "ভারী",
+  "water": "পানি",
+  "beautiful": "সুন্দর",
+  "sweet": "মিষ্টি",
+  "sick": "অসুস্থ",
+  "room": "ঘর",
+  "bathroom": "গোসলখানা",
+  "kitchen": "রান্নাঘর",
+  "classroom": "শ্রেণিকক্ষ",
+  "bed": "বিছানা",
+  "teacher": "শিক্ষক",
+  "female teacher": "শিক্ষিকা",
+  "student": "ছাত্র",
+  "name": "নাম",
+  "son": "ছেলে",
+  "daughter": "মেয়ে",
+  "street": "রাস্তা",
+  "car": "গাড়ি",
+  "bag": "ব্যাগ",
+  "doctor": "ডাক্তার",
+  "paternal uncle": "চাচা",
+  "maternal uncle": "মামা",
+  "girl / daughter": "মেয়ে / কন্যা",
+  "brother": "ভাই",
+  "sister": "বোন",
+  "hand": "হাত",
+  "leg": "পা",
+  "head": "মাথা",
+  "nose": "নাক",
+  "eye": "চোখ",
+  "ear": "কান",
+  "face": "মুখ",
+  "iron": "লোহা",
+  "cow": "গরু",
+  "window": "জানালা",
+  "fast": "দ্রুত",
+  "egg": "ডিম",
+  "knife": "ছুরি",
+  "closed": "বন্ধ",
+  "after": "পরে",
+  "before": "আগে",
+  "never (future)": "কখনো না (ভবিষ্যৎ)",
+  "never (past)": "কখনো না (অতীত)",
+  "to change": "পরিবর্তন হওয়া",
+  "to appear": "প্রকাশ পাওয়া",
+  "to distinguish": "পার্থক্য করা",
+  "to omit": "বাদ দেওয়া",
+  "to contact / be attached": "যোগাযোগ করা / যুক্ত থাকা",
+  "to remain / stay": "থাকা / স্থির থাকা",
+  "meaning": "অর্থ",
+  "state / circumstance": "অবস্থা / পরিস্থিতি",
+  "except": "ব্যতীত",
+  "relative / closer": "নিকটাত্মীয় / আরও নিকট",
+  "viper": "সাপ",
+  "heat": "তাপ",
+  "wounded person": "আহত ব্যক্তি",
+  "to rise": "উঠা",
+  "to set": "অস্ত যাওয়া",
+  "to pronounce / speak": "উচ্চারণ করা / কথা বলা",
+  "to accept": "গ্রহণ করা",
+  "to establish": "প্রতিষ্ঠা করা",
+  "to carry": "বহন করা",
+  "to wish / want": "ইচ্ছা করা / চাওয়া",
+  "to explain": "ব্যাখ্যা করা"
+};
+
+const bengaliVocabularyMeanings = {
+  "this": "এটি",
+  "that": "ওটি",
+  "these": "এগুলো",
+  "those": "ওগুলো",
+  "what": "কী",
+  "who": "কে",
+  "where": "কোথায়",
+  "when": "কখন",
+  "why": "কেন",
+  "how": "কীভাবে",
+  "which": "কোন",
+  "whose": "কার",
+  "yes": "হ্যাঁ",
+  "no": "না",
+  "not": "না",
+  "never": "কখনো না",
+  "and": "এবং",
+  "or": "অথবা",
+  "but": "কিন্তু",
+  "because": "কারণ",
+  "if": "যদি",
+  "in": "ভিতরে",
+  "on": "উপর",
+  "to": "দিকে",
+  "from": "থেকে",
+  "with": "সঙ্গে",
+  "for": "জন্য",
+  "before": "আগে",
+  "after": "পরে",
+  "behind": "পিছনে",
+  "between": "মাঝে",
+  "under": "নিচে",
+  "there": "সেখানে",
+  "here": "এখানে",
+  "now": "এখন",
+  "today": "আজ",
+  "tomorrow": "আগামীকাল",
+  "yesterday": "গতকাল",
+  "always": "সবসময়",
+  "sometimes": "কখনো কখনো",
+  "only": "শুধু",
+  "also": "এছাড়াও",
+  "very": "খুব",
+  "all": "সব",
+  "some": "কিছু",
+  "one": "এক",
+  "two": "দুই",
+  "three": "তিন",
+  "four": "চার",
+  "five": "পাঁচ",
+  "six": "ছয়",
+  "seven": "সাত",
+  "eight": "আট",
+  "nine": "নয়",
+  "ten": "দশ",
+  "twenty": "বিশ",
+  "hundred": "শত",
+  "thousand": "হাজার",
+  "half": "অর্ধেক",
+  "third": "তৃতীয়",
+  "book": "বই",
+  "books": "বইগুলো",
+  "lesson": "পাঠ",
+  "lessons": "পাঠগুলো",
+  "word": "শব্দ",
+  "words": "শব্দগুলো",
+  "sentence": "বাক্য",
+  "question": "প্রশ্ন",
+  "answer": "উত্তর",
+  "meaning": "অর্থ",
+  "language": "ভাষা",
+  "arabic": "আরবি",
+  "english": "ইংরেজি",
+  "grammar": "ব্যাকরণ",
+  "noun": "বিশেষ্য",
+  "verb": "ক্রিয়া",
+  "particle": "অব্যয়",
+  "pronoun": "সর্বনাম",
+  "adjective": "বিশেষণ",
+  "subject": "কর্তা",
+  "object": "কর্ম",
+  "past tense": "অতীত কাল",
+  "present/future tense": "বর্তমান/ভবিষ্যৎ কাল",
+  "present/future verb": "বর্তমান/ভবিষ্যৎ ক্রিয়া",
+  "imperative": "আদেশরূপ",
+  "verbal noun": "ক্রিয়াবাচক বিশেষ্য",
+  "nominal sentence": "নামবাচক বাক্য",
+  "verbal sentence": "ক্রিয়াবাচক বাক্য",
+  "accusative": "নসব অবস্থা",
+  "genitive": "জার অবস্থা",
+  "nominative": "রফ অবস্থা",
+  "jussive": "জযম অবস্থা",
+  "subjunctive": "নসব অবস্থা",
+  "diptote": "গায়র মুনসরিফ",
+  "proper noun": "ব্যক্তিনাম",
+  "definite": "নির্দিষ্ট",
+  "indefinite": "অনির্দিষ্ট",
+  "singular": "একবচন",
+  "plural": "বহুবচন",
+  "dual": "দ্বিবচন",
+  "masculine": "পুংলিঙ্গ",
+  "feminine": "স্ত্রীলিঙ্গ",
+  "rule": "নিয়ম",
+  "form": "রূপ",
+  "pattern": "ওজন",
+  "condition": "শর্ত",
+  "exception": "ব্যতিক্রম",
+  "emphasis": "জোর",
+  "negative": "নেতিবাচক",
+  "affirmative": "ইতিবাচক",
+  "transitive": "সকর্মক",
+  "intransitive": "অকর্মক",
+  "house": "বাড়ি",
+  "mosque": "মসজিদ",
+  "door": "দরজা",
+  "pen": "কলম",
+  "key": "চাবি",
+  "star": "তারা",
+  "boy": "ছেলে",
+  "girl": "মেয়ে",
+  "man": "পুরুষ",
+  "woman": "নারী",
+  "father": "পিতা",
+  "mother": "মাতা",
+  "son": "ছেলে",
+  "daughter": "মেয়ে",
+  "brother": "ভাই",
+  "sister": "বোন",
+  "teacher": "শিক্ষক",
+  "student": "ছাত্র",
+  "pupil": "শিক্ষার্থী",
+  "doctor": "ডাক্তার",
+  "engineer": "ইঞ্জিনিয়ার",
+  "merchant": "ব্যবসায়ী",
+  "minister": "মন্ত্রী",
+  "president": "সভাপতি",
+  "kingdom": "রাজ্য",
+  "city": "শহর",
+  "country": "দেশ",
+  "village": "গ্রাম",
+  "street": "রাস্তা",
+  "road": "রাস্তা",
+  "market": "বাজার",
+  "school": "স্কুল",
+  "university": "বিশ্ববিদ্যালয়",
+  "library": "লাইব্রেরি",
+  "classroom": "শ্রেণিকক্ষ",
+  "room": "ঘর",
+  "bathroom": "গোসলখানা",
+  "kitchen": "রান্নাঘর",
+  "office": "অফিস",
+  "hospital": "হাসপাতাল",
+  "clinic": "ক্লিনিক",
+  "airport": "বিমানবন্দর",
+  "station": "স্টেশন",
+  "restaurant": "রেস্তোরাঁ",
+  "shop": "দোকান",
+  "garden": "বাগান",
+  "sea": "সমুদ্র",
+  "river": "নদী",
+  "mountain": "পাহাড়",
+  "sky": "আকাশ",
+  "weather": "আবহাওয়া",
+  "water": "পানি",
+  "milk": "দুধ",
+  "tea": "চা",
+  "coffee": "কফি",
+  "juice": "রস",
+  "food": "খাবার",
+  "fruit": "ফল",
+  "apple": "আপেল",
+  "banana": "কলা",
+  "grapes": "আঙুর",
+  "dates": "খেজুর",
+  "egg": "ডিম",
+  "sugar": "চিনি",
+  "bread": "রুটি",
+  "lentils": "মসুর",
+  "wheat": "গম",
+  "car": "গাড়ি",
+  "bus": "বাস",
+  "train": "ট্রেন",
+  "airplane": "বিমান",
+  "taxi": "ট্যাক্সি",
+  "truck": "ট্রাক",
+  "ticket": "টিকিট",
+  "passport": "পাসপোর্ট",
+  "dog": "কুকুর",
+  "cat": "বিড়াল",
+  "donkey": "গাধা",
+  "horse": "ঘোড়া",
+  "camel": "উট",
+  "bird": "পাখি",
+  "duck": "হাঁস",
+  "cow": "গরু",
+  "rooster": "মোরগ",
+  "hen": "মুরগি",
+  "tiger": "বাঘ",
+  "wolf": "নেকড়ে",
+  "scorpion": "বিচ্ছু",
+  "viper": "সাপ",
+  "hand": "হাত",
+  "leg": "পা",
+  "head": "মাথা",
+  "face": "মুখ",
+  "eye": "চোখ",
+  "ear": "কান",
+  "nose": "নাক",
+  "mouth": "মুখ",
+  "tooth": "দাঁত",
+  "tongue": "জিহ্বা",
+  "shoulder": "কাঁধ",
+  "right hand": "ডান হাত",
+  "left hand": "বাম হাত",
+  "chair": "চেয়ার",
+  "bed": "বিছানা",
+  "desk": "ডেস্ক",
+  "table": "টেবিল",
+  "board": "বোর্ড",
+  "bag": "ব্যাগ",
+  "paper": "কাগজ",
+  "notebook": "খাতা",
+  "pencil": "পেন্সিল",
+  "chalk": "চক",
+  "ink": "কালি",
+  "envelope": "খাম",
+  "letter": "চিঠি",
+  "magazine": "পত্রিকা",
+  "dictionary": "অভিধান",
+  "map": "মানচিত্র",
+  "telephone": "টেলিফোন",
+  "umbrella": "ছাতা",
+  "knife": "ছুরি",
+  "spoon": "চামচ",
+  "cup": "কাপ",
+  "glass": "গ্লাস",
+  "fridge": "ফ্রিজ",
+  "mirror": "আয়না",
+  "comb": "চিরুনি",
+  "soap": "সাবান",
+  "clothes": "কাপড়",
+  "shirt": "শার্ট",
+  "shoe": "জুতা",
+  "sandal": "স্যান্ডেল",
+  "beautiful": "সুন্দর",
+  "good": "ভালো",
+  "new": "নতুন",
+  "old": "পুরোনো",
+  "big": "বড়",
+  "small": "ছোট",
+  "tall": "লম্বা",
+  "short": "খাটো",
+  "long": "লম্বা",
+  "hot": "গরম",
+  "cold": "ঠান্ডা",
+  "sweet": "মিষ্টি",
+  "easy": "সহজ",
+  "difficult": "কঠিন",
+  "rich": "ধনী",
+  "poor": "গরিব",
+  "clean": "পরিষ্কার",
+  "dirty": "নোংরা",
+  "open": "খোলা",
+  "closed": "বন্ধ",
+  "broken": "ভাঙা",
+  "heavy": "ভারী",
+  "light": "হালকা",
+  "near": "কাছে",
+  "far": "দূরে",
+  "fast": "দ্রুত",
+  "slowly": "ধীরে",
+  "happy": "খুশি",
+  "angry": "রাগান্বিত",
+  "hungry": "ক্ষুধার্ত",
+  "thirsty": "তৃষ্ণার্ত",
+  "sick": "অসুস্থ",
+  "tired": "ক্লান্ত",
+  "ready": "প্রস্তুত",
+  "busy": "ব্যস্ত",
+  "famous": "বিখ্যাত",
+  "important": "গুরুত্বপূর্ণ",
+  "suitable": "উপযুক্ত",
+  "useful": "উপকারী",
+  "white": "সাদা",
+  "black": "কালো",
+  "red": "লাল",
+  "green": "সবুজ",
+  "blue": "নীল",
+  "yellow": "হলুদ",
+  "I": "আমি",
+  "i": "আমি",
+  "we": "আমরা",
+  "you": "তুমি",
+  "he": "সে",
+  "she": "সে",
+  "they": "তারা",
+  "my": "আমার",
+  "your": "তোমার",
+  "his": "তার",
+  "her": "তার",
+  "our": "আমাদের",
+  "their": "তাদের",
+  "Allah": "আল্লাহ",
+  "Prophet": "নবী",
+  "prophet": "নবী",
+  "Muslim": "মুসলিম",
+  "Muslims": "মুসলিমরা",
+  "Qur'an": "কুরআন",
+  "Ka'bah": "কাবা",
+  "adhan": "আযান",
+  "imam": "ইমাম",
+  "prayer": "নামাজ",
+  "religion": "ধর্ম",
+  "faith": "ঈমান",
+  "piety": "তাকওয়া",
+  "Hajj": "হজ",
+  "Umrah": "উমরা",
+  "Musa": "মূসা",
+  "Ahmad": "আহমদ",
+  "Maryam": "মারইয়াম",
+  "Fatimah": "ফাতিমা",
+  "Umar": "উমর",
+  "Bilal": "বিলাল",
+  "Aminah": "আমিনা",
+  "Madinah": "মদিনা",
+  "Makkah": "মক্কা",
+  "Baghdad": "বাগদাদ",
+  "Egypt": "মিশর",
+  "India": "ভারত",
+  "Indonesia": "ইন্দোনেশিয়া",
+  "Japan": "জাপান",
+  "Germany": "জার্মানি",
+  "England": "ইংল্যান্ড",
+  "America": "আমেরিকা",
+  "Europe": "ইউরোপ",
+  "Asia": "এশিয়া",
+  "Cairo": "কায়রো",
+  "Kuwait": "কুয়েত",
+  "Jeddah": "জেদ্দা",
+  "Iraq": "ইরাক",
+  "Washington": "ওয়াশিংটন"
+};
+
+const bengaliVerbMeanings = {
+  "go": "যাওয়া",
+  "went": "গিয়েছিল",
+  "come": "আসা",
+  "came": "এসেছিল",
+  "enter": "প্রবেশ করা",
+  "entered": "প্রবেশ করেছিল",
+  "open": "খোলা",
+  "opened": "খুলেছিল",
+  "write": "লেখা",
+  "writes": "লেখে",
+  "wrote": "লিখেছিল",
+  "study": "পড়া",
+  "studies": "পড়ে",
+  "learn": "শেখা",
+  "learned": "শিখেছিল",
+  "teach": "শেখানো",
+  "taught": "শেখিয়েছিল",
+  "love": "ভালোবাসা",
+  "want": "চাওয়া",
+  "wanted": "চেয়েছিল",
+  "say": "বলা",
+  "said": "বলেছিল",
+  "see": "দেখা",
+  "saw": "দেখেছিল",
+  "understand": "বোঝা",
+  "understood": "বুঝেছিল",
+  "ask": "জিজ্ঞেস করা",
+  "asked": "জিজ্ঞেস করেছিল",
+  "drink": "পান করা",
+  "drank": "পান করেছিল",
+  "eat": "খাওয়া",
+  "sit": "বসা",
+  "sat": "বসেছিল",
+  "stand": "দাঁড়ানো",
+  "sleep": "ঘুমানো",
+  "read": "পড়া",
+  "bring": "নিয়ে আসা",
+  "take": "নেওয়া",
+  "give": "দেওয়া",
+  "return": "ফিরে আসা",
+  "returned": "ফিরে এসেছিল",
+  "memorize": "মুখস্থ করা",
+  "permit": "অনুমতি দেওয়া",
+  "perform": "আদায় করা",
+  "accept": "গ্রহণ করা",
+  "explain": "ব্যাখ্যা করা",
+  "appear": "প্রকাশ পাওয়া",
+  "remain": "থাকা",
+  "rise": "উঠা",
+  "set": "অস্ত যাওয়া",
+  "speak": "কথা বলা",
+  "carry": "বহন করা",
+  "wish": "ইচ্ছা করা",
+  "visit": "সাক্ষাৎ করা",
+  "wait": "অপেক্ষা করা",
+  "reply": "উত্তর দেওয়া",
+  "sell": "বিক্রি করা",
+  "buy": "কেনা",
+  "call": "ডাকা",
+  "invite": "আমন্ত্রণ করা",
+  "guide": "পথ দেখানো",
+  "praise": "প্রশংসা করা",
+  "forgive": "ক্ষমা করা",
+  "choose": "বেছে নেওয়া",
+  "gather": "জমা করা",
+  "smile": "হাসা",
+  "translate": "অনুবাদ করা"
+};
+
+function icon(name) {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${iconPaths[name] || iconPaths.home}</svg>`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function isBengali() {
+  return state.language === "bn";
+}
+
+function t(key, fallback = key) {
+  return isBengali() ? (uiText.bn[key] || fallback) : fallback;
+}
+
+function routeLabel(route) {
+  return t(route.id, route.label);
+}
+
+function localizedText(value) {
+  const text = String(value || "");
+  if (!isBengali()) return text;
+
+  const exact = bengaliMeanings[normalizeMeaningKey(text)];
+  if (exact) return exact;
+
+  const phrase = text
+    .split(" / ")
+    .map((part) => bengaliMeanings[normalizeMeaningKey(part)] || localizedMeaningPart(part) || part)
+    .join(" / ");
+  if (phrase !== text && !/[A-Za-z]/.test(phrase)) return phrase;
+
+  const generated = localizedMeaningPart(text);
+  if (generated) return generated;
+
+  return bengaliFallbackFor(text);
+}
+
+function localizedMeaningPart(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  const normalized = normalizeMeaningKey(text);
+  if (bengaliMeanings[normalized]) return bengaliMeanings[normalized];
+  const term = lookupBengaliTerm(text, bengaliVocabularyMeanings);
+  if (term) return term;
+
+  const slashParts = text.split(/\s*\/\s*/).filter(Boolean);
+  if (slashParts.length > 1) {
+    return slashParts.map((part) => localizedMeaningPart(part) || fallbackBengaliMeaning(part)).join(" / ");
+  }
+
+  const parenthetical = text.match(/^(.+?)\s*\((.+)\)$/);
+  if (parenthetical) {
+    const base = localizedMeaningPart(parenthetical[1]) || fallbackBengaliMeaning(parenthetical[1]);
+    const note = localizedMeaningPart(parenthetical[2]) || fallbackBengaliMeaning(parenthetical[2]);
+    return `${base} (${note})`;
+  }
+
+  if (normalized.startsWith("the ")) {
+    return localizedMeaningPart(text.replace(/^the\s+/i, "")) || fallbackBengaliMeaning(text);
+  }
+
+  if (normalized.startsWith("a ")) {
+    const base = localizedMeaningPart(text.replace(/^a\s+/i, ""));
+    if (base) return `একটি ${base}`;
+  }
+
+  const toVerb = text.match(/^to\s+(.+)$/i);
+  if (toVerb) return localizedVerbPhrase(toVerb[1]);
+
+  const pronounVerb = text.match(/^(i|we|you|he|she|they)\s+(.+)$/i);
+  if (pronounVerb) {
+    const pronoun = lookupBengaliTerm(pronounVerb[1], bengaliVocabularyMeanings);
+    return `${pronoun} ${localizedVerbPhrase(pronounVerb[2])}`.trim();
+  }
+
+  const possessive = text.match(/^(.+?)\s+of\s+(.+)$/i);
+  if (possessive) {
+    const first = localizedMeaningPart(possessive[1]) || fallbackBengaliMeaning(possessive[1]);
+    const second = localizedMeaningPart(possessive[2]) || fallbackBengaliMeaning(possessive[2]);
+    return `${second}-এর ${first}`;
+  }
+
+  const wordTranslation = translateWordsToBengali(text);
+  if (wordTranslation) return wordTranslation;
+
+  return "";
+}
+
+function localizedVerbPhrase(value) {
+  const text = String(value || "").trim();
+  const normalized = normalizeMeaningKey(text)
+    .replace(/^not\s+/, "না ")
+    .replace(/^be\s+/, "")
+    .replace(/^is\s+/, "")
+    .replace(/^are\s+/, "");
+
+  const verb = lookupBengaliTerm(normalized, bengaliVerbMeanings);
+  if (verb) return verb;
+  const noun = lookupBengaliTerm(normalized, bengaliVocabularyMeanings);
+  if (noun) return noun;
+
+  const slashParts = text.split(/\s*\/\s*/).filter(Boolean);
+  if (slashParts.length > 1) {
+    return slashParts.map((part) => localizedVerbPhrase(part)).join(" / ");
+  }
+
+  const cleaned = normalized
+    .replace(/^be\s+/, "")
+    .replace(/^a\s+/, "")
+    .replace(/^the\s+/, "");
+  const cleanedVerb = lookupBengaliTerm(cleaned, bengaliVerbMeanings);
+  if (cleanedVerb) return cleanedVerb;
+
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  const translated = words
+    .map((word) => lookupBengaliTerm(word, bengaliVerbMeanings) || lookupBengaliTerm(word, bengaliVocabularyMeanings) || "")
+    .filter(Boolean);
+  if (translated.length === words.length && translated.length) return translated.join(" ");
+
+  return `${fallbackBengaliMeaning(text)} করা`;
+}
+
+function translateWordsToBengali(value) {
+  const text = String(value || "").trim();
+  const words = text
+    .replace(/[.,!?;:]+$/g, "")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length || words.length > 6) return "";
+
+  const translated = words.map((word) => {
+    const clean = normalizeMeaningKey(word.replace(/[()]/g, ""));
+    return lookupBengaliTerm(clean, bengaliVocabularyMeanings)
+      || lookupBengaliTerm(clean, bengaliVerbMeanings)
+      || lookupBengaliTerm(singularizeEnglish(clean), bengaliVocabularyMeanings)
+      || "";
+  });
+
+  if (translated.every(Boolean)) return translated.join(" ");
+  return "";
+}
+
+function lookupBengaliTerm(value, lexicon) {
+  const text = String(value || "").trim();
+  const normalized = normalizeMeaningKey(text);
+  const titleCase = normalized
+    .split(/\s+/)
+    .map((word) => word ? `${word[0].toUpperCase()}${word.slice(1)}` : word)
+    .join(" ");
+  return lexicon[text] || lexicon[normalized] || lexicon[titleCase] || "";
+}
+
+function singularizeEnglish(value) {
+  if (value.endsWith("ies")) return `${value.slice(0, -3)}y`;
+  if (value.endsWith("es")) return value.slice(0, -2);
+  if (value.endsWith("s") && value.length > 3) return value.slice(0, -1);
+  return value;
+}
+
+function fallbackBengaliMeaning(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (!/[A-Za-z]/.test(text)) return text;
+  if (/proper name/i.test(text)) return "ব্যক্তিনাম";
+  if (/language/i.test(text)) return "ভাষা";
+  if (/pattern/i.test(text)) return "রূপ";
+  if (/particle/i.test(text)) return "অব্যয়";
+  if (/verb/i.test(text)) return "ক্রিয়া";
+  if (/noun/i.test(text)) return "বিশেষ্য";
+  if (/pronoun/i.test(text)) return "সর্বনাম";
+  if (/sentence/i.test(text)) return "বাক্য";
+  if (/question/i.test(text)) return "প্রশ্ন";
+  if (/object/i.test(text)) return "কর্ম";
+  if (/subject/i.test(text)) return "কর্তা";
+  return "বাংলা অর্থ";
+}
+
+function bengaliFallbackFor(value) {
+  const text = String(value || "").trim();
+  if (!/[A-Za-z]/.test(text)) return text;
+
+  const patterns = [
+    [/^Choose the English meaning\.$/, "বাংলা অর্থ বেছে নিন।"],
+    [/^Choose the Arabic word for "(.+)"\.$/, (_, word) => `"${localizedText(word)}" অর্থের আরবি শব্দ বেছে নিন।`],
+    [/^Write the Arabic word that means "(.+)"\.$/, (_, word) => `"${localizedText(word)}" অর্থের আরবি শব্দ লিখুন।`],
+    [/^Which Arabic word means "(.+)"\?$/, (_, word) => `"${localizedText(word)}" অর্থের আরবি শব্দ কোনটি?`],
+    [/^Answer using the lesson pattern: (.+)$/, "পাঠের ধরন ব্যবহার করে উত্তর দিন।"],
+    [/^Fill each blank with a suitable word from this lesson.*$/, "এই পাঠের উপযুক্ত শব্দ দিয়ে শূন্যস্থান পূরণ করুন।"],
+    [/^Rewrite the example by changing.*$/, "নির্দেশ অনুযায়ী সর্বনাম, লিঙ্গ, সংখ্যা বা কর্তা বদলে বাক্যটি লিখুন।"],
+    [/^Write the singular and plural forms.*$/, "পাঠের বিশেষ্যগুলোর একবচন ও বহুবচন লিখুন, তারপর একটি বাক্যে ব্যবহার করুন।"],
+    [/^Find the error, correct.*$/, "ভুলটি খুঁজে সংশোধন করুন, তারপর সঠিক বাক্যটি জোরে পড়ুন।"],
+    [/^Count from 3 to 10.*$/, "এই পাঠের বিশেষ্য ব্যবহার করে ৩ থেকে ১০ পর্যন্ত গণনা করুন।"],
+    [/^Match the Arabic words.*$/, "আরবি শব্দগুলো তাদের অর্থের সঙ্গে মিল করুন।"],
+    [/^Read the example aloud.*$/, "উদাহরণটি জোরে পড়ুন, একবার কপি করুন, তারপর মিল আছে এমন একটি বাক্য লিখুন।"],
+    [/^Ex\.\d+:\s*(.+)$/, (_, prompt) => localizedText(prompt)],
+    [/^Lesson (\d+) Vocabulary$/, (_, number) => `পাঠ ${number} শব্দভান্ডার`],
+    [/^Lesson (\d+)$/, (_, number) => `পাঠ ${number}`],
+    [/^(.+) words due$/, (_, count) => `${count} শব্দ বাকি`],
+    [/^(.+) selected words$/, (_, count) => `${count} নির্বাচিত শব্দ`],
+    [/^(.+) answered$/, (_, count) => `${count} উত্তর দেওয়া হয়েছে`],
+    [/^(.+) lessons available$/, (_, count) => `${count} পাঠ উপলব্ধ`],
+    [/^(.+)% complete$/, (_, count) => `${count}% সম্পন্ন`],
+    [/^(.+)% this week$/, (_, count) => `${count}% এই সপ্তাহে`]
+  ];
+
+  for (const [pattern, replacement] of patterns) {
+    const match = text.match(pattern);
+    if (match) return typeof replacement === "function" ? replacement(...match) : replacement;
+  }
+
+  return "বাংলা অনুবাদ যোগ করা হচ্ছে।";
+}
+
+function bilingualText(value) {
+  const text = String(value || "");
+  const localized = localizedText(text);
+  return isBengali() && localized !== text ? localized : text;
+}
+
+function normalizeMeaningKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function localizedSourceLabel(source) {
+  if (source === "Book model") return t("bookModel", source);
+  if (source === "Practice model") return t("practiceModel", source);
+  return source;
+}
+
+function localizedDifficultyLabel(title) {
+  if (title === "Foundation") return t("foundation", title);
+  if (title === "Build") return t("build", title);
+  if (title === "Challenge") return t("challenge", title);
+  return title;
+}
+
+function localizedLessonTitle(lesson) {
+  return isBengali() ? `${t("lesson", "Lesson")} ${lesson.number}` : lesson.title;
+}
+
+function localizedLessonFocus(lesson) {
+  if (!isBengali()) return lesson.focus;
+  const localized = localizedText(lesson.focus);
+  return localized.includes("বাংলা অনুবাদ") ? t("arabicCourseFocus", "This lesson builds Arabic structures, vocabulary, and grammar step by step.") : localized;
+}
+
+function localizedBookTitle(bookOrSlug) {
+  const book = typeof bookOrSlug === "string" ? getBook(bookOrSlug) : bookOrSlug;
+  if (!isBengali()) return book?.title || "Book";
+  const number = String(book?.slug || "").replace("book-", "");
+  return number ? `${t("book", "Book")} ${number}` : t("book", "Book");
+}
+
+function localizedBookSummary(book) {
+  if (!isBengali()) return book?.summary || "This book is not available yet.";
+  if (book?.slug === "book-1") return t("bookOneSummary", "Book 1 curriculum.");
+  if (book?.slug === "book-2") return t("bookTwoSummary", "Book 2 curriculum.");
+  if (book?.slug === "book-3") return t("bookThreeSummary", "Book 3 curriculum.");
+  return t("thisBookUnavailable", "This book is not available yet.");
+}
+
+function localizedGrammarTitle(rule) {
+  return isBengali() ? `${t("lesson", "Lesson")} ${rule.sequence} ${t("grammar", "Grammar")}` : rule.title;
+}
+
+function localizedGrammarSummary(rule) {
+  if (!isBengali()) return rule.summary;
+  const localized = localizedText(rule.summary);
+  return localized.includes("বাংলা অনুবাদ") ? t("grammarSummary", "Practice the main grammar idea through the Arabic example.") : localized;
+}
+
+function localizedOption(value) {
+  return hasArabic(value) ? value : localizedText(value);
+}
+
+function byId(items, id) {
+  return items.find((item) => item.id === id);
+}
+
+function getCurrentLesson() {
+  return byId(state.data.lessons, state.progress.currentLessonId) || state.data.lessons[0];
+}
+
+function getSelectedLesson() {
+  return byId(state.data.lessons, state.selectedLessonId) || getCurrentLesson();
+}
+
+function lessonsForBook(bookSlug) {
+  return state.data.lessons.filter((lesson) => lesson.bookSlug === bookSlug);
+}
+
+function selectedLessonForBook(bookSlug) {
+  const bookLessons = lessonsForBook(bookSlug);
+  return bookLessons.find((lesson) => lesson.id === state.selectedLessonId)
+    || bookLessons.find((lesson) => lesson.id === state.progress.currentLessonId)
+    || bookLessons[0];
+}
+
+function lessonProgressPercent(bookSlug = null) {
+  const scopedLessons = bookSlug ? lessonsForBook(bookSlug) : state.data.lessons;
+  if (!scopedLessons.length) return 0;
+  const scopedIds = new Set(scopedLessons.map((lesson) => lesson.id));
+  const completed = state.progress.completedLessonIds.filter((id) => scopedIds.has(id)).length;
+  return Math.round((completed / scopedLessons.length) * 100);
+}
+
+function weeklyPercent() {
+  return Math.round((state.progress.weeklyGoalCompleted / state.progress.weeklyGoalTarget) * 100);
+}
+
+function vocabularyPercent() {
+  return Math.round((state.progress.learnedVocabularyIds.length / state.data.vocabulary.length) * 100);
+}
+
+function getLessonVocabulary(lesson) {
+  return state.data.vocabulary.filter((word) => lesson.vocabularyIds.includes(word.id));
+}
+
+function getBook(slug) {
+  return state.data.books.find((book) => book.slug === slug);
+}
+
+function isBookRoute(routeId) {
+  return /^book-\d+$/.test(routeId);
+}
+
+function routeIsLocked(route) {
+  const book = isBookRoute(route.id) ? getBook(route.id) : null;
+  if (book) return book.status !== "available" || (isAuthenticated() && !canAccessBookSlug(route.id));
+  return Boolean(route.locked) || (isAuthenticated() && routeRequiresPremium(route.id));
+}
+
+function getVocabularyWordsForBook(bookSlug) {
+  return state.data.vocabulary.filter((word) => word.bookSlug === bookSlug);
+}
+
+function getVocabularyBookOptions() {
+  return state.data.books.map((book) => ({
+    ...book,
+    wordCount: getVocabularyWordsForBook(book.slug).length
+  }));
+}
+
+function currentVocabularyBook() {
+  const options = getVocabularyBookOptions();
+  const selected = options.find((book) => book.slug === state.selectedVocabularyBookSlug && book.status === "available" && canAccessBookSlug(book.slug));
+  return selected || options.find((book) => book.status === "available" && canAccessBookSlug(book.slug)) || options[0];
+}
+
+function vocabularyLessonKey(bookSlug, lessonNumber) {
+  return `${bookSlug}:${lessonNumber}`;
+}
+
+function wordLessonKey(word) {
+  return vocabularyLessonKey(word.bookSlug, word.lessonNumber);
+}
+
+function lessonLabelForWord(word) {
+  const book = getBook(word.bookSlug);
+  if (word.lessonNumber === "PDF") return `${localizedBookTitle(book)} ${t("supplemental", "Supplemental")}`;
+  const lesson = state.data.lessons.find((item) => item.bookSlug === word.bookSlug && item.number === word.lessonNumber);
+  return `${localizedBookTitle(book)} ${t("lesson", "Lesson")} ${word.lessonNumber}${lesson && !isBengali() ? ` · ${lesson.title}` : ""}`;
+}
+
+function routeForResource(resource) {
+  if (resource.kind === "Practice") return "exercises";
+  const relatedBook = state.data.books.find((book) =>
+    resource.id.includes(book.slug) || resource.title.includes(book.title)
+  );
+  return relatedBook?.slug || "resources";
+}
+
+function progressRecord(name) {
+  return state.progress?.[name] || {};
+}
+
+function isAuthenticated() {
+  return Boolean(state.user && !state.user.isDemo);
+}
+
+function currentPlanKey() {
+  if (!isAuthenticated()) return "free";
+  return state.user.subscriptionPlan === "paid" && state.user.subscriptionStatus === "active" ? "paid" : "free";
+}
+
+function currentPlan() {
+  return planEntitlements[currentPlanKey()] || planEntitlements.free;
+}
+
+function hasPremiumAccess() {
+  return currentPlanKey() === "paid";
+}
+
+function localizedPlanLabel(planKey = currentPlanKey()) {
+  return planKey === "paid" ? t("premiumPlan", "Premium") : t("freePlan", "Free");
+}
+
+function canAccessBookSlug(bookSlug) {
+  return currentPlan().books.includes(bookSlug);
+}
+
+function canAccessLessonTab(tab) {
+  return currentPlan().lessonTabs.includes(tab);
+}
+
+function canAccessTesterBook(bookSlug) {
+  return currentPlan().testerBooks.includes(bookSlug);
+}
+
+function canAccessTesterFocus(focus) {
+  return currentPlan().testerFocus.includes(focus);
+}
+
+function routeRequiresPremium(routeId) {
+  if (isBookRoute(routeId)) return !canAccessBookSlug(routeId);
+  return currentPlan().paidRoutes.includes(routeId);
+}
+
+function paidFeatureText(feature = "default") {
+  const copy = {
+    book: t("paidBookText", "This book is part of Premium. You can continue Book 1 for free."),
+    lessonTab: t("paidLessonTabText", "Lesson exercises, quizzes, and review are unlocked with Premium."),
+    progress: t("paidProgressText", "Full progress, mistake review, and spaced repetition are part of Premium."),
+    tester: t("paidTesterText", "Book 2-3, due words, mistake filters, and the full vocabulary tester unlock with Premium."),
+    default: t("premiumPlanText", "Book 2-3, all exercises, lesson quizzes, mistake review, spaced review, advanced progress, and the full vocabulary tester.")
+  };
+  return copy[feature] || copy.default;
+}
+
+function reviewStatsFor(wordId, correct) {
+  const current = progressRecord("vocabularyStats")[wordId] || { level: 0, correct: 0, incorrect: 0 };
+  const level = correct ? Math.min(5, Number(current.level || 0) + 1) : Math.max(0, Number(current.level || 0) - 1);
+  const intervals = [0, 1, 2, 4, 7, 14];
+  const dueAt = new Date(Date.now() + intervals[level] * 24 * 60 * 60 * 1000).toISOString();
+  return {
+    ...current,
+    level,
+    correct: Number(current.correct || 0) + (correct ? 1 : 0),
+    incorrect: Number(current.incorrect || 0) + (correct ? 0 : 1),
+    lastReviewedAt: new Date().toISOString(),
+    dueAt
+  };
+}
+
+function dueVocabularyItems(lesson = null) {
+  const lessonIds = lesson ? new Set(lesson.vocabularyIds || []) : null;
+  return state.data.vocabulary.filter((word) => {
+    if (lessonIds && !lessonIds.has(word.id)) return false;
+    return isVocabularyDue(word);
+  });
+}
+
+function isVocabularyDue(word) {
+  const stats = progressRecord("vocabularyStats")[word.id];
+  if (!stats) return !state.progress.learnedVocabularyIds.includes(word.id);
+  return Date.parse(stats.dueAt || 0) <= Date.now();
+}
+
+function hasOpenVocabularyMistake(word) {
+  const mistakes = progressRecord("mistakes");
+  return [`vocab-${word.id}`, `tester-${word.id}`].some((id) => mistakes[id] && !mistakes[id].resolved);
+}
+
+function vocabularyFocusMatches(word, focus) {
+  const learned = state.progress.learnedVocabularyIds.includes(word.id);
+  if (focus === "new") return !learned;
+  if (focus === "learned") return learned;
+  if (focus === "due") return isVocabularyDue(word);
+  if (focus === "mistakes") return hasOpenVocabularyMistake(word);
+  return true;
+}
+
+function mistakeItems(lesson = null) {
+  const lessonId = lesson?.id;
+  return Object.values(progressRecord("mistakes"))
+    .filter((mistake) => mistake && !mistake.resolved && (!lessonId || mistake.lessonId === lessonId))
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
+function mistakePatch(id, mistake) {
+  return {
+    mistakes: {
+      [id]: {
+        id,
+        resolved: false,
+        createdAt: new Date().toISOString(),
+        ...mistake
+      }
+    }
+  };
+}
+
+function resolvedMistakePatch(id) {
+  return {
+    mistakes: {
+      [id]: {
+        ...(progressRecord("mistakes")[id] || { id }),
+        id,
+        resolved: true,
+        resolvedAt: new Date().toISOString()
+      }
+    }
+  };
+}
+
+function lessonMastery(lesson) {
+  const lessonVocabulary = getLessonVocabulary(lesson);
+  const learned = lessonVocabulary.filter((word) => state.progress.learnedVocabularyIds.includes(word.id)).length;
+  const vocabularyScore = lessonVocabulary.length ? learned / lessonVocabulary.length : 0;
+  const exerciseCards = getLessonExerciseCards(lesson, lessonVocabulary);
+  const exerciseScore = exerciseCards.length
+    ? exerciseCards.filter((card) => progressRecord("exerciseAttempts")[card.id] === "complete" || progressRecord("exerciseAnswers")[card.id] === "correct").length / exerciseCards.length
+    : 0;
+  const lessonQuiz = state.data.exercises.find((item) => item.lessonId === lesson.id);
+  const quizScore = lessonQuiz && progressRecord("exerciseAttempts")[lessonQuiz.id] === "correct" ? 1 : 0;
+  const writingScore = exerciseCards.length
+    ? exerciseCards.filter((card) => progressRecord("writingAttempts")[`write-${card.id}`] === "correct").length / exerciseCards.length
+    : 0;
+  const completedScore = state.progress.completedLessonIds.includes(lesson.id) ? 1 : 0;
+
+  return Math.round((vocabularyScore * 0.3 + exerciseScore * 0.25 + quizScore * 0.2 + writingScore * 0.15 + completedScore * 0.1) * 100);
+}
+
+function normalizeAnswer(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[ـ،.؟?!'"]/g, "")
+    .replace(/[\u064B-\u0652\u0670]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+async function loadApp() {
+  try {
+    const response = await fetch("/api/bootstrap", authFetchOptions());
+    if (!response.ok) throw new Error("Unable to load app data.");
+    const payload = await response.json();
+    state.data = payload;
+    state.progress = payload.progress;
+    state.user = payload.user;
+    state.selectedLessonId = new URLSearchParams(window.location.search).get("lesson") || payload.progress.currentLessonId;
+    state.route = new URLSearchParams(window.location.search).get("route") || state.route;
+    state.selectedExerciseId = payload.exercises[0]?.id || null;
+    render();
+  } catch (error) {
+    document.getElementById("app").innerHTML = `
+      <main class="load-error">
+        <h1>Madinah Arabic</h1>
+        <p>${t("loadError", "The app needs the local server to load lesson data.")}</p>
+        <code>npm run dev</code>
+      </main>
+    `;
+  }
+}
+
+function authFetchOptions(options = {}) {
+  return {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(state.sessionToken ? { "x-session-token": state.sessionToken } : {})
+    }
+  };
+}
+
+async function saveProgress(patch) {
+  const response = await fetch("/api/progress", authFetchOptions({
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(patch)
+  }));
+
+  if (!response.ok) return;
+  const payload = await response.json();
+  state.progress = payload.progress;
+  render();
+}
+
+async function submitAuth(form) {
+  const formData = new FormData(form);
+  const payload = {
+    displayName: formData.get("displayName"),
+    email: formData.get("email"),
+    password: formData.get("password")
+  };
+  const endpoint = state.authMode === "register" ? "/api/auth/register" : "/api/auth/login";
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    state.authError = isBengali() ? t("unableSignIn", "Unable to sign in.") : (data.error || "Unable to sign in.");
+    render();
+    return;
+  }
+
+  state.sessionToken = data.sessionToken;
+  state.user = data.user;
+  state.progress = data.progress;
+  localStorage.setItem("madinah-session-token", data.sessionToken);
+  state.authMode = null;
+  state.authError = "";
+  render();
+}
+
+async function signOut() {
+  await fetch("/api/auth/logout", authFetchOptions({ method: "POST" }));
+  localStorage.removeItem("madinah-session-token");
+  state.sessionToken = "";
+  state.user = null;
+  state.route = "home";
+  state.authMode = null;
+  state.authError = "";
+  loadApp();
+}
+
+function setRoute(route) {
+  if (route !== "home" && !isAuthenticated()) {
+    state.route = "home";
+    state.authMode = "login";
+    state.authError = t("signInLearning", "Please sign in to continue learning.");
+    render();
+    return;
+  }
+
+  if (isAuthenticated() && routeRequiresPremium(route)) {
+    state.route = route;
+    render();
+    return;
+  }
+
+  state.route = route;
+  render();
+}
+
+function setLesson(id) {
+  if (!isAuthenticated()) {
+    state.route = "home";
+    state.authMode = "login";
+    state.authError = t("signInLessons", "Please sign in to open lessons.");
+    render();
+    return;
+  }
+
+  const lesson = byId(state.data.lessons, id);
+  if (!lesson) return;
+  state.selectedLessonId = id;
+  state.route = lesson.bookSlug;
+  state.lessonTab = "learn";
+  render();
+}
+
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "ar-SA";
+  utterance.rate = 0.82;
+  window.speechSynthesis.speak(utterance);
+}
+
+function markLessonComplete(lesson) {
+  const lessonVocabulary = lesson.vocabularyIds || [];
+  const alreadyComplete = state.progress.completedLessonIds.includes(lesson.id);
+  const xp = state.progress.xp + (alreadyComplete ? 0 : 80);
+  saveProgress({
+    activeBookSlug: lesson.bookSlug,
+    currentLessonId: nextLessonId(lesson.id),
+    completedLessonIds: [lesson.id],
+    learnedVocabularyIds: lessonVocabulary,
+    weeklyGoalCompleted: Math.min(state.progress.weeklyGoalTarget, state.progress.weeklyGoalCompleted + (alreadyComplete ? 0 : 1)),
+    xp
+  });
+}
+
+function nextLessonId(currentId) {
+  const current = byId(state.data.lessons, currentId);
+  const scopedLessons = current ? lessonsForBook(current.bookSlug) : state.data.lessons;
+  const index = scopedLessons.findIndex((lesson) => lesson.id === currentId);
+  return scopedLessons[Math.min(index + 1, scopedLessons.length - 1)]?.id || currentId;
+}
+
+function answerExercise(exercise, answer) {
+  if (!hasPremiumAccess()) return;
+  const correct = answer === exercise.answer;
+  state.exerciseFeedback[exercise.id] = correct ? "correct" : "incorrect";
+
+  const previous = state.progress.exerciseAttempts[exercise.id];
+  const xp = state.progress.xp + (correct && previous !== "correct" ? 40 : 0);
+  saveProgress({
+    exerciseAttempts: { [exercise.id]: correct ? "correct" : "incorrect" },
+    ...(correct
+      ? resolvedMistakePatch(exercise.id)
+      : mistakePatch(exercise.id, {
+          type: "Lesson Quiz",
+          lessonId: exercise.lessonId,
+          prompt: exercise.prompt,
+          arabic: exercise.arabic,
+          expected: exercise.answer,
+          given: answer
+        })),
+    xp
+  });
+}
+
+function answerVocabularyQuiz(lessonId, answer) {
+  if (!hasPremiumAccess()) return;
+  const quiz = state.vocabularyQuizByLesson[lessonId];
+  if (!quiz) return;
+
+  const correct = answer === quiz.answer;
+  state.vocabularyQuizFeedback[lessonId] = { status: correct ? "correct" : "incorrect", answer };
+  const mistakeId = `vocab-${quiz.wordId}`;
+  saveProgress({
+    learnedVocabularyIds: correct ? [quiz.wordId] : [],
+    vocabularyStats: { [quiz.wordId]: reviewStatsFor(quiz.wordId, correct) },
+    exerciseAttempts: { [`vocab-${lessonId}`]: correct ? "correct" : "incorrect" },
+    ...(correct
+      ? resolvedMistakePatch(mistakeId)
+      : mistakePatch(mistakeId, {
+          type: "Vocabulary",
+          lessonId,
+          prompt: quiz.prompt,
+          arabic: quiz.arabic,
+          expected: quiz.answer,
+          given: answer
+        })),
+    xp: state.progress.xp + (correct ? 15 : 0)
+  });
+}
+
+function generateNewVocabularyQuiz(lessonId) {
+  if (!hasPremiumAccess()) return;
+  const lesson = byId(state.data.lessons, lessonId);
+  if (!lesson) return;
+  const lessonVocabulary = state.data.vocabulary.filter((word) => lesson.vocabularyIds.includes(word.id));
+  state.vocabularyQuizByLesson[lessonId] = createVocabularyQuiz(lesson, lessonVocabulary);
+  delete state.vocabularyQuizFeedback[lessonId];
+  render();
+}
+
+function generateVocabTester() {
+  if (!hasPremiumAccess()) {
+    state.vocabTesterFilters.bookSlugs = state.vocabTesterFilters.bookSlugs.filter((slug) => canAccessTesterBook(slug));
+    state.vocabTesterFilters.focus = state.vocabTesterFilters.focus.filter((focus) => canAccessTesterFocus(focus));
+  }
+  state.vocabTester = createVocabTester(3);
+  state.vocabTesterFeedback = {};
+  render();
+}
+
+function resetVocabTester() {
+  state.vocabTester = null;
+  state.vocabTesterFeedback = {};
+}
+
+function setVocabularyBook(slug) {
+  const book = getVocabularyBookOptions().find((item) => item.slug === slug);
+  if (!book || book.status !== "available" || !canAccessBookSlug(slug)) return;
+
+  state.selectedVocabularyBookSlug = slug;
+  state.vocabTesterFilters.bookSlugs = [slug];
+  state.vocabTesterFilters.lessonKey = "all";
+  resetVocabTester();
+  render();
+}
+
+function toggleVocabTesterBook(slug) {
+  const book = getVocabularyBookOptions().find((item) => item.slug === slug);
+  if (!book || book.status !== "available" || !book.wordCount || !canAccessTesterBook(slug)) return;
+
+  const selected = new Set(state.vocabTesterFilters.bookSlugs);
+  if (selected.has(slug) && selected.size > 1) {
+    selected.delete(slug);
+  } else {
+    selected.add(slug);
+  }
+
+  state.vocabTesterFilters.bookSlugs = Array.from(selected);
+  state.vocabTesterFilters.lessonKey = "all";
+  resetVocabTester();
+  render();
+}
+
+function toggleVocabTesterFocus(focus) {
+  if (!canAccessTesterFocus(focus)) return;
+
+  if (focus === "all") {
+    state.vocabTesterFilters.focus = ["all"];
+  } else {
+    const selected = new Set(state.vocabTesterFilters.focus.filter((item) => item !== "all"));
+    if (selected.has(focus)) selected.delete(focus);
+    else selected.add(focus);
+    state.vocabTesterFilters.focus = selected.size ? Array.from(selected) : ["all"];
+  }
+
+  resetVocabTester();
+  render();
+}
+
+function setVocabTesterLesson(lessonKey) {
+  state.vocabTesterFilters.lessonKey = lessonKey;
+  resetVocabTester();
+  render();
+}
+
+function answerVocabTester(questionId, answer) {
+  const question = state.vocabTester?.questions.find((item) => item.id === questionId);
+  if (!question) return;
+
+  const previous = state.vocabTesterFeedback[questionId];
+  const correct = answer === question.answer;
+  state.vocabTesterFeedback[questionId] = { status: correct ? "correct" : "incorrect", answer };
+  const mistakeId = `tester-${question.wordId}`;
+
+  saveProgress({
+    learnedVocabularyIds: correct ? [question.wordId] : [],
+    vocabularyStats: { [question.wordId]: reviewStatsFor(question.wordId, correct) },
+    exerciseAttempts: { [`vocab-tester-${questionId}`]: correct ? "correct" : "incorrect" },
+    ...(correct
+      ? resolvedMistakePatch(mistakeId)
+      : mistakePatch(mistakeId, {
+          type: t("vocabTester", "Vocab Tester"),
+          lessonId: question.lessonId,
+          prompt: question.prompt,
+          arabic: question.arabic,
+          expected: question.answer,
+          given: answer
+        })),
+    xp: state.progress.xp + (correct && previous?.status !== "correct" ? 10 : 0)
+  });
+}
+
+function markBookExerciseComplete(id) {
+  if (!hasPremiumAccess()) return;
+  const previous = state.progress.exerciseAttempts[id];
+  saveProgress({
+    exerciseAttempts: { [id]: "complete" },
+    xp: state.progress.xp + (previous === "complete" ? 0 : 20)
+  });
+}
+
+function checkBookExercise(form) {
+  if (!hasPremiumAccess()) return;
+  const cardId = form.dataset.bookExerciseCheck;
+  const expected = form.dataset.answer || "";
+  const given = new FormData(form).get("checkedAnswer") || "";
+  const correct = normalizeAnswer(given) === normalizeAnswer(expected);
+  state.writingFeedback[cardId] = { status: correct ? "correct" : "incorrect", expected, given };
+  const lesson = getSelectedLesson();
+  const mistakeId = `write-${cardId}`;
+
+  saveProgress({
+    exerciseAnswers: { [cardId]: correct ? "correct" : "incorrect" },
+    writingAttempts: { [mistakeId]: correct ? "correct" : "incorrect" },
+    ...(correct
+      ? resolvedMistakePatch(mistakeId)
+      : mistakePatch(mistakeId, {
+          type: "Writing Practice",
+          lessonId: lesson.id,
+          prompt: form.dataset.prompt || "Write the answer.",
+          arabic: form.dataset.arabic || "",
+          expected,
+          given
+        })),
+    xp: state.progress.xp + (correct ? 20 : 0)
+  });
+}
+
+function render() {
+  document.documentElement.dataset.theme = state.theme;
+  document.documentElement.lang = isBengali() ? "bn" : "en";
+  document.getElementById("app").innerHTML = `
+    ${renderSidebar()}
+    <div class="main-shell">
+      ${renderTopbar()}
+      <main class="view">${renderRoute()}</main>
+    </div>
+    ${renderAuthModal()}
+  `;
+}
+
+function renderSidebar() {
+  return `
+    <aside class="sidebar">
+      <button class="mobile-menu" type="button" aria-label="${t("openNavigation", "Open navigation")}">${icon("menu")}</button>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <p class="brand-title">Madinah Arabic</p>
+          <p class="brand-subtitle">${t("booksActive", "Books 1-3 active")}</p>
+        </div>
+      </div>
+      <nav class="nav" aria-label="${t("primaryNavigation", "Primary navigation")}">
+        ${routes
+          .map((route) => {
+            const locked = routeIsLocked(route);
+            return `
+              <button class="nav-item ${state.route === route.id ? "active" : ""} ${locked ? "locked" : ""}" type="button" data-route="${route.id}">
+                <span class="nav-icon">${icon(locked ? "lock" : route.icon)}</span>
+                <span>${escapeHtml(routeLabel(route))}</span>
+                ${locked ? `<span class="soon">${routeRequiresPremium(route.id) ? t("lockedPremium", "Premium") : t("comingSoon", "Coming Soon")}</span>` : ""}
+              </button>
+            `;
+          })
+          .join("")}
+      </nav>
+      <div class="sidebar-card">
+        ${isAuthenticated() ? `
+          <p>${escapeHtml(localizedBookTitle(getBook(state.progress.activeBookSlug)))} ${t("bookProgress", "progress")}</p>
+          <strong>${lessonProgressPercent(state.progress.activeBookSlug)}%</strong>
+          <div class="mini-bar"><span style="width:${lessonProgressPercent(state.progress.activeBookSlug)}%"></span></div>
+        ` : `
+          <p>${t("privateProgress", "Private progress")}</p>
+          <strong>${t("signIn", "Sign in")}</strong>
+          <button class="ghost-button compact-button sidebar-signin" type="button" data-auth-mode="login">${t("openAccount", "Open account")}</button>
+        `}
+      </div>
+    </aside>
+  `;
+}
+
+function renderTopbar() {
+  return `
+    <header class="topbar">
+      <div class="greeting">
+        <p class="eyebrow">${t("today", "Today")}</p>
+        <h1>${routeTitle()}</h1>
+      </div>
+      <label class="search">
+        ${icon("search")}
+        <input value="${escapeHtml(state.search)}" placeholder="${t("searchPlaceholder", "Search lessons or words")}" aria-label="${t("searchAria", "Search lessons or words")}" data-search />
+      </label>
+      ${isAuthenticated() ? `
+        <div class="metric">
+          ${icon("flame")}
+          <div><strong>${state.progress.dailyStreakDays} ${t("days", "days")}</strong><span>${t("streak", "Streak")}</span></div>
+        </div>
+        <div class="metric">
+          ${icon("spark")}
+          <div><strong>${state.progress.xp.toLocaleString()} XP</strong><span>${t("totalPoints", "Total points")}</span></div>
+        </div>
+      ` : `
+        <div class="metric">
+          ${icon("book")}
+          <div><strong>${state.data.books.filter((book) => book.status === "available").length} ${t("books", "books")}</strong><span>${t("available", "Available")}</span></div>
+        </div>
+        <div class="metric">
+          ${icon("words")}
+          <div><strong>${state.data.vocabulary.length} ${t("words", "words")}</strong><span>${t("vocabulary", "Vocabulary")}</span></div>
+        </div>
+      `}
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="${t("toggleTheme", "Toggle theme")}">
+        ${icon(state.theme === "dark" ? "sun" : "moon")}
+        <span>${state.theme === "dark" ? t("light", "Light") : t("dark", "Dark")}</span>
+      </button>
+      ${state.user && !state.user.isDemo ? `
+        <button class="avatar auth-avatar ${state.route === "account" ? "active" : ""}" type="button" data-route="account" aria-label="${t("openAccountDetails", "Open account details")}" title="${t("accountDetails", "Account details")}">${escapeHtml(state.user.displayName.slice(0, 1).toUpperCase())}</button>
+      ` : `
+        <button class="ghost-button compact-button" type="button" data-auth-mode="login">${t("signIn", "Sign in")}</button>
+      `}
+    </header>
+  `;
+}
+
+function renderAuthModal() {
+  if (!state.authMode) return "";
+  const register = state.authMode === "register";
+  return `
+    <div class="modal-backdrop">
+      <form class="auth-card" data-auth-form>
+        <div class="card-heading">
+          <div>
+            <p class="section-label">${t("accountLabel", "Account")}</p>
+            <h2>${register ? t("createAccount", "Create Account") : t("signInTitle", "Sign In")}</h2>
+          </div>
+          <button class="icon-button" type="button" data-auth-close aria-label="${t("close", "Close")}">${icon("x")}</button>
+        </div>
+        ${state.authError ? `<div class="feedback incorrect">${icon("x")}<span>${escapeHtml(state.authError)}</span></div>` : ""}
+        ${register ? `
+          <label class="form-field">
+            <span>${t("name", "Name")}</span>
+            <input name="displayName" autocomplete="name" required />
+          </label>
+        ` : ""}
+        <label class="form-field">
+          <span>${t("email", "Email")}</span>
+          <input name="email" type="email" autocomplete="email" required />
+        </label>
+        <label class="form-field">
+          <span>${t("password", "Password")}</span>
+          <input name="password" type="password" autocomplete="${register ? "new-password" : "current-password"}" required />
+        </label>
+        <button class="primary-button" type="submit">${register ? t("createAccount", "Create account") : t("signIn", "Sign in")} ${icon("arrow")}</button>
+        <button class="ghost-button" type="button" data-auth-mode="${register ? "login" : "register"}">
+          ${register ? t("alreadyAccount", "I already have an account") : t("createNewAccount", "Create a new account")}
+        </button>
+      </form>
+    </div>
+  `;
+}
+
+function routeTitle() {
+  if (state.route === "home") return "Madinah Arabic";
+  if (isBookRoute(state.route)) return localizedBookTitle(getBook(state.route));
+  const route = routes.find((item) => item.id === state.route);
+  return route ? routeLabel(route) : "Madinah Arabic";
+}
+
+function renderRoute() {
+  if (state.route !== "home" && !isAuthenticated()) return renderSignInGate();
+  if (isAuthenticated() && routeRequiresPremium(state.route)) {
+    const feature = isBookRoute(state.route) ? "book" : ["review", "progress"].includes(state.route) ? "progress" : "default";
+    return renderUpgradeGate(feature);
+  }
+  if (isBookRoute(state.route)) {
+    const book = getBook(state.route);
+    return book?.status === "available" ? renderBook(state.route) : renderLockedBook();
+  }
+  if (state.route === "vocabulary") return renderVocabularyPage();
+  if (state.route === "grammar") return renderGrammarPage();
+  if (state.route === "exercises") return renderExercisesPage();
+  if (state.route === "review") return renderReviewPage();
+  if (state.route === "resources") return renderResourcesPage();
+  if (state.route === "progress") return renderProgressPage();
+  if (state.route === "account") return renderAccountPage();
+  return renderHome();
+}
+
+function renderHome() {
+  return `
+    <section class="landing-page">
+      <div class="landing-hero card">
+        <div class="landing-copy">
+          <p class="section-label">${t("landingLabel", "Madinah Arabic Books 1-3")}</p>
+          <h2>${t("landingTitle", "Learn Arabic through a guided, premium study workspace.")}</h2>
+          <p class="landing-text">${t("landingText", "Structured lessons, vocabulary review, checked exercises, writing practice, quizzes, and progress tracking for Madinah Arabic Books 1, 2, and 3.")}</p>
+          <div class="landing-actions">
+            ${isAuthenticated()
+              ? `<button class="primary-button" type="button" data-route="${getCurrentLesson()?.bookSlug || "book-1"}">${t("continueLearning", "Continue learning")} ${icon("arrow")}</button>`
+              : `<button class="primary-button" type="button" data-auth-mode="login">${t("signInToStart", "Sign in to start")} ${icon("arrow")}</button>`}
+            <button class="ghost-button" type="button" data-auth-mode="register">${t("createAccount", "Create account")}</button>
+          </div>
+        </div>
+        <div class="landing-preview" aria-label="${t("coursePreview", "Course preview")}">
+          <div class="preview-panel">
+            <span class="pill">${isBengali() ? "বই ১-৩" : "Books 1-3"}</span>
+            <button class="arabic-line preview-arabic" type="button" data-speak="مَا هٰذَا؟ هٰذَا كِتَابٌ." lang="ar">مَا هٰذَا؟ هٰذَا كِتَابٌ.</button>
+            <p class="translation">${escapeHtml(localizedText("What is this? This is a book."))}</p>
+            <div class="bar"><span style="width:68%"></span></div>
+          </div>
+          <div class="preview-grid">
+            <span>${icon("words")} ${state.data.vocabulary.length} ${t("words", "words")}</span>
+            <span>${icon("exercises")} ${t("checkedPractice", "Checked practice")}</span>
+            <span>${icon("target")} ${t("mistakeReview", "Mistake review")}</span>
+            <span>${icon("spark")} ${t("vocabTester", "Vocab tester")}</span>
+          </div>
+        </div>
+      </div>
+      <div class="landing-feature-grid">
+        ${[
+          [t("guidedPath", "Guided Path"), t("guidedPathText", "Learn, practice, quiz, and review inside every lesson.")],
+          [t("spacedVocabulary", "Spaced Vocabulary"), t("spacedVocabularyText", "Review words at the right time with progress-aware scheduling.")],
+          [t("writingPractice", "Writing Practice"), t("writingPracticeText", "Type answers, check them, and send mistakes into review.")],
+          [t("fullVocabTester", "Full Vocab Tester"), t("fullVocabTesterText", "Generate fresh Arabic-English tests from the complete vocabulary bank.")]
+        ].map(([title, body]) => `
+          <article class="card landing-feature">
+            <span class="quick-icon">${icon("check")}</span>
+            <h3>${title}</h3>
+            <p>${body}</p>
+          </article>
+        `).join("")}
+      </div>
+      ${renderPlanComparison()}
+    </section>
+  `;
+}
+
+function renderSignInGate() {
+  return `
+    <section class="locked-page card">
+      <span class="locked-icon">${icon("lock")}</span>
+      <p class="section-label">${t("privateWorkspace", "Private learning workspace")}</p>
+      <h2>${t("signInContinue", "Sign in to continue")}</h2>
+      <p>${t("signInGateText", "Your lessons, quizzes, vocabulary review, and progress are available after login.")}</p>
+      <button class="primary-button" type="button" data-auth-mode="login">${t("signIn", "Sign in")} ${icon("arrow")}</button>
+    </section>
+  `;
+}
+
+function renderUpgradeGate(feature = "default", embedded = false) {
+  return `
+    <section class="upgrade-gate ${embedded ? "embedded" : "card"}">
+      <span class="locked-icon">${icon("lock")}</span>
+      <p class="section-label">${t("premiumFeature", "Premium feature")}</p>
+      <h2>${t("upgradeToPremium", "Upgrade to Premium")}</h2>
+      <p>${escapeHtml(paidFeatureText(feature))}</p>
+      <div class="upgrade-benefit-grid">
+        ${[
+          [icon("book"), t("allBooks", "All books"), t("allBooksText", "Book 1, Book 2, Book 3")],
+          [icon("exercises"), t("allExercises", "All exercises"), t("allExercisesText", "Collapsible practice, writing checks, quizzes")],
+          [icon("target"), t("advancedReview", "Advanced review"), t("advancedReviewText", "Mistakes, due words, spaced repetition")]
+        ].map(([itemIcon, title, body]) => `
+          <article>
+            <span class="quick-icon">${itemIcon}</span>
+            <strong>${title}</strong>
+            <small>${escapeHtml(body)}</small>
+          </article>
+        `).join("")}
+      </div>
+      <div class="landing-actions">
+        <button class="primary-button" type="button" data-route="account">${t("viewPlan", "View plan")} ${icon("arrow")}</button>
+        <button class="ghost-button" type="button" data-route="book-1">${t("continueBookOne", "Continue Book 1")}</button>
+      </div>
+    </section>
+  `;
+}
+
+function renderPlanComparison(compact = false) {
+  const rows = [
+    [t("freePlan", "Free"), t("freePlanText", "Book 1 learn content, vocabulary list, audio, and a basic 3-question vocabulary tester.")],
+    [t("premiumPlan", "Premium"), t("premiumPlanText", "Book 2-3, all exercises, lesson quizzes, mistake review, spaced review, advanced progress, and the full vocabulary tester.")]
+  ];
+
+  return `
+    <section class="plan-grid ${compact ? "compact" : ""}">
+      ${rows.map(([title, body], index) => {
+        const premium = index === 1;
+        const current = (premium && hasPremiumAccess()) || (!premium && !hasPremiumAccess());
+        return `
+          <article class="card plan-card ${premium ? "premium" : ""} ${current ? "current" : ""}">
+            <div class="card-heading">
+              <div>
+                <p class="section-label">${current ? t("currentPlan", "Current plan") : t("included", "Included")}</p>
+                <h3>${title}</h3>
+              </div>
+              <span class="pill">${premium ? t("premiumPlan", "Premium") : t("freePlan", "Free")}</span>
+            </div>
+            <p>${body}</p>
+          </article>
+        `;
+      }).join("")}
+    </section>
+  `;
+}
+
+function renderPremiumInline(labelKey, body) {
+  return `
+    <section class="premium-inline">
+      <div>
+        <p class="section-label">${t(labelKey, "Premium")}</p>
+        <h3>${t("premiumFeature", "Premium feature")}</h3>
+        <p>${escapeHtml(body)}</p>
+      </div>
+      <button class="ghost-button compact-button" type="button" data-route="account">${t("viewPlan", "View plan")}</button>
+    </section>
+  `;
+}
+
+function renderContinueCard(lesson) {
+  const book = getBook(lesson.bookSlug);
+  const progress = lessonProgressPercent(lesson.bookSlug);
+  return `
+    <article class="card continue-card">
+      <div>
+        <div class="card-heading">
+          <div>
+            <p class="section-label">${t("continueLearning", "Continue Learning")}</p>
+            <h2>${isBengali() ? escapeHtml(localizedLessonTitle(lesson)) : `Lesson ${lesson.number}: ${escapeHtml(lesson.title)}`}</h2>
+          </div>
+          <span class="pill">${escapeHtml(localizedBookTitle(book))}</span>
+        </div>
+        <button class="arabic-line" type="button" data-speak="${escapeHtml(lesson.arabic)}" lang="ar">${lesson.arabic}</button>
+        <p class="translation">${escapeHtml(localizedText(lesson.translation))}</p>
+        <div class="progress-row">
+          <div class="bar"><span style="width:${progress}%"></span></div>
+          <strong>${progress}%</strong>
+        </div>
+      </div>
+      <div class="continue-side">
+        <div class="motif" aria-hidden="true">${icon("book")}</div>
+        <button class="primary-button" type="button" data-lesson="${lesson.id}">
+          ${t("continue", "Continue")} ${icon("arrow")}
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function renderQuickAccess() {
+  const visibleVocabulary = state.data.vocabulary.filter((word) => canAccessBookSlug(word.bookSlug));
+  const visibleGrammar = state.data.grammar.filter((rule) => canAccessBookSlug(rule.bookSlug));
+  const cards = [
+    { route: "vocabulary", label: t("vocabulary", "Vocabulary"), icon: "words", value: `${visibleVocabulary.length} ${t("words", "words")}` },
+    { route: "grammar", label: t("grammar", "Grammar"), icon: "grammar", value: `${visibleGrammar.length} ${t("rules", "rules")}` },
+    { route: "exercises", label: t("exercises", "Exercises"), icon: "exercises", value: `${state.data.exercises.length} ${t("drills", "drills")}` },
+    { route: "review", label: t("review", "Review"), icon: "target", value: `${mistakeItems().length} ${t("mistakes", "mistakes")}` },
+    { route: "resources", label: t("resources", "Resources"), icon: "resources", value: `${state.data.resources.length} ${t("items", "items")}` }
+  ];
+
+  return `
+    <section class="quick-grid" aria-label="${t("quickAccess", "Quick access")}">
+      ${cards
+        .map((card) => {
+          const locked = isAuthenticated() && routeRequiresPremium(card.route);
+          return `
+            <button class="quick-card ${locked ? "locked" : ""}" type="button" data-route="${card.route}">
+              <span class="quick-icon">${icon(locked ? "lock" : card.icon)}</span>
+              <span><strong>${card.label}</strong><small>${locked ? t("lockedPremium", "Premium") : card.value}</small></span>
+            </button>
+          `;
+        })
+        .join("")}
+    </section>
+  `;
+}
+
+function renderBook(bookSlug) {
+  const book = getBook(bookSlug);
+  const bookLessons = lessonsForBook(bookSlug);
+  const lesson = selectedLessonForBook(bookSlug);
+  if (!lesson) return renderLockedBook();
+  const lessonVocabulary = state.data.vocabulary.filter((word) => lesson.vocabularyIds.includes(word.id));
+  const lessonGrammar = state.data.grammar.filter((rule) => lesson.grammarIds.includes(rule.id));
+  const complete = state.progress.completedLessonIds.includes(lesson.id);
+
+  return `
+    <section class="lesson-layout">
+      <aside class="lesson-list card">
+        <div class="panel-heading">
+          <p class="section-label">${escapeHtml(localizedBookTitle(book))}</p>
+          <h2>${t("lessons", "Lessons")}</h2>
+        </div>
+        ${bookLessons
+          .map(
+            (item) => `
+              <button class="lesson-link ${lesson.id === item.id ? "active" : ""}" type="button" data-lesson="${item.id}">
+                <span>${String(item.number).padStart(2, "0")}</span>
+                <strong>${escapeHtml(localizedLessonTitle(item))}</strong>
+                ${state.progress.completedLessonIds.includes(item.id) ? icon("check") : ""}
+              </button>
+            `
+          )
+          .join("")}
+      </aside>
+      <article class="lesson-reader card">
+        <div class="card-heading">
+          <div>
+            <p class="section-label">${t("lesson", "Lesson")} ${lesson.number}</p>
+            <h2>${escapeHtml(localizedLessonTitle(lesson))}</h2>
+          </div>
+          <span class="status-chip ${complete ? "complete" : ""}">${complete ? t("completed", "Completed") : t("inProgress", "In progress")}</span>
+        </div>
+        <p class="focus">${escapeHtml(localizedLessonFocus(lesson))}</p>
+        ${renderLessonPath(lesson)}
+        <div class="lesson-tabs" role="tablist" aria-label="${t("lessonSections", "Lesson sections")}">
+          ${[
+            ["learn", t("learn", "Learn")],
+            ["book-exercises", t("exercises", "Book Exercises")],
+            ["quiz", t("quiz", "Quiz")],
+            ["review", t("review", "Review")]
+          ]
+            .map(
+              ([id, label]) => `
+                <button class="lesson-tab ${state.lessonTab === id ? "active" : ""} ${canAccessLessonTab(id) ? "" : "locked"}" type="button" data-lesson-tab="${id}" role="tab" aria-selected="${state.lessonTab === id}">
+                  ${canAccessLessonTab(id) ? "" : icon("lock")} ${label}
+                </button>
+              `
+            )
+            .join("")}
+        </div>
+        ${renderLessonTabContent(lesson, lessonVocabulary, lessonGrammar, complete)}
+      </article>
+    </section>
+  `;
+}
+
+function renderLessonTabContent(lesson, lessonVocabulary, lessonGrammar, complete) {
+  if (!canAccessLessonTab(state.lessonTab)) {
+    return renderUpgradeGate("lessonTab", true);
+  }
+
+  if (state.lessonTab === "book-exercises") {
+    return renderLessonBookExercises(lesson, lessonVocabulary);
+  }
+
+  if (state.lessonTab === "quiz") {
+    return renderLessonQuiz(lesson, lessonVocabulary);
+  }
+
+  if (state.lessonTab === "review") {
+    return renderLessonReview(lesson, lessonVocabulary);
+  }
+
+  return renderLessonLearn(lesson, lessonVocabulary, lessonGrammar, complete);
+}
+
+function renderLessonPath(lesson) {
+  const steps = [
+    ["learn", t("learn", "Learn")],
+    ["book-exercises", t("practice", "Practice")],
+    ["quiz", t("quiz", "Quiz")],
+    ["review", t("review", "Review")]
+  ];
+  return `
+    <section class="lesson-path" aria-label="${t("guidedLessonPath", "Guided lesson path")}">
+      <div>
+        <p class="section-label">${t("lessonPath", "Lesson Path")}</p>
+        <strong>${lessonMastery(lesson)}% ${t("mastery", "mastery")}</strong>
+      </div>
+      <div class="path-steps">
+        ${steps
+          .map(
+            ([id, label], index) => `
+              <button class="path-step ${state.lessonTab === id ? "active" : ""} ${canAccessLessonTab(id) ? "" : "locked"}" type="button" data-lesson-tab="${id}">
+                <span>${index + 1}</span>
+                <strong>${canAccessLessonTab(id) ? "" : icon("lock")} ${label}</strong>
+              </button>
+            `
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderLessonExamples(lesson) {
+  const examples = (lesson.examples?.length ? lesson.examples : [
+    {
+      label: "A",
+      title: "Foundation",
+      source: "Book model",
+      arabic: lesson.arabic,
+      translation: lesson.translation
+    }
+  ]).slice(0, 3);
+
+  return `
+    <section class="lesson-examples-panel">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("examples", "Examples")}</p>
+          <h3>${t("lessonPattern", "Lesson Pattern")}</h3>
+        </div>
+        <span class="pill">${examples.length} ${t("total", "total")}</span>
+      </div>
+      <div class="lesson-example-list">
+        ${examples
+          .map((example) => `
+            <article class="lesson-example-card">
+              <span class="example-step">${escapeHtml(example.label)}</span>
+              <div>
+                <div class="example-meta">
+                  <strong>${escapeHtml(localizedDifficultyLabel(example.title))}</strong>
+                  <small>${escapeHtml(localizedSourceLabel(example.source))}</small>
+                </div>
+                <button class="lesson-example-arabic" type="button" data-speak="${escapeHtml(example.arabic)}" lang="ar">${example.arabic}</button>
+                <p class="translation">${escapeHtml(localizedText(example.translation))}</p>
+              </div>
+            </article>
+          `)
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderLessonLearn(lesson, lessonVocabulary, lessonGrammar, complete) {
+  return `
+        ${renderLessonExamples(lesson)}
+        <div class="lesson-sections">
+          <section>
+            <h3>${t("vocabulary", "Vocabulary")}</h3>
+            <div class="word-grid">
+              ${lessonVocabulary
+                .map(
+                  (word) => `
+                    <button class="word-chip" type="button" data-speak="${escapeHtml(word.arabic)}">
+                      <span lang="ar">${word.arabic}</span>
+                      <small>${escapeHtml(localizedText(word.english))}</small>
+                    </button>
+                  `
+                )
+                .join("")}
+            </div>
+          </section>
+          <section>
+            <h3>${t("grammar", "Grammar")}</h3>
+            ${lessonGrammar
+              .map(
+                (rule) => `
+                  <div class="grammar-note">
+                    <strong>${escapeHtml(localizedGrammarTitle(rule))}</strong>
+                    <p>${escapeHtml(localizedGrammarSummary(rule))}</p>
+                    <span class="arabic mini" lang="ar">${rule.example}</span>
+                  </div>
+                `
+              )
+              .join("")}
+          </section>
+        </div>
+        <div class="lesson-detail-grid">
+          <section class="detail-panel">
+            <h3>${t("lessonNotes", "Lesson Notes")}</h3>
+            <ul class="note-list">
+              ${(lesson.notes || [])
+                .map((note) => `<li>${escapeHtml(localizedText(note))}</li>`)
+                .join("")}
+            </ul>
+          </section>
+          <section class="detail-panel">
+            <h3>${t("exercisesFromKey", "Exercises From The Key")}</h3>
+            <ul class="note-list">
+              ${(lesson.exercisePrompts || [])
+                .slice(0, 9)
+                .map((prompt) => `<li>${escapeHtml(localizedText(prompt))}</li>`)
+                .join("") || `<li>${localizedText("No OCR exercise prompts were found for this lesson.")}</li>`}
+            </ul>
+          </section>
+        </div>
+        <div class="lesson-actions">
+          <button class="ghost-button" type="button" data-speak="${escapeHtml(lesson.arabic)}">${icon("speaker")} ${t("playAudio", "Play audio")}</button>
+          <button class="primary-button" type="button" data-complete="${lesson.id}">${complete ? t("reviewComplete", "Review complete") : t("markComplete", "Mark complete")} ${icon("check")}</button>
+        </div>
+  `;
+}
+
+function renderLessonBookExercises(lesson, lessonVocabulary) {
+  const cards = getLessonExerciseCards(lesson, lessonVocabulary);
+  return `
+    <section class="book-exercise-panel">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("lesson", "Lesson")} ${lesson.number}</p>
+          <h3>${t("bookExercises", "Book Exercises")}</h3>
+        </div>
+        <span class="pill">${cards.length} ${t("sections", "sections")}</span>
+      </div>
+      <div class="book-exercise-accordion">
+        ${cards
+          .map((card, index) => {
+            const done = state.progress.exerciseAttempts[card.id] === "complete";
+            return `
+              <details class="book-exercise-item ${done ? "done" : ""}" ${index === 0 ? "open" : ""}>
+                <summary>
+                  <span class="exercise-letter">${card.label}</span>
+                  <span>
+                    <strong>${escapeHtml(localizedText(card.title))}</strong>
+                    <small>${escapeHtml(localizedText(card.bookPrompt))}</small>
+                  </span>
+                  <em>${done ? `${icon("check")} ${t("done", "Done")}` : t("practice", "Practice")}</em>
+                </summary>
+                <div class="book-exercise-body">
+                  <div class="practice-task">
+                    <strong>${t("practiceTask", "Practice task")}</strong>
+                    <p>${escapeHtml(localizedText(card.practice))}</p>
+                  </div>
+                  ${renderExampleQuestions(card.examples)}
+                  ${renderCheckedPractice(card)}
+                  ${card.words.length ? `<div class="chip-row">${card.words.map((word) => `<button type="button" data-speak="${escapeHtml(word.arabic)}" lang="ar">${word.arabic}</button>`).join("")}</div>` : ""}
+                  <button class="${done ? "ghost-button" : "primary-button"}" type="button" data-book-exercise-complete="${card.id}">
+                    ${done ? t("completed", "Completed") : t("markPracticeDone", "Mark practice done")} ${icon("check")}
+                  </button>
+                </div>
+              </details>
+            `;
+          })
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function getLessonExerciseCards(lesson, lessonVocabulary) {
+  const prompts = [
+    ...(lesson.exercisePrompts || []),
+    ...fallbackExercisePrompts(lesson)
+  ].slice(0, Math.max(5, (lesson.exercisePrompts || []).length));
+
+  return prompts.map((prompt, index) => {
+    const label = exerciseLetter(index);
+    const cleanPrompt = prompt.replace(/^Ex\.\d+:\s*/, "");
+    const words = wordsForExercise(lessonVocabulary, index);
+    return {
+      id: `book-${lesson.id}-${index + 1}`,
+      label,
+      title: exerciseTitle(cleanPrompt),
+      bookPrompt: cleanPrompt,
+      practice: exercisePractice(cleanPrompt, lesson, words),
+      examples: exerciseExamples(cleanPrompt, lesson, words),
+      checked: checkedPractice(cleanPrompt, lesson, words),
+      words
+    };
+  });
+}
+
+function renderCheckedPractice(card) {
+  const feedback = state.writingFeedback[card.id];
+  return `
+    <form class="checked-practice" data-book-exercise-check="${card.id}" data-answer="${escapeHtml(card.checked.answer)}" data-prompt="${escapeHtml(card.checked.prompt)}" data-arabic="${escapeHtml(card.checked.arabic || "")}">
+      <div>
+        <strong>${t("checkedPractice", "Checked practice")}</strong>
+        <p>${escapeHtml(localizedText(card.checked.prompt))}</p>
+        ${card.checked.arabic ? `<button class="example-arabic" type="button" data-speak="${escapeHtml(card.checked.arabic)}" lang="ar">${card.checked.arabic}</button>` : ""}
+      </div>
+      <label class="checked-input">
+        <span>${t("yourAnswer", "Your answer")}</span>
+        <input name="checkedAnswer" dir="auto" autocomplete="off" />
+      </label>
+      <button class="ghost-button" type="submit">${t("checkAnswer", "Check answer")} ${icon("check")}</button>
+      ${feedback ? `
+        <div class="feedback ${feedback.status === "correct" ? "correct" : "incorrect"}">
+          ${icon(feedback.status === "correct" ? "check" : "x")}
+          <span>${feedback.status === "correct" ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(localizedOption(feedback.expected))}`}</span>
+        </div>
+      ` : ""}
+    </form>
+  `;
+}
+
+function checkedPractice(prompt, lesson, words) {
+  const lower = prompt.toLowerCase();
+  const quiz = state.data.exercises.find((item) => item.lessonId === lesson.id);
+  const target = words[0];
+
+  if (lower.includes("answer") && quiz) {
+    return {
+      prompt: quiz.prompt,
+      arabic: quiz.arabic,
+      answer: quiz.answer
+    };
+  }
+
+  if (lower.includes("fill") && target) {
+    return {
+      prompt: `Write the Arabic word that means "${target.english}".`,
+      answer: target.arabic
+    };
+  }
+
+  if (target && (lower.includes("match") || lower.includes("vocabulary"))) {
+    return {
+      prompt: `Write the English meaning of this word.`,
+      arabic: target.arabic,
+      answer: target.english
+    };
+  }
+
+  return {
+    prompt: "Type the Arabic model sentence from memory.",
+    arabic: "",
+    answer: lesson.arabic
+  };
+}
+
+function renderExampleQuestions(examples) {
+  if (!examples.length) return "";
+
+  return `
+    <div class="example-question-panel">
+      <strong>${t("exampleQuestions", "Example questions")}</strong>
+      <div class="example-question-list">
+        ${examples
+          .map(
+            (example) => `
+              <article class="example-question">
+                <p>${escapeHtml(localizedText(example.question))}</p>
+                ${example.arabic ? `<button class="example-arabic" type="button" data-speak="${escapeHtml(example.arabic)}" lang="ar">${example.arabic}</button>` : ""}
+                ${example.answer ? `
+                  <details class="example-answer">
+                    <summary>${t("checkAnswer", "Check answer")}</summary>
+                    <span ${hasArabic(example.answer) ? 'class="arabic-answer" lang="ar"' : ""}>${escapeHtml(localizedOption(example.answer))}</span>
+                  </details>
+                ` : ""}
+              </article>
+            `
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
+function exerciseExamples(prompt, lesson, words) {
+  const lower = prompt.toLowerCase();
+  const quiz = state.data.exercises.find((item) => item.lessonId === lesson.id);
+  const examples = [];
+  const add = (example) => {
+    if (!example?.question) return;
+    const key = `${example.question}|${example.arabic || ""}`;
+    if (examples.some((item) => `${item.question}|${item.arabic || ""}` === key)) return;
+    examples.push(example);
+  };
+
+  if (lower.includes("answer") && quiz) {
+    add({ question: quiz.prompt, arabic: quiz.arabic, answer: quiz.answer });
+  }
+
+  if (lower.includes("fill")) {
+    const blank = blankSentenceExample(lesson, words);
+    add(blank);
+  }
+
+  if (lower.includes("read")) {
+    add({ question: "Read this aloud, then write it from memory.", arabic: lesson.arabic, answer: "Compare your writing with the model sentence." });
+  }
+
+  if (lower.includes("match")) {
+    words.slice(0, 2).forEach((word) => {
+      add({ question: `Match this Arabic word to its English meaning.`, arabic: word.arabic, answer: word.english });
+    });
+  }
+
+  if (lower.includes("plural") || lower.includes("count")) {
+    add({ question: "Use this word in the requested number pattern.", arabic: words[0]?.arabic || lesson.arabic, answer: words[0]?.english || lesson.translation });
+  }
+
+  add({ question: "Translate this sentence into English.", arabic: lesson.arabic, answer: lesson.translation });
+
+  words.slice(0, 4).forEach((word, index) => {
+    if (index % 2 === 0) {
+      add({ question: "What does this word mean?", arabic: word.arabic, answer: word.english });
+    } else {
+      add({ question: `Which Arabic word means "${word.english}"?`, answer: word.arabic });
+    }
+  });
+
+  if (quiz) {
+    add({ question: quiz.prompt, arabic: quiz.arabic, answer: quiz.answer });
+  }
+
+  return examples.slice(0, 3);
+}
+
+function blankSentenceExample(lesson, words) {
+  const word = words.find((item) => lesson.arabic.includes(item.arabic));
+  if (word) {
+    return {
+      question: "Fill the blank, then read the full sentence.",
+      arabic: lesson.arabic.replace(word.arabic, "_____"),
+      answer: word.arabic
+    };
+  }
+
+  const fallback = words[0];
+  if (fallback) {
+    return {
+      question: `Write the Arabic word that means "${fallback.english}".`,
+      answer: fallback.arabic
+    };
+  }
+
+  return {
+    question: "Fill the blank using the lesson sentence pattern.",
+    arabic: lesson.arabic.replace(/[\u0600-\u06FF][\u0600-\u06FF\u064B-\u0652\u0670]*/, "_____"),
+    answer: lesson.arabic
+  };
+}
+
+function hasArabic(value) {
+  return /[\u0600-\u06FF]/.test(value);
+}
+
+function fallbackExercisePrompts(lesson) {
+  return [
+    "Read and copy the lesson examples with the correct endings.",
+    "Answer short questions using the lesson pattern.",
+    "Fill in blanks with suitable words from this lesson.",
+    "Translate between Arabic and English using the lesson vocabulary.",
+    `Create five new sentences that follow this model: ${lesson.arabic}`
+  ];
+}
+
+function exerciseLetter(index) {
+  return String.fromCharCode(65 + index);
+}
+
+function wordsForExercise(lessonVocabulary, index) {
+  if (!lessonVocabulary.length) return [];
+  const count = Math.min(4, lessonVocabulary.length);
+  const start = (index * 3) % lessonVocabulary.length;
+  return Array.from({ length: count }, (_, offset) => lessonVocabulary[(start + offset) % lessonVocabulary.length]);
+}
+
+function exerciseTitle(prompt) {
+  const lower = prompt.toLowerCase();
+  if (lower.includes("answer")) return "Answer Questions";
+  if (lower.includes("fill")) return "Fill The Blanks";
+  if (lower.includes("change")) return "Transform The Sentence";
+  if (lower.includes("plural")) return "Plural Practice";
+  if (lower.includes("correct")) return "Correction Drill";
+  if (lower.includes("count")) return "Counting Drill";
+  if (lower.includes("match")) return "Matching Drill";
+  if (lower.includes("read")) return "Read And Write";
+  return "Book Practice";
+}
+
+function exercisePractice(prompt, lesson, words) {
+  const lower = prompt.toLowerCase();
+  const wordText = words.map((word) => `${word.arabic} (${word.english})`).join(", ");
+  if (lower.includes("answer")) return `Answer using the lesson pattern: ${lesson.arabic}`;
+  if (lower.includes("fill")) return `Fill each blank with a suitable word from this lesson${wordText ? `: ${wordText}` : "."}`;
+  if (lower.includes("change")) return `Rewrite the example by changing the pronoun, gender, number, or subject requested by the book prompt.`;
+  if (lower.includes("plural")) return `Write the singular and plural forms for the lesson nouns, then use one in a sentence.`;
+  if (lower.includes("correct")) return `Find the error, correct the ending or pronoun, and read the corrected sentence aloud.`;
+  if (lower.includes("count")) return `Count from 3 to 10 using the nouns from this lesson, keeping the ma'dud rule in mind.`;
+  if (lower.includes("match")) return `Match the Arabic words to their meanings, then say each pair aloud.`;
+  if (lower.includes("read")) return `Read the example aloud, copy it once, then write a similar sentence from memory.`;
+  return `Use the lesson example and vocabulary to complete this book exercise.`;
+}
+
+function renderLessonReview(lesson, lessonVocabulary) {
+  const dueWords = dueVocabularyItems(lesson);
+  const mistakes = mistakeItems(lesson);
+  return `
+    <section class="lesson-review-grid">
+      <article class="detail-panel mastery-panel">
+        <p class="section-label">${t("mastery", "Mastery")}</p>
+        <h3>${lessonMastery(lesson)}%</h3>
+        <div class="bar"><span style="width:${lessonMastery(lesson)}%"></span></div>
+        <p class="translation">${localizedText("Based on lesson completion, checked exercises, writing practice, quizzes, and vocabulary review.")}</p>
+      </article>
+      <article class="detail-panel">
+        <p class="section-label">${t("spacedRepetition", "Spaced Review")}</p>
+        <h3>${dueWords.length} ${t("wordsDue", "words due")}</h3>
+        <div class="chip-row">
+          ${dueWords.slice(0, 8).map((word) => `<button type="button" data-speak="${escapeHtml(word.arabic)}" lang="ar">${word.arabic}</button>`).join("") || `<span class="empty-state">${t("noDueWords", "No words due right now.")}</span>`}
+        </div>
+      </article>
+      <article class="detail-panel review-wide">
+        <div class="subsection-heading">
+          <div>
+            <p class="section-label">${t("mistakes", "Mistakes")}</p>
+            <h3>${localizedText("Lesson Mistakes")}</h3>
+          </div>
+          <button class="ghost-button compact-button" type="button" data-route="review">${t("openReviewPage", "Open review page")}</button>
+        </div>
+        ${renderMistakeList(mistakes.slice(0, 4))}
+      </article>
+    </section>
+  `;
+}
+
+function renderLessonQuiz(lesson, lessonVocabulary) {
+  const exercise = state.data.exercises.find((item) => item.lessonId === lesson.id);
+  return `
+    <div class="quiz-stack">
+      ${exercise ? `
+        <section class="lesson-quiz-card">
+          <div class="subsection-heading">
+            <div>
+              <p class="section-label">${t("lesson", "Lesson")} ${lesson.number}</p>
+              <h3>${escapeHtml(localizedText(exercise.prompt))}</h3>
+            </div>
+            <span class="pill">${localizedText("Lesson Quiz")}</span>
+          </div>
+          <button class="arabic-hero exercise-prompt" type="button" data-speak="${escapeHtml(exercise.arabic)}" lang="ar">${exercise.arabic}</button>
+          <div class="options">
+            ${exercise.options
+              .map(
+                (option) => `
+                  <button class="option-button" type="button" data-answer="${escapeHtml(option)}" data-exercise-answer="${exercise.id}">
+                    ${escapeHtml(localizedOption(option))}
+                  </button>
+                `
+              )
+              .join("")}
+          </div>
+          ${renderExerciseFeedback(exercise)}
+        </section>
+      ` : `
+        <section class="lesson-quiz-card">
+          <h3>${localizedText("Lesson Quiz")}</h3>
+          <p class="translation">${localizedText("No lesson quiz has been added for this lesson yet.")}</p>
+        </section>
+      `}
+      ${renderVocabularyQuiz(lesson, lessonVocabulary)}
+    </div>
+  `;
+}
+
+function renderVocabularyQuiz(lesson, lessonVocabulary) {
+  const quiz = getVocabularyQuiz(lesson, lessonVocabulary);
+  if (!quiz) {
+    return `
+      <section class="lesson-quiz-card vocabulary-quiz-card">
+        <h3>${localizedText("Vocabulary Quiz")}</h3>
+        <p class="translation">${localizedText("No vocabulary is available for this lesson yet.")}</p>
+      </section>
+    `;
+  }
+
+  const feedback = state.vocabularyQuizFeedback[lesson.id];
+  return `
+    <section class="lesson-quiz-card vocabulary-quiz-card">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("lesson", "Lesson")} ${lesson.number} ${t("vocabulary", "Vocabulary")}</p>
+          <h3>${localizedText("Random Vocabulary Quiz")}</h3>
+        </div>
+        <button class="ghost-button compact-button" type="button" data-vocab-quiz-new="${lesson.id}">
+          ${icon("spark")} ${t("generateNew", "Generate new")}
+        </button>
+      </div>
+      <div class="vocabulary-quiz-display">
+        <p>${escapeHtml(localizedText(quiz.prompt))}</p>
+        ${quiz.arabic ? `<button class="arabic-hero vocab-quiz-arabic" type="button" data-speak="${escapeHtml(quiz.arabic)}" lang="ar">${quiz.arabic}</button>` : `<strong>${escapeHtml(localizedOption(quiz.display))}</strong>`}
+      </div>
+      <div class="options vocabulary-options">
+        ${quiz.options
+          .map((option) => {
+            const answered = Boolean(feedback);
+            const isCorrect = answered && option === quiz.answer;
+            const isWrong = answered && option === feedback.answer && option !== quiz.answer;
+            return `
+              <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-vocab-quiz-answer="${escapeHtml(option)}" data-vocab-quiz-lesson="${lesson.id}">
+                <span ${hasArabic(option) ? 'class="arabic-option" lang="ar"' : ""}>${escapeHtml(localizedOption(option))}</span>
+              </button>
+            `;
+          })
+          .join("")}
+      </div>
+      ${renderVocabularyQuizFeedback(lesson.id, quiz)}
+    </section>
+  `;
+}
+
+function getVocabularyQuiz(lesson, lessonVocabulary) {
+  if (!state.vocabularyQuizByLesson[lesson.id]) {
+    state.vocabularyQuizByLesson[lesson.id] = createVocabularyQuiz(lesson, lessonVocabulary);
+  }
+  return state.vocabularyQuizByLesson[lesson.id];
+}
+
+function createVocabularyQuiz(lesson, lessonVocabulary) {
+  const words = lessonVocabulary.length
+    ? lessonVocabulary
+    : state.data.vocabulary.filter((word) => word.bookSlug === lesson.bookSlug && word.lessonNumber === lesson.number);
+  if (!words.length) return null;
+
+  const word = randomItem(words);
+  return createVocabularyQuestion(word, words, `vocab-${lesson.id}`);
+}
+
+function createVocabularyQuestion(word, optionPool, idPrefix) {
+  const modes = [
+    {
+      prompt: "Choose the English meaning.",
+      arabic: word.arabic,
+      answerKey: "english"
+    },
+    {
+      prompt: `Choose the Arabic word for "${word.english}".`,
+      display: word.english,
+      answerKey: "arabic"
+    }
+  ];
+  const mode = randomItem(modes);
+  const options = buildVocabularyOptions(optionPool, word, mode.answerKey);
+
+  return {
+    id: `${idPrefix}-${word.id}-${Date.now()}-${Math.round(Math.random() * 100000)}`,
+    wordId: word.id,
+    lessonId: state.data.lessons.find((lesson) => lesson.bookSlug === word.bookSlug && lesson.number === word.lessonNumber)?.id || "",
+    prompt: mode.prompt,
+    arabic: mode.arabic || "",
+    display: mode.display || "",
+    answer: word[mode.answerKey],
+    options
+  };
+}
+
+function normalizeVocabTesterFilters() {
+  const availableBooks = getVocabularyBookOptions().filter((book) => book.status === "available" && book.wordCount > 0 && canAccessTesterBook(book.slug));
+  const availableSlugs = availableBooks.map((book) => book.slug);
+  const selectedBooks = state.vocabTesterFilters.bookSlugs.filter((slug) => availableSlugs.includes(slug));
+  state.vocabTesterFilters.bookSlugs = selectedBooks.length ? uniqueValues(selectedBooks) : [currentVocabularyBook().slug];
+
+  const lessonKeys = new Set(["all", ...getVocabularyLessonOptions(state.vocabTesterFilters.bookSlugs).map((option) => option.key)]);
+  if (!lessonKeys.has(state.vocabTesterFilters.lessonKey)) {
+    state.vocabTesterFilters.lessonKey = "all";
+  }
+
+  const validFocus = new Set(["all", "new", "learned", "due", "mistakes"].filter((focus) => canAccessTesterFocus(focus)));
+  const focus = state.vocabTesterFilters.focus.filter((item) => validFocus.has(item));
+  state.vocabTesterFilters.focus = focus.length ? focus : ["all"];
+}
+
+function getVocabularyLessonOptions(bookSlugs) {
+  const selectedBooks = new Set(bookSlugs);
+  const byKey = new Map();
+
+  state.data.vocabulary.forEach((word) => {
+    if (!selectedBooks.has(word.bookSlug)) return;
+    const key = wordLessonKey(word);
+    if (byKey.has(key)) {
+      byKey.get(key).count += 1;
+      return;
+    }
+
+    byKey.set(key, {
+      key,
+      bookSlug: word.bookSlug,
+      lessonNumber: word.lessonNumber,
+      label: lessonLabelForWord(word),
+      count: 1
+    });
+  });
+
+  const bookOrder = new Map(state.data.books.map((book, index) => [book.slug, index]));
+  return Array.from(byKey.values()).sort((a, b) => {
+    const bookDiff = (bookOrder.get(a.bookSlug) || 0) - (bookOrder.get(b.bookSlug) || 0);
+    if (bookDiff) return bookDiff;
+    if (a.lessonNumber === "PDF") return 1;
+    if (b.lessonNumber === "PDF") return -1;
+    return Number(a.lessonNumber) - Number(b.lessonNumber);
+  });
+}
+
+function getVocabTesterPool() {
+  normalizeVocabTesterFilters();
+
+  const filters = state.vocabTesterFilters;
+  const focusFilters = filters.focus.filter((focus) => focus !== "all");
+
+  return state.data.vocabulary.filter((word) => {
+    if (!filters.bookSlugs.includes(word.bookSlug)) return false;
+    if (filters.lessonKey !== "all" && wordLessonKey(word) !== filters.lessonKey) return false;
+    if (!focusFilters.length) return true;
+
+    return focusFilters.some((focus) => vocabularyFocusMatches(word, focus));
+  });
+}
+
+function vocabTesterFilterKey() {
+  normalizeVocabTesterFilters();
+  return JSON.stringify(state.vocabTesterFilters);
+}
+
+function createVocabTester(size = 3) {
+  const pool = getVocabTesterPool();
+  const words = shuffle(pool).slice(0, Math.min(size, pool.length));
+  const optionPool = pool.length >= 4 ? pool : state.data.vocabulary;
+
+  return {
+    id: `vocab-tester-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    filterKey: vocabTesterFilterKey(),
+    poolSize: pool.length,
+    questions: words.map((word, index) => ({
+      ...createVocabularyQuestion(word, optionPool, `tester-${index + 1}`),
+      number: index + 1
+    }))
+  };
+}
+
+function buildVocabularyOptions(lessonWords, targetWord, answerKey) {
+  const answer = targetWord[answerKey];
+  const lessonOptions = lessonWords
+    .map((word) => word[answerKey])
+    .filter(Boolean);
+  const globalOptions = state.data.vocabulary
+    .filter((word) => word.id !== targetWord.id)
+    .map((word) => word[answerKey])
+    .filter(Boolean);
+  const distractors = uniqueValues([...shuffle(lessonOptions), ...shuffle(globalOptions)]).filter((option) => option !== answer);
+  return shuffle([answer, ...distractors.slice(0, 3)]);
+}
+
+function uniqueValues(values) {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function randomItem(items) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function shuffle(items) {
+  return [...items].sort(() => Math.random() - 0.5);
+}
+
+function renderVocabularyPage() {
+  const selectedBook = currentVocabularyBook();
+  const bookWords = getVocabularyWordsForBook(selectedBook.slug);
+  const query = state.search.trim().toLowerCase();
+  const words = bookWords.filter((word) => {
+    if (!query) return true;
+    return [word.arabic, word.transliteration, word.english, localizedText(word.english)].some((value) => value.toLowerCase().includes(query));
+  });
+  const testerPoolCount = getVocabTesterPool().length;
+  const shownCount = state.vocabularyTab === "tester" ? testerPoolCount : words.length;
+
+  return `
+    <section class="page-stack">
+      <div class="page-heading">
+        <div>
+          <p class="section-label">${t("vocabularyBank", "Vocabulary Bank")}</p>
+          <h2>${escapeHtml(localizedBookTitle(selectedBook))} ${t("vocabulary", "Vocabulary")}</h2>
+        </div>
+        <span class="pill">${shownCount} ${t("words", "words")}</span>
+      </div>
+      ${renderVocabularyBookSelector(selectedBook.slug)}
+      <div class="lesson-tabs vocabulary-tabs" role="tablist" aria-label="${t("vocabularySections", "Vocabulary sections")}">
+        ${[
+          ["list", "Word List"],
+          ["tester", "Vocab Tester"]
+        ]
+          .map(
+            ([id, label]) => `
+              <button class="lesson-tab ${state.vocabularyTab === id ? "active" : ""}" type="button" data-vocabulary-tab="${id}" role="tab" aria-selected="${state.vocabularyTab === id}">
+                ${id === "list" ? t("wordList", label) : t("vocabTester", label)}
+              </button>
+            `
+          )
+          .join("")}
+      </div>
+      ${state.vocabularyTab === "tester" ? renderVocabTester() : `${renderVocabularyReviewStrip(selectedBook.slug)}${renderVocabularyTable(words)}`}
+    </section>
+  `;
+}
+
+function renderVocabularyBookSelector(selectedSlug) {
+  return `
+    <section class="vocab-book-grid" aria-label="${t("vocabularyBooks", "Vocabulary books")}">
+      ${getVocabularyBookOptions()
+        .map((book) => {
+          const locked = book.status !== "available" || !canAccessBookSlug(book.slug);
+          return `
+            <button class="vocab-book-card ${book.slug === selectedSlug ? "active" : ""} ${locked ? "locked" : ""}" type="button" data-vocabulary-book="${book.slug}" ${locked ? "disabled" : ""}>
+              <span class="book-number">${book.slug.replace("book-", "")}</span>
+              <span>
+                <strong>${escapeHtml(localizedBookTitle(book))}</strong>
+                <small>${book.status !== "available" ? t("comingSoon", "Coming Soon") : locked ? t("lockedPremium", "Premium") : `${book.wordCount} ${t("words", "words")}`}</small>
+              </span>
+              ${icon(locked ? "lock" : "book")}
+            </button>
+          `;
+        })
+        .join("")}
+    </section>
+  `;
+}
+
+function renderVocabTester() {
+  const filterKey = vocabTesterFilterKey();
+  const pool = getVocabTesterPool();
+  if (!state.vocabTester || state.vocabTester.filterKey !== filterKey) {
+    state.vocabTester = createVocabTester(3);
+  }
+
+  const answered = Object.keys(state.vocabTesterFeedback).length;
+  const correct = Object.values(state.vocabTesterFeedback).filter((item) => item.status === "correct").length;
+  const questionCount = state.vocabTester.questions.length;
+  const progressPercent = questionCount ? Math.round((answered / questionCount) * 100) : 0;
+
+  return `
+    <section class="card vocab-tester-card">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${pool.length} ${t("selectedWords", "selected words")}</p>
+          <h3>${t("vocabTester", "Vocab Tester")} ${hasPremiumAccess() ? "" : `<span class="inline-plan-chip">${t("basicTester", "Basic tester")}</span>`}</h3>
+        </div>
+        <div class="tester-actions">
+          <span class="pill">${correct}/${questionCount} ${t("correctCount", "correct")}</span>
+          <button class="primary-button compact-button" type="button" data-vocab-tester-new ${pool.length ? "" : "disabled"}>${icon("spark")} ${t("generateNewTest", "Generate new test")}</button>
+        </div>
+      </div>
+      ${renderVocabTesterControls(pool.length)}
+      ${hasPremiumAccess() ? "" : renderPremiumInline("premiumUnlocks", paidFeatureText("tester"))}
+      <div class="vocab-test-grid">
+        ${questionCount
+          ? state.vocabTester.questions.map((question) => renderVocabTesterQuestion(question)).join("")
+          : `<div class="empty-test-state">${t("noVocabularyMatches", "No vocabulary matches this selection.")}</div>`}
+      </div>
+      <div class="tester-footer">
+        <span>${answered} ${t("answered", "answered")}</span>
+        <div class="bar"><span style="width:${progressPercent}%"></span></div>
+      </div>
+    </section>
+  `;
+}
+
+function renderVocabTesterControls(poolCount) {
+  const filters = state.vocabTesterFilters;
+  const selectedBooks = new Set(filters.bookSlugs);
+  const selectedFocus = new Set(filters.focus);
+  const lessonOptions = getVocabularyLessonOptions(filters.bookSlugs);
+  const focusOptions = [
+    ["all", t("anyProgress", "Any Progress")],
+    ["new", t("new", "New")],
+    ["learned", t("learned", "Learned")],
+    ["due", t("due", "Due")],
+    ["mistakes", t("mistakes", "Mistakes")]
+  ];
+
+  return `
+    <section class="tester-filter-panel">
+      <div class="filter-group">
+        <span class="filter-label">${t("books", "Books")}</span>
+        <div class="filter-chip-row">
+          ${getVocabularyBookOptions()
+            .map((book) => {
+              const premiumLocked = book.status === "available" && !canAccessTesterBook(book.slug);
+              const disabled = book.status !== "available" || !book.wordCount || premiumLocked;
+              return `
+                <button class="filter-chip ${selectedBooks.has(book.slug) ? "active" : ""}" type="button" data-vocab-tester-book="${book.slug}" ${disabled ? "disabled" : ""}>
+                  <span>${escapeHtml(localizedBookTitle(book))}</span>
+                  <small>${premiumLocked ? t("lockedPremium", "Premium") : disabled ? t("soon", "Soon") : book.wordCount}</small>
+                </button>
+              `;
+            })
+            .join("")}
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">${t("section", "Section")}</span>
+        <select class="filter-select" data-vocab-tester-lesson>
+          <option value="all" ${filters.lessonKey === "all" ? "selected" : ""}>${t("allSelectedSections", "All selected sections")}</option>
+          ${lessonOptions
+            .map((option) => `
+              <option value="${escapeHtml(option.key)}" ${filters.lessonKey === option.key ? "selected" : ""}>
+                ${escapeHtml(option.label)} (${option.count})
+              </option>
+            `)
+            .join("")}
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">${t("focus", "Focus")}</span>
+        <div class="filter-chip-row">
+          ${focusOptions
+            .map(([id, label]) => `
+              <button class="filter-chip ${selectedFocus.has(id) ? "active" : ""}" type="button" data-vocab-tester-focus="${id}" ${canAccessTesterFocus(id) ? "" : "disabled"}>
+                ${escapeHtml(label)}
+                ${canAccessTesterFocus(id) ? "" : `<small>${t("lockedPremium", "Premium")}</small>`}
+              </button>
+            `)
+            .join("")}
+        </div>
+      </div>
+      <span class="filter-count">${poolCount} ${t("words", "words")}</span>
+    </section>
+  `;
+}
+
+function renderVocabTesterQuestion(question) {
+  const feedback = state.vocabTesterFeedback[question.id];
+  return `
+    <article class="vocab-test-question">
+      <div class="vocab-test-prompt">
+        <span>${String(question.number).padStart(2, "0")}</span>
+        <div>
+          <p>${escapeHtml(localizedText(question.prompt))}</p>
+          ${question.arabic ? `<button class="example-arabic" type="button" data-speak="${escapeHtml(question.arabic)}" lang="ar">${question.arabic}</button>` : `<strong>${escapeHtml(localizedOption(question.display))}</strong>`}
+        </div>
+      </div>
+      <div class="vocab-test-options">
+        ${question.options
+          .map((option) => {
+            const answered = Boolean(feedback);
+            const isCorrect = answered && option === question.answer;
+            const isWrong = answered && option === feedback.answer && option !== question.answer;
+            return `
+              <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-vocab-tester-answer="${escapeHtml(option)}" data-vocab-tester-question="${question.id}">
+                <span ${hasArabic(option) ? 'class="arabic-option" lang="ar"' : ""}>${escapeHtml(localizedOption(option))}</span>
+              </button>
+            `;
+          })
+          .join("")}
+      </div>
+      ${feedback ? `
+        <div class="feedback ${feedback.status === "correct" ? "correct" : "incorrect"}">
+          ${icon(feedback.status === "correct" ? "check" : "x")}
+          <span>${feedback.status === "correct" ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(localizedOption(question.answer))}`}</span>
+        </div>
+      ` : ""}
+    </article>
+  `;
+}
+
+function renderVocabularyReviewStrip(bookSlug) {
+  if (!hasPremiumAccess()) {
+    return renderPremiumInline("spacedRepetition", paidFeatureText("progress"));
+  }
+
+  const due = dueVocabularyItems().filter((word) => word.bookSlug === bookSlug);
+  return `
+    <section class="card vocabulary-review-strip">
+      <div>
+        <p class="section-label">${t("spacedRepetition", "Spaced Repetition")}</p>
+        <h2>${due.length} ${t("wordsDue", "words due")}</h2>
+      </div>
+      <div class="chip-row">
+        ${due.slice(0, 10).map((word) => `<button type="button" data-speak="${escapeHtml(word.arabic)}" lang="ar">${word.arabic}</button>`).join("") || `<span class="empty-state">${t("noDueWords", "No due words right now.")}</span>`}
+      </div>
+      <button class="ghost-button compact-button" type="button" data-route="review">${t("reviewQueue", "Review queue")}</button>
+    </section>
+  `;
+}
+
+function renderVocabularyTable(words) {
+  return `
+    <section class="card table-card">
+      <div class="table-title">
+        <h2>${t("vocabulary", "Vocabulary")}</h2>
+        <button class="ghost-button" type="button" data-route="vocabulary">${t("viewAll", "View all")}</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>${t("arabic", "Arabic")}</th>
+              <th>${t("transliteration", "Transliteration")}</th>
+              <th>${isBengali() ? t("meaning", "Meaning") : t("english", "English")}</th>
+              <th>${t("book", "Book")}</th>
+              <th>${t("lesson", "Lesson")}</th>
+              <th>${t("audio", "Audio")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${words
+              .map(
+                (word) => `
+                  <tr>
+                    <td class="arabic-cell" lang="ar">${word.arabic}</td>
+                    <td>${escapeHtml(word.transliteration || "—")}</td>
+                    <td>${escapeHtml(localizedText(word.english))}</td>
+                    <td>${escapeHtml(localizedBookTitle(getBook(word.bookSlug) || word.bookSlug))}</td>
+                    <td>${word.lessonNumber}</td>
+                    <td><button class="icon-button" type="button" data-speak="${escapeHtml(word.arabic)}" aria-label="${t("playAudio", "Play audio")}">${icon("speaker")}</button></td>
+                  </tr>
+                `
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function renderGrammarPage() {
+  const rules = hasPremiumAccess() ? state.data.grammar : state.data.grammar.filter((rule) => canAccessBookSlug(rule.bookSlug));
+  return `
+    <section class="page-stack">
+      <div class="page-heading">
+        <div>
+          <p class="section-label">${t("availableBooks", "Available Books")}</p>
+          <h2>${t("grammar", "Grammar")}</h2>
+        </div>
+      </div>
+      <div class="grammar-grid">
+        ${rules
+          .map(
+            (rule) => `
+              <article class="card grammar-card">
+                <span class="quick-icon">${icon("grammar")}</span>
+                <h3>${escapeHtml(localizedGrammarTitle(rule))}</h3>
+                <p>${escapeHtml(localizedGrammarSummary(rule))}</p>
+                <button class="arabic-example" type="button" data-speak="${escapeHtml(rule.example)}" lang="ar">${rule.example}</button>
+              </article>
+            `
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderExercisesPage() {
+  const selected = byId(state.data.exercises, state.selectedExerciseId) || state.data.exercises[0];
+  const exerciseLesson = byId(state.data.lessons, selected.lessonId);
+  const selectedBook = getBook(exerciseLesson?.bookSlug);
+
+  return `
+    <section class="exercise-layout">
+      <aside class="card exercise-list">
+        <div class="panel-heading">
+          <p class="section-label">${t("practice", "Practice")}</p>
+          <h2>${t("exercises", "Exercises")}</h2>
+        </div>
+        ${state.data.exercises
+          .map(
+            (exercise, index) => `
+              <button class="exercise-link ${selected.id === exercise.id ? "active" : ""}" type="button" data-exercise="${exercise.id}">
+                <span>${String(index + 1).padStart(2, "0")}</span>
+                <strong>${escapeHtml(localizedText(exercise.prompt))}</strong>
+                ${state.progress.exerciseAttempts[exercise.id] === "correct" ? icon("check") : ""}
+              </button>
+            `
+          )
+          .join("")}
+      </aside>
+      <article class="card exercise-card">
+        <div class="card-heading">
+          <div>
+            <p class="section-label">${t("exercises", "Exercise")}</p>
+            <h2>${escapeHtml(localizedText(selected.prompt))}</h2>
+          </div>
+          <span class="pill">${escapeHtml(localizedBookTitle(selectedBook))}</span>
+        </div>
+        <button class="arabic-hero exercise-prompt" type="button" data-speak="${escapeHtml(selected.arabic)}" lang="ar">${selected.arabic}</button>
+        <div class="options">
+          ${selected.options
+            .map(
+              (option) => `
+                <button class="option-button" type="button" data-answer="${escapeHtml(option)}" data-exercise-answer="${selected.id}">
+                  ${escapeHtml(localizedOption(option))}
+                </button>
+              `
+            )
+            .join("")}
+        </div>
+        ${renderExerciseFeedback(selected)}
+      </article>
+    </section>
+  `;
+}
+
+function renderExerciseFeedback(exercise) {
+  const feedback = state.exerciseFeedback[exercise.id] || state.progress.exerciseAttempts[exercise.id];
+  if (!feedback) return "";
+  const correct = feedback === "correct";
+  return `
+    <div class="feedback ${correct ? "correct" : "incorrect"}">
+      ${icon(correct ? "check" : "x")}
+      <span>${correct ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(localizedOption(exercise.answer))}`}</span>
+    </div>
+  `;
+}
+
+function renderVocabularyQuizFeedback(lessonId, quiz) {
+  const feedback = state.vocabularyQuizFeedback[lessonId];
+  if (!feedback) return "";
+  const correct = feedback.status === "correct";
+  return `
+    <div class="feedback ${correct ? "correct" : "incorrect"}">
+      ${icon(correct ? "check" : "x")}
+      <span>${correct ? t("correctSaved", "Correct. Vocabulary saved to progress.") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(localizedOption(quiz.answer))}`}</span>
+    </div>
+  `;
+}
+
+function renderReviewPage() {
+  const mistakes = mistakeItems();
+  const dueWords = dueVocabularyItems();
+  return `
+    <section class="page-stack">
+      <div class="page-heading">
+        <div>
+          <p class="section-label">${t("review", "Review")}</p>
+          <h2>${localizedText("Mistakes And Due Vocabulary")}</h2>
+        </div>
+        <span class="pill">${mistakes.length} ${t("mistakes", "mistakes")}</span>
+      </div>
+      <section class="review-dashboard">
+        <article class="card">
+          <div class="subsection-heading">
+            <div>
+              <p class="section-label">${t("spacedRepetition", "Spaced Repetition")}</p>
+              <h3>${dueWords.length} ${t("wordsDue", "words due")}</h3>
+            </div>
+            <button class="ghost-button compact-button" type="button" data-route="vocabulary">${t("openVocabulary", "Open vocabulary")}</button>
+          </div>
+          <div class="review-word-grid">
+            ${dueWords.slice(0, 18).map((word) => `
+              <button class="word-chip" type="button" data-speak="${escapeHtml(word.arabic)}">
+                <span lang="ar">${word.arabic}</span>
+                <small>${escapeHtml(localizedText(word.english))} · ${t("lesson", "Lesson")} ${word.lessonNumber}</small>
+              </button>
+            `).join("") || `<p class="translation">${t("noDueWords", "No vocabulary is due right now.")}</p>`}
+          </div>
+        </article>
+        <article class="card">
+          <div class="subsection-heading">
+            <div>
+              <p class="section-label">${t("mistakes", "Mistakes")}</p>
+              <h3>${t("reviewQueue", "Review Queue")}</h3>
+            </div>
+          </div>
+          ${renderMistakeList(mistakes)}
+        </article>
+      </section>
+    </section>
+  `;
+}
+
+function renderMistakeList(mistakes) {
+  if (!mistakes.length) return `<p class="translation">${t("noMistakes", "No mistakes to review yet.")}</p>`;
+  return `
+    <div class="mistake-list">
+      ${mistakes
+        .map(
+          (mistake) => `
+            <article class="mistake-card">
+              <div>
+                <p class="section-label">${escapeHtml(localizedText(mistake.type || "Practice"))}</p>
+                <strong>${escapeHtml(localizedText(mistake.prompt || "Review this item."))}</strong>
+                ${mistake.arabic ? `<button class="arabic-example compact-arabic" type="button" data-speak="${escapeHtml(mistake.arabic)}" lang="ar">${mistake.arabic}</button>` : ""}
+              </div>
+              <div class="mistake-answer-grid">
+                <span><small>${t("yourAnswer", "Your answer")}</small>${escapeHtml(localizedOption(mistake.given || "Blank"))}</span>
+                <span><small>${t("correctAnswer", "Correct answer")}</small>${escapeHtml(localizedOption(mistake.expected || ""))}</span>
+              </div>
+            </article>
+          `
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function renderResourcesPage() {
+  return `
+    <section class="page-stack">
+      <div class="page-heading">
+        <div>
+          <p class="section-label">${t("availableBooks", "Available Books")}</p>
+          <h2>${t("resourcesTitle", "Resources")}</h2>
+        </div>
+      </div>
+      <div class="resource-grid">
+        ${state.data.resources
+          .map(
+            (resource) => `
+              <article class="card resource-card">
+                <span class="quick-icon">${icon("resources")}</span>
+                <p class="section-label">${escapeHtml(localizedText(resource.kind))}</p>
+                <h3>${escapeHtml(localizedText(resource.title))}</h3>
+                <p>${escapeHtml(localizedText(resource.description))}</p>
+                <button class="ghost-button" type="button" data-route="${routeForResource(resource)}">${t("open", "Open")} ${icon("arrow")}</button>
+              </article>
+            `
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderProgressPage() {
+  return `
+    <section class="page-stack">
+      <div class="page-heading">
+        <div>
+          <p class="section-label">${t("progress", "Progress")}</p>
+          <h2>${t("learningOverview", "Learning Overview")}</h2>
+        </div>
+      </div>
+      ${renderProgressPanel(true)}
+      <div class="card milestone-card">
+        <h3>${t("completedLessons", "Completed Lessons")}</h3>
+        <div class="milestone-grid">
+          ${state.data.lessons
+            .map(
+              (lesson) => `
+              <button class="milestone ${state.progress.completedLessonIds.includes(lesson.id) ? "done" : ""}" type="button" data-lesson="${lesson.id}">
+                <span>${lesson.number}</span>
+                <strong>${escapeHtml(localizedLessonTitle(lesson))}</strong>
+                <small>${lessonMastery(lesson)}% ${t("mastery", "mastery")}</small>
+              </button>
+              `
+            )
+            .join("")}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderAccountPage() {
+  const currentLesson = getCurrentLesson();
+  const book = state.data.books.find((item) => item.slug === state.progress.activeBookSlug) || state.data.books[0];
+  const currentBookLessons = lessonsForBook(book?.slug);
+  const currentBookCompleted = state.progress.completedLessonIds.filter((id) => currentBookLessons.some((lesson) => lesson.id === id)).length;
+  const learned = state.progress.learnedVocabularyIds.length;
+  const completed = state.progress.completedLessonIds.length;
+  const due = dueVocabularyItems().length;
+  const openMistakes = mistakeItems().length;
+  const databaseMode = state.data.databaseMode === "mongodb" ? "MongoDB Atlas" : "Local JSON";
+  const planKey = currentPlanKey();
+  const planName = localizedPlanLabel(planKey);
+  const accountStats = [
+    { label: t("currentPlan", "Current plan"), value: planName, detail: planKey === "paid" ? t("active", "active") : t("basicTester", "Basic tester") },
+    { label: t("currentBook", "Current book"), value: localizedBookTitle(book), detail: `${currentBookLessons.length} ${t("lessons", "lessons")} ${t("available", "available")}` },
+    { label: t("currentLesson", "Current lesson"), value: `${t("lesson", "Lesson")} ${currentLesson.number}`, detail: localizedLessonTitle(currentLesson) },
+    { label: t("xpPoints", "XP points"), value: state.progress.xp.toLocaleString(), detail: t("savedAccount", "Saved to your account") },
+    { label: t("dailyStreak", "Daily streak"), value: `${state.progress.dailyStreakDays} ${t("days", "days")}`, detail: t("keepHabit", "Keep the habit warm") },
+    { label: t("vocabulary", "Vocabulary"), value: `${learned}/${state.data.vocabulary.length}`, detail: `${due} ${t("wordsDue", "words due")}` },
+    { label: t("lessons", "Lessons"), value: `${currentBookCompleted}/${currentBookLessons.length}`, detail: `${lessonProgressPercent(book?.slug)}% ${t("completed", "complete")}` },
+    { label: t("weeklyGoal", "Weekly goal"), value: `${state.progress.weeklyGoalCompleted}/${state.progress.weeklyGoalTarget}`, detail: `${weeklyPercent()}% ${t("thisWeek", "this week")}` },
+    { label: t("reviewQueue", "Review queue"), value: openMistakes, detail: t("openMistakes", "Open mistakes") }
+  ];
+
+  return `
+    <section class="page-stack account-page">
+      <div class="page-heading">
+        <div>
+          <p class="section-label">${t("account", "Account")}</p>
+          <h2>${t("profileDetails", "Profile Details")}</h2>
+        </div>
+        <span class="pill">${escapeHtml(planName)}</span>
+      </div>
+      <section class="card account-hero">
+        <div class="account-identity">
+          <span class="account-avatar" aria-hidden="true">${escapeHtml(state.user.displayName.slice(0, 1).toUpperCase())}</span>
+          <div>
+            <p class="section-label">${t("signedInAs", "Signed in as")}</p>
+            <h2>${escapeHtml(state.user.displayName)}</h2>
+            <p class="account-email">${escapeHtml(state.user.email)}</p>
+          </div>
+        </div>
+        <div class="account-actions">
+          <button class="primary-button" type="button" data-route="${escapeHtml(currentLesson.bookSlug)}">${icon("book")} ${t("continue", "Continue")} ${escapeHtml(localizedBookTitle(getBook(currentLesson.bookSlug)))}</button>
+          <button class="ghost-button" type="button" data-route="progress">${icon("progress")} ${t("viewProgress", "View progress")}</button>
+          <button class="ghost-button danger-button" type="button" data-auth-signout>${icon("x")} ${t("signOut", "Sign out")}</button>
+        </div>
+      </section>
+      <section class="account-stat-grid">
+        ${accountStats
+          .map((item) => `
+            <article class="card account-stat">
+              <p class="section-label">${escapeHtml(item.label)}</p>
+              <strong>${escapeHtml(item.value)}</strong>
+              <span>${escapeHtml(item.detail)}</span>
+            </article>
+          `)
+          .join("")}
+      </section>
+      ${renderPlanComparison(true)}
+      <section class="card account-detail-panel">
+        <div>
+          <p class="section-label">${t("accountData", "Account data")}</p>
+          <h3>${t("privateAccountData", "Learning progress is private to this login")}</h3>
+          <p>${t("privateAccountDataText", "Your completed lessons, vocabulary review history, writing attempts, mistakes, streak, and XP are connected to this account.")}</p>
+        </div>
+        <dl class="account-detail-list">
+          <div>
+            <dt>${t("email", "Email")}</dt>
+            <dd>${escapeHtml(state.user.email)}</dd>
+          </div>
+          <div>
+            <dt>${t("userId", "User ID")}</dt>
+            <dd>${escapeHtml(state.user.userId)}</dd>
+          </div>
+          <div>
+            <dt>${t("storage", "Storage")}</dt>
+            <dd>${escapeHtml(databaseMode)}</dd>
+          </div>
+          <div>
+            <dt>${t("subscriptionStatus", "Subscription status")}</dt>
+            <dd>${escapeHtml(planName)} · ${escapeHtml(state.user.subscriptionStatus || "active")}</dd>
+          </div>
+        </dl>
+      </section>
+    </section>
+  `;
+}
+
+function renderProgressPanel(wide = false) {
+  const items = [
+    { label: t("vocabularyLearned", "Vocabulary learned"), value: state.progress.learnedVocabularyIds.length, percent: vocabularyPercent() },
+    { label: t("lessonsCompleted", "Lessons completed"), value: `${state.progress.completedLessonIds.length}/${state.data.lessons.length}`, percent: lessonProgressPercent() },
+    { label: t("weeklyGoal", "Weekly goal"), value: `${state.progress.weeklyGoalCompleted}/${state.progress.weeklyGoalTarget}`, percent: weeklyPercent() }
+  ];
+
+  return `
+    <section class="card progress-panel ${wide ? "wide" : ""}">
+      <div class="panel-heading">
+        <p class="section-label">${t("progress", "Progress")}</p>
+        <h2>${t("learningGoals", "Learning Goals")}</h2>
+      </div>
+      <div class="rings">
+        ${items
+          .map(
+            (item) => `
+              <article class="ring-card">
+                <div class="ring" style="--value:${item.percent}">
+                  <span>${item.value}</span>
+                </div>
+                <p>${item.label}</p>
+              </article>
+            `
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderBooksPanel() {
+  const availableCount = state.data.books.filter((book) => book.status === "available" && canAccessBookSlug(book.slug)).length;
+  return `
+    <section class="books-panel">
+      <div class="panel-heading inline">
+        <div>
+          <p class="section-label">${t("books", "Books")}</p>
+          <h2>Madinah Arabic</h2>
+        </div>
+        <span class="pill muted">${availableCount} ${t("available", "available")}</span>
+      </div>
+      ${state.data.books
+        .map(
+          (book, index) => {
+            const locked = book.status !== "available" || !canAccessBookSlug(book.slug);
+            return `
+            <button class="book-card ${locked ? "locked" : ""}" type="button" data-route="${book.slug}">
+              <span class="book-number">${index + 1}</span>
+              <span>
+                <strong>${escapeHtml(localizedBookTitle(book))}</strong>
+                <small>${book.status !== "available" ? t("comingSoon", "Coming Soon") : locked ? t("lockedPremium", "Premium") : `${book.lessonCount} ${t("lessons", "lessons")}`}</small>
+              </span>
+              ${icon(locked ? "lock" : "book")}
+            </button>
+          `;
+          }
+        )
+        .join("")}
+    </section>
+  `;
+}
+
+function renderLockedBook() {
+  const book = state.data.books.find((item) => item.slug === state.route);
+  return `
+    <section class="locked-page card">
+      <span class="locked-icon">${icon("lock")}</span>
+      <p class="section-label">${escapeHtml(localizedBookTitle(book))}</p>
+      <h2>${t("comingSoon", "Coming Soon")}</h2>
+      <p>${escapeHtml(localizedBookSummary(book))}</p>
+      <button class="primary-button" type="button" data-route="${escapeHtml(getCurrentLesson()?.bookSlug || "book-1")}">${icon("book")} ${t("continueLearning", "Continue learning")}</button>
+    </section>
+  `;
+}
+
+document.addEventListener("click", (event) => {
+  const authModeButton = event.target.closest("[data-auth-mode]");
+  if (authModeButton) {
+    state.authMode = authModeButton.dataset.authMode;
+    state.authError = "";
+    render();
+    return;
+  }
+
+  const authCloseButton = event.target.closest("[data-auth-close]");
+  if (authCloseButton) {
+    state.authMode = null;
+    state.authError = "";
+    render();
+    return;
+  }
+
+  const authSignoutButton = event.target.closest("[data-auth-signout]");
+  if (authSignoutButton) {
+    signOut();
+    return;
+  }
+
+  const routeButton = event.target.closest("[data-route]");
+  if (routeButton) {
+    setRoute(routeButton.dataset.route);
+    return;
+  }
+
+  const lessonButton = event.target.closest("[data-lesson]");
+  if (lessonButton) {
+    setLesson(lessonButton.dataset.lesson);
+    return;
+  }
+
+  const lessonTabButton = event.target.closest("[data-lesson-tab]");
+  if (lessonTabButton) {
+    state.lessonTab = lessonTabButton.dataset.lessonTab;
+    render();
+    return;
+  }
+
+  const vocabularyTabButton = event.target.closest("[data-vocabulary-tab]");
+  if (vocabularyTabButton) {
+    state.vocabularyTab = vocabularyTabButton.dataset.vocabularyTab;
+    render();
+    return;
+  }
+
+  const vocabularyBookButton = event.target.closest("[data-vocabulary-book]");
+  if (vocabularyBookButton) {
+    setVocabularyBook(vocabularyBookButton.dataset.vocabularyBook);
+    return;
+  }
+
+  const vocabTesterBookButton = event.target.closest("[data-vocab-tester-book]");
+  if (vocabTesterBookButton) {
+    toggleVocabTesterBook(vocabTesterBookButton.dataset.vocabTesterBook);
+    return;
+  }
+
+  const vocabTesterFocusButton = event.target.closest("[data-vocab-tester-focus]");
+  if (vocabTesterFocusButton) {
+    toggleVocabTesterFocus(vocabTesterFocusButton.dataset.vocabTesterFocus);
+    return;
+  }
+
+  const bookExerciseButton = event.target.closest("[data-book-exercise-complete]");
+  if (bookExerciseButton) {
+    markBookExerciseComplete(bookExerciseButton.dataset.bookExerciseComplete);
+    return;
+  }
+
+  const vocabTesterNewButton = event.target.closest("[data-vocab-tester-new]");
+  if (vocabTesterNewButton) {
+    generateVocabTester();
+    return;
+  }
+
+  const vocabTesterAnswerButton = event.target.closest("[data-vocab-tester-answer]");
+  if (vocabTesterAnswerButton) {
+    answerVocabTester(vocabTesterAnswerButton.dataset.vocabTesterQuestion, vocabTesterAnswerButton.dataset.vocabTesterAnswer);
+    return;
+  }
+
+  const vocabularyQuizNewButton = event.target.closest("[data-vocab-quiz-new]");
+  if (vocabularyQuizNewButton) {
+    generateNewVocabularyQuiz(vocabularyQuizNewButton.dataset.vocabQuizNew);
+    return;
+  }
+
+  const vocabularyQuizAnswerButton = event.target.closest("[data-vocab-quiz-answer]");
+  if (vocabularyQuizAnswerButton) {
+    answerVocabularyQuiz(vocabularyQuizAnswerButton.dataset.vocabQuizLesson, vocabularyQuizAnswerButton.dataset.vocabQuizAnswer);
+    return;
+  }
+
+  const speakButton = event.target.closest("[data-speak]");
+  if (speakButton) {
+    speak(speakButton.dataset.speak);
+    return;
+  }
+
+  const completeButton = event.target.closest("[data-complete]");
+  if (completeButton) {
+    markLessonComplete(byId(state.data.lessons, completeButton.dataset.complete));
+    return;
+  }
+
+  const exerciseButton = event.target.closest("[data-exercise]");
+  if (exerciseButton) {
+    state.selectedExerciseId = exerciseButton.dataset.exercise;
+    render();
+    return;
+  }
+
+  const answerButton = event.target.closest("[data-exercise-answer]");
+  if (answerButton) {
+    const exercise = byId(state.data.exercises, answerButton.dataset.exerciseAnswer);
+    answerExercise(exercise, answerButton.dataset.answer);
+    return;
+  }
+
+  const themeButton = event.target.closest("[data-theme-toggle]");
+  if (themeButton) {
+    state.theme = state.theme === "dark" ? "light" : "dark";
+    localStorage.setItem("madinah-theme", state.theme);
+    render();
+    return;
+  }
+});
+
+document.addEventListener("submit", (event) => {
+  const authForm = event.target.closest("[data-auth-form]");
+  if (authForm) {
+    event.preventDefault();
+    submitAuth(authForm);
+    return;
+  }
+
+  const checkedExerciseForm = event.target.closest("[data-book-exercise-check]");
+  if (checkedExerciseForm) {
+    event.preventDefault();
+    checkBookExercise(checkedExerciseForm);
+  }
+});
+
+document.addEventListener("change", (event) => {
+  if (event.target.matches("[data-vocab-tester-lesson]")) {
+    setVocabTesterLesson(event.target.value);
+  }
+});
+
+document.addEventListener("input", (event) => {
+  if (event.target.matches("[data-search]")) {
+    state.search = event.target.value;
+    if (!isAuthenticated()) {
+      state.authMode = "login";
+      state.authError = t("searchSignIn", "Please sign in to search the course.");
+      render();
+      return;
+    }
+
+    if (state.route !== "vocabulary") {
+      state.route = "vocabulary";
+    }
+    state.vocabularyTab = "list";
+    render();
+  }
+});
+
+loadApp();

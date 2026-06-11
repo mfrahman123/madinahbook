@@ -1,0 +1,482 @@
+import assert from "node:assert/strict";
+import { after, before, describe, it } from "node:test";
+import { api, paidTestUser, startTestServer, testUser } from "../helpers/test-server.mjs";
+
+describe("Madinah Arabic API and static app", () => {
+  let server;
+
+  before(async () => {
+    server = await startTestServer();
+  });
+
+  after(async () => {
+    await server?.stop();
+  });
+
+  it("serves the Book 1, Book 2 and Book 3 curriculum", async () => {
+    const { response, body } = await api(server.baseUrl, "/api/bootstrap");
+
+    assert.equal(response.status, 200);
+    assert.equal(body.databaseMode, "local-json");
+    assert.equal(body.user.isDemo, true);
+    assert.equal(body.books.length, 3);
+    assert.equal(body.books.find((book) => book.slug === "book-1").status, "available");
+    assert.equal(body.books.find((book) => book.slug === "book-2").status, "available");
+    assert.equal(body.books.find((book) => book.slug === "book-3").status, "available");
+    assert.equal(body.books.find((book) => book.slug === "book-2").lessonCount, 31);
+    assert.equal(body.books.find((book) => book.slug === "book-3").lessonCount, 34);
+    assert.equal(body.lessons.length, 88);
+    assert.equal(body.vocabulary.length, 1292);
+    assert.equal(body.vocabulary.filter((word) => word.bookSlug === "book-1").length, 423);
+    assert.equal(body.vocabulary.filter((word) => word.bookSlug === "book-2").length, 335);
+    assert.equal(body.vocabulary.filter((word) => word.bookSlug === "book-3").length, 534);
+  });
+
+  it("keeps paired verb forms readable with slash separators", async () => {
+    const { body } = await api(server.baseUrl, "/api/bootstrap");
+    const vocabularyById = new Map(body.vocabulary.map((word) => [word.id, word]));
+    const slashSeparatedWords = body.vocabulary.filter((word) => word.arabic.includes(" / "));
+    const colonSeparatedArabicPair = /[\u0600-\u06ff]\s*:\s*[\u0600-\u06ff]/;
+
+    assert.ok(slashSeparatedWords.length >= 80);
+    assert.equal(body.vocabulary.some((word) => colonSeparatedArabicPair.test(word.arabic)), false);
+    assert.equal(vocabularyById.get("v2-l4-dhahaba").arabic, "ذَهَبَ / يَذْهَبُ");
+    assert.equal(vocabularyById.get("v3-l1-taghayyara").arabic, "تَغَيَّرَ / يَتَغَيَّرُ");
+    assert.equal(vocabularyById.get("v3-l11-nawa").arabic, "نَوَى نِيَّةً");
+    assert.equal(vocabularyById.get("v3-l11-nawa").arabic.includes(" / "), false);
+  });
+
+  it("serves clean vocabulary records without undefined values or legacy mistranslations", async () => {
+    const { body } = await api(server.baseUrl, "/api/bootstrap");
+    const brokenWords = body.vocabulary.filter((word) => {
+      const searchable = `${word.arabic || ""} ${word.english || ""} ${word.transliteration || ""}`;
+      return !word.arabic || !word.english || /undefined/i.test(searchable);
+    });
+    const musa = body.vocabulary.find((word) => word.id === "v2-l14-musa");
+
+    assert.deepEqual(brokenWords.map((word) => word.id), []);
+    assert.equal(musa.arabic, "مُوسَى");
+    assert.equal(musa.english, "Musa (proper name)");
+    assert.doesNotMatch(musa.english, /razor/i);
+  });
+
+  it("serves pronunciation notes with final vowels and apostrophes for ayn", async () => {
+    const { body } = await api(server.baseUrl, "/api/bootstrap");
+    const wordsById = new Map(body.vocabulary.map((word) => [word.id, word]));
+    const emptyNotes = body.vocabulary.filter((word) => !word.transliteration);
+    const numberNotes = body.vocabulary.filter((word) => /[0-9]/.test(word.transliteration));
+    const badFinalVowels = body.vocabulary.flatMap((word) => pronunciationFinalVowelIssues(word));
+
+    assert.deepEqual(emptyNotes.map((word) => word.id), []);
+    assert.deepEqual(numberNotes.map((word) => word.id), []);
+    assert.equal(wordsById.get("v-bada").transliteration, "ba'da");
+    assert.equal(wordsById.get("v2-l25-badu").transliteration, "ba'du");
+    assert.equal(wordsById.get("v3-l24-badama").transliteration, "ba'damaa");
+    assert.equal(wordsById.get("v-baduhum").transliteration, "ba'duhum");
+    assert.equal(wordsById.get("v3-l1-taghayyara").transliteration, "taghayyara / yataghayyaru");
+    assert.deepEqual(badFinalVowels, []);
+  });
+
+  it("keeps displayed Arabic free of conflicting vowel marks", async () => {
+    const { body } = await api(server.baseUrl, "/api/bootstrap");
+    const arabicSamples = [
+      ...body.lessons.map((lesson) => [lesson.id, "lesson.arabic", lesson.arabic]),
+      ...body.lessons.flatMap((lesson) => (lesson.examples || []).map((example) => [lesson.id, `lesson.example.${example.label}`, example.arabic])),
+      ...body.vocabulary.map((word) => [word.id, "vocabulary.arabic", word.arabic]),
+      ...body.grammar.map((rule) => [rule.id, "grammar.example", rule.example]),
+      ...body.exercises.map((exercise) => [exercise.id, "exercise.arabic", exercise.arabic])
+    ].filter(([, , value]) => /[\u0600-\u06ff]/u.test(String(value || "")));
+
+    const invalidSamples = arabicSamples.filter(([, , value]) => hasConflictingArabicVowels(value));
+    assert.deepEqual(invalidSamples, []);
+  });
+
+  it("serves three ordered Learn examples for every lesson", async () => {
+    const { body } = await api(server.baseUrl, "/api/bootstrap");
+
+    body.lessons.forEach((lesson) => {
+      assert.equal(lesson.examples.length, 3, `${lesson.id} should have three Learn examples`);
+      assert.deepEqual(lesson.examples.map((example) => example.label), ["A", "B", "C"]);
+      assert.deepEqual(lesson.examples.map((example) => example.difficulty), [1, 2, 3]);
+      assert.ok(lesson.examples.some((example) => example.source === "Book model"), `${lesson.id} should include a book model`);
+
+      const complexities = lesson.examples.map((example) => exampleComplexity(example.arabic));
+      assert.deepEqual([...complexities].sort((a, b) => a - b), complexities, `${lesson.id} examples should increase in complexity`);
+      lesson.examples.forEach((example) => {
+        assert.ok(example.arabic, `${lesson.id} ${example.label} needs Arabic`);
+        assert.ok(example.translation, `${lesson.id} ${example.label} needs translation`);
+      });
+    });
+  });
+
+  it("links vocabulary and grammar metadata for every available lesson", async () => {
+    const { body } = await api(server.baseUrl, "/api/bootstrap");
+    const availableBookSlugs = new Set(body.books.filter((book) => book.status === "available").map((book) => book.slug));
+    const vocabularyIds = new Set(body.vocabulary.map((word) => word.id));
+    const grammarIds = new Set(body.grammar.map((rule) => rule.id));
+
+    body.lessons
+      .filter((lesson) => availableBookSlugs.has(lesson.bookSlug))
+      .forEach((lesson) => {
+        assert.ok(lesson.arabic, `${lesson.id} should include an Arabic example`);
+        assert.ok(lesson.translation, `${lesson.id} should include an English translation`);
+        assert.ok(lesson.vocabularyIds.length > 0, `${lesson.id} should have lesson vocabulary`);
+        assert.ok(lesson.grammarIds.length > 0, `${lesson.id} should have grammar notes`);
+        lesson.vocabularyIds.forEach((id) => assert.ok(vocabularyIds.has(id), `${lesson.id} references missing vocabulary ${id}`));
+        lesson.grammarIds.forEach((id) => assert.ok(grammarIds.has(id), `${lesson.id} references missing grammar ${id}`));
+      });
+  });
+
+  it("logs in with the seeded test account and returns private progress", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: testUser.email, password: testUser.password })
+    });
+
+    assert.equal(login.response.status, 200);
+    assert.equal(login.body.user.email, testUser.email);
+    assert.equal(login.body.user.subscriptionPlan, "free");
+    assert.equal(login.body.user.subscriptionStatus, "active");
+    assert.ok(login.body.sessionToken);
+
+    const authed = await api(server.baseUrl, "/api/bootstrap", {
+      headers: { "x-session-token": login.body.sessionToken }
+    });
+
+    assert.equal(authed.body.user.email, testUser.email);
+    assert.equal(authed.body.user.subscriptionPlan, "free");
+    assert.equal(authed.body.progress.userId, testUser.userId);
+    assert.deepEqual(authed.body.progress.completedLessonIds, []);
+  });
+
+  it("logs in with the seeded premium account and exposes paid entitlements", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: paidTestUser.email, password: paidTestUser.password })
+    });
+
+    assert.equal(login.response.status, 200);
+    assert.equal(login.body.user.email, paidTestUser.email);
+    assert.equal(login.body.user.subscriptionPlan, "paid");
+    assert.equal(login.body.user.subscriptionStatus, "active");
+  });
+
+  it("never returns password hashes in public auth responses", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: testUser.email, password: testUser.password })
+    });
+    const bootstrap = await api(server.baseUrl, "/api/bootstrap", {
+      headers: { "x-session-token": login.body.sessionToken }
+    });
+    const registered = await api(server.baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ displayName: "Hash Check", email: uniqueEmail("hash-check"), password: "test123" })
+    });
+
+    assert.doesNotMatch(JSON.stringify(login.body), /passwordHash/i);
+    assert.doesNotMatch(JSON.stringify(bootstrap.body), /passwordHash/i);
+    assert.doesNotMatch(JSON.stringify(registered.body), /passwordHash/i);
+    assert.doesNotMatch(JSON.stringify(login.body), new RegExp(testUser.passwordHash.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  });
+
+  it("rejects invalid logins with an auth status", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: testUser.email, password: "wrong-password" })
+    });
+
+    assert.equal(login.response.status, 401);
+    assert.match(login.body.error, /invalid email or password/i);
+    assert.equal(login.body.sessionToken, undefined);
+  });
+
+  it("registers a new account with fresh learner progress", async () => {
+    const email = uniqueEmail("learner");
+    const created = await api(server.baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ displayName: "New Learner", email, password: "test123" })
+    });
+
+    assert.equal(created.response.status, 200);
+    assert.equal(created.body.user.email, email);
+    assert.equal(created.body.user.subscriptionPlan, "free");
+    assert.equal(created.body.user.subscriptionStatus, "active");
+    assert.equal(created.body.progress.currentLessonId, "lesson-1");
+    assert.deepEqual(created.body.progress.completedLessonIds, []);
+    assert.deepEqual(created.body.progress.learnedVocabularyIds, []);
+  });
+
+  it("normalizes account email and rejects duplicate registrations", async () => {
+    const email = uniqueEmail("duplicate");
+    const created = await api(server.baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ displayName: "Duplicate Learner", email: `  ${email.toUpperCase()}  `, password: "test123" })
+    });
+    const duplicate = await api(server.baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ displayName: "Duplicate Learner", email, password: "test123" })
+    });
+
+    assert.equal(created.response.status, 200);
+    assert.equal(created.body.user.email, email);
+    assert.equal(duplicate.response.status, 409);
+    assert.match(duplicate.body.error, /already exists/i);
+  });
+
+  it("rejects malformed JSON request bodies", async () => {
+    const badRequest = await api(server.baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: "{"
+    });
+
+    assert.equal(badRequest.response.status, 400);
+    assert.match(badRequest.body.error, /invalid json/i);
+  });
+
+  it("does not expose forgotten password endpoints yet", async () => {
+    const page = await fetch(`${server.baseUrl}/`).then((response) => response.text());
+    const app = await fetch(`${server.baseUrl}/app.js`).then((response) => response.text());
+    const forgot = await api(server.baseUrl, "/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email: testUser.email })
+    });
+    const reset = await api(server.baseUrl, "/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token: "test-token", password: "new-password" })
+    });
+
+    assert.doesNotMatch(`${page}\n${app}`, /forgot(?:ten)? password|reset password/i);
+    assert.equal(forgot.response.status, 404);
+    assert.equal(reset.response.status, 404);
+    assert.match(forgot.body.error, /not found/i);
+    assert.match(reset.body.error, /not found/i);
+  });
+
+  it("rejects anonymous progress writes", async () => {
+    const blocked = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      body: JSON.stringify({ xp: 9999 })
+    });
+
+    assert.equal(blocked.response.status, 401);
+    assert.match(blocked.body.error, /sign in required/i);
+
+    const demo = await api(server.baseUrl, "/api/bootstrap");
+    assert.equal(demo.body.progress.xp, 4280);
+  });
+
+  it("persists account progress without touching the demo user", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: testUser.email, password: testUser.password })
+    });
+
+    const updated = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      headers: { "x-session-token": login.body.sessionToken },
+      body: JSON.stringify({
+        xp: 120,
+        completedLessonIds: ["lesson-1"],
+        learnedVocabularyIds: ["v-hadha"]
+      })
+    });
+
+    assert.equal(updated.response.status, 200);
+    assert.equal(updated.body.progress.xp, 120);
+    assert.ok(updated.body.progress.completedLessonIds.includes("lesson-1"));
+    assert.ok(updated.body.progress.learnedVocabularyIds.includes("v-hadha"));
+
+    const demo = await api(server.baseUrl, "/api/bootstrap");
+    assert.equal(demo.body.user.isDemo, true);
+    assert.equal(demo.body.progress.xp, 4280);
+  });
+
+  it("invalidates a session token on logout", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: testUser.email, password: testUser.password })
+    });
+
+    const logout = await api(server.baseUrl, "/api/auth/logout", {
+      method: "POST",
+      headers: { "x-session-token": login.body.sessionToken }
+    });
+    const afterLogout = await api(server.baseUrl, "/api/bootstrap", {
+      headers: { "x-session-token": login.body.sessionToken }
+    });
+    const blockedSave = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      headers: { "x-session-token": login.body.sessionToken },
+      body: JSON.stringify({ xp: 320 })
+    });
+
+    assert.equal(logout.response.status, 200);
+    assert.equal(afterLogout.body.user.isDemo, true);
+    assert.equal(blockedSave.response.status, 401);
+  });
+
+  it("merges saved progress maps across multiple updates", async () => {
+    const email = uniqueEmail("merge");
+    const created = await api(server.baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ displayName: "Merge Learner", email, password: "test123" })
+    });
+
+    const token = created.body.sessionToken;
+    const firstSave = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      headers: { "x-session-token": token },
+      body: JSON.stringify({
+        xp: 40,
+        exerciseAttempts: { "lesson-1-choice": "correct" },
+        vocabularyStats: { "v-hadha": { attempts: 1, correct: 1 } }
+      })
+    });
+
+    const secondSave = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      headers: { "x-session-token": token },
+      body: JSON.stringify({
+        xp: 10,
+        exerciseAttempts: { "lesson-2-choice": "incorrect" },
+        vocabularyStats: { "v-bayt": { attempts: 1, correct: 0 } }
+      })
+    });
+
+    assert.equal(firstSave.response.status, 200);
+    assert.equal(secondSave.response.status, 200);
+    assert.equal(secondSave.body.progress.xp, 40);
+    assert.equal(secondSave.body.progress.exerciseAttempts["lesson-1-choice"], "correct");
+    assert.equal(secondSave.body.progress.exerciseAttempts["lesson-2-choice"], "incorrect");
+    assert.deepEqual(secondSave.body.progress.vocabularyStats["v-hadha"], { attempts: 1, correct: 1 });
+    assert.deepEqual(secondSave.body.progress.vocabularyStats["v-bayt"], { attempts: 1, correct: 0 });
+  });
+
+  it("does not expose private files through static routes", async () => {
+    const publicApp = await fetch(`${server.baseUrl}/app.js?v=cache-check`);
+    const blockedPaths = [
+      "/.env",
+      "/.gitignore",
+      "/server.js",
+      "/package.json",
+      "/package-lock.json",
+      "/data/curriculum.json",
+      "/data/users.json",
+      "/data/progress-users.json"
+    ];
+
+    assert.equal(publicApp.status, 200);
+
+    for (const pathname of blockedPaths) {
+      const response = await fetch(`${server.baseUrl}${pathname}`);
+      const text = await response.text();
+      assert.equal(response.status, 404, `${pathname} should not be publicly served`);
+      assert.doesNotMatch(text, /MONGODB_URI|passwordHash|const http = require|lockfileVersion/);
+    }
+  });
+
+  it("serves the account page code and cache-busted assets", async () => {
+    const page = await fetch(`${server.baseUrl}/`).then((response) => response.text());
+    const app = await fetch(`${server.baseUrl}/app.js?v=20260522-book-3-content`).then((response) => response.text());
+
+    assert.match(page, /20260522-book-3-content/);
+    assert.match(app, /renderAccountPage/);
+    assert.match(app, /planEntitlements/);
+    assert.match(app, /routeRequiresPremium/);
+    assert.match(app, /data-route="account"/);
+    assert.match(app, /শব্দভান্ডার/);
+    assert.doesNotMatch(app, /data-language-toggle/);
+    assert.doesNotMatch(app, /data-vocab-tester-mode/);
+  });
+
+  it("does not configure transliteration prompts in vocabulary quizzes", async () => {
+    const app = await fetch(`${server.baseUrl}/app.js`).then((response) => response.text());
+    const start = app.indexOf("function createVocabularyQuestion");
+    const end = app.indexOf("function normalizeVocabTesterFilters");
+    const quizCode = app.slice(start, end);
+
+    assert.notEqual(start, -1);
+    assert.notEqual(end, -1);
+    assert.match(quizCode, /answerKey: "english"/);
+    assert.match(quizCode, /answerKey: "arabic"/);
+    assert.doesNotMatch(quizCode, /transliteration/i);
+  });
+});
+
+function uniqueEmail(prefix) {
+  return `${prefix}-${Date.now()}-${Math.round(Math.random() * 1_000_000)}@example.test`;
+}
+
+function pronunciationFinalVowelIssues(word) {
+  const arabicParts = String(word.arabic || "").split(" / ");
+  const noteParts = String(word.transliteration || "").split(" / ");
+  return arabicParts.flatMap((arabicPart, index) => {
+    const expectedEnding = finalArabicPronunciationEnding(arabicPart);
+    if (!expectedEnding) return [];
+
+    const notePart = String(noteParts[index] || "").trim().toLowerCase().replace(/[^\w']+$/g, "");
+    return notePart.endsWith(expectedEnding) ? [] : [{
+      id: word.id,
+      arabic: arabicPart,
+      transliteration: notePart,
+      expectedEnding
+    }];
+  });
+}
+
+function finalArabicPronunciationEnding(text) {
+  const letters = [];
+  for (const char of [...String(text).normalize("NFC")]) {
+    if (/[\u064b-\u0652\u0670]/u.test(char)) {
+      if (letters.length) letters[letters.length - 1].marks.push(char);
+      continue;
+    }
+
+    if (/[\u0621-\u063a\u0641-\u064a]/u.test(char)) {
+      letters.push({ base: char, marks: [] });
+    }
+  }
+
+  if (!letters.length) return "";
+
+  let finalLetter = letters[letters.length - 1];
+  if (finalLetter.base === "ا" && !finalLetter.marks.length && letters.at(-2)?.marks.includes("\u064b")) {
+    finalLetter = letters.at(-2);
+  }
+
+  const marks = new Set(finalLetter.marks);
+  if (marks.has("\u064b")) return "an";
+  if (marks.has("\u064c")) return "un";
+  if (marks.has("\u064d")) return "in";
+  if (marks.has("\u064e")) return "a";
+  if (marks.has("\u064f")) return "u";
+  if (marks.has("\u0650")) return "i";
+  return "";
+}
+
+function hasConflictingArabicVowels(text) {
+  const primaryMarks = new Set(["\u064b", "\u064c", "\u064d", "\u064e", "\u064f", "\u0650", "\u0652"]);
+  let primaryMarksOnLetter = 0;
+
+  for (const char of [...String(text).normalize("NFC")]) {
+    if (/[\u064b-\u065f\u0670]/u.test(char)) {
+      if (primaryMarks.has(char)) {
+        primaryMarksOnLetter += 1;
+        if (primaryMarksOnLetter > 1) return true;
+      }
+      continue;
+    }
+
+    primaryMarksOnLetter = 0;
+  }
+
+  return false;
+}
+
+function exampleComplexity(arabic) {
+  const words = String(arabic).split(/\s+/).filter(Boolean).length;
+  const clauses = (String(arabic).match(/[،؟.]/g) || []).length;
+  const characters = [...String(arabic)].filter((char) => /[\u0600-\u06ff]/u.test(char)).length;
+  return words * 10 + clauses * 4 + characters / 100;
+}

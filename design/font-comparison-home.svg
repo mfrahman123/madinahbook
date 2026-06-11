@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1600" viewBox="0 0 1600 1600" role="img" aria-labelledby="title desc">
+  <title id="title">Madinah Arabic Home Page Font Comparison</title>
+  <desc id="desc">Four side-by-side home page treatments comparing lighter font options for the Madinah Arabic app.</desc>
+  <defs>
+    <linearGradient id="pageBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#081521"/>
+      <stop offset="0.48" stop-color="#0a1a27"/>
+      <stop offset="1" stop-color="#0c231e"/>
+    </linearGradient>
+    <linearGradient id="panelGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1fc7a0" stop-opacity="0.2"/>
+      <stop offset="0.5" stop-color="#1fc7a0" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#d8b868" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="26" stdDeviation="28" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <style>
+      .label { fill: #9cb2ad; font-size: 19px; font-weight: 650; letter-spacing: 0; }
+      .title { fill: #ffffff; font-size: 42px; font-weight: 680; letter-spacing: 0; }
+      .subtitle { fill: #9cb2ad; font-size: 18px; font-weight: 450; letter-spacing: 0; }
+      .panel { fill: #0d2030; stroke: rgba(182,245,223,0.16); stroke-width: 1.5; filter: url(#shadow); }
+      .hero { fill: #102636; stroke: rgba(182,245,223,0.14); stroke-width: 1.3; }
+      .soft { fill: rgba(255,255,255,0.055); stroke: rgba(182,245,223,0.12); stroke-width: 1; }
+      .accent { fill: #1fc7a0; }
+      .gold { fill: #d8b868; }
+      .muted { fill: #9cb2ad; }
+      .text { fill: #edf7f3; }
+      .strong { fill: #ffffff; }
+      .arabic { font-family: "Geeza Pro", "Noto Naskh Arabic", "Times New Roman", serif; fill: #ffffff; font-weight: 500; }
+      .avenir { font-family: "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif; }
+      .helvetica { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+      .source { font-family: "Source Sans 3", "Source Sans Pro", "Helvetica Neue", Arial, sans-serif; }
+      .plex { font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1600" fill="url(#pageBg)"/>
+  <circle cx="210" cy="98" r="170" fill="#1fc7a0" opacity="0.08"/>
+  <circle cx="1390" cy="1430" r="250" fill="#d8b868" opacity="0.06"/>
+
+  <text x="70" y="78" class="title helvetica">Madinah Arabic home page: lighter font directions</text>
+  <text x="70" y="114" class="subtitle helvetica">Same layout, same content, reduced weight and less bulky typography. Arabic remains readable with Geeza Pro / Naskh fallback.</text>
+
+  <!-- Option 1 -->
+  <g transform="translate(70 160)" class="avenir">
+    <rect class="panel" width="700" height="440" rx="18"/>
+    <text x="28" y="42" class="label">Option 1 · Avenir Next</text>
+    <text x="28" y="74" class="subtitle">Warm, premium, slightly softer SaaS feel</text>
+    <rect x="28" y="104" width="644" height="292" rx="16" class="hero"/>
+    <rect x="28" y="104" width="644" height="292" rx="16" fill="url(#panelGlow)"/>
+    <text x="54" y="148" class="label" fill="#1fc7a0">Madinah Arabic Book 1</text>
+    <text x="54" y="190" class="strong" font-size="35" font-weight="650">Learn Arabic</text>
+    <text x="54" y="232" class="strong" font-size="35" font-weight="650">through a guided</text>
+    <text x="54" y="274" class="strong" font-size="35" font-weight="650">study workspace.</text>
+    <text x="54" y="314" class="subtitle" font-size="16">Structured lessons, vocabulary review, checked</text>
+    <text x="54" y="338" class="subtitle" font-size="16">exercises, quizzes, and progress tracking.</text>
+    <rect x="54" y="344" width="148" height="38" rx="9" fill="#1fc7a0"/>
+    <text x="77" y="369" fill="#051812" font-size="15" font-weight="650">Sign in to start</text>
+    <rect x="218" y="344" width="128" height="38" rx="9" class="soft"/>
+    <text x="240" y="369" class="text" font-size="15" font-weight="600">Create account</text>
+    <rect x="412" y="134" width="224" height="148" rx="14" class="soft"/>
+    <text x="604" y="166" text-anchor="end" direction="rtl" class="arabic" font-size="34">مَا هٰذَا؟</text>
+    <text x="604" y="214" text-anchor="end" direction="rtl" class="arabic" font-size="34">هٰذَا كِتَابٌ.</text>
+    <text x="438" y="253" class="subtitle" font-size="15">What is this? This is a book.</text>
+    <rect x="438" y="264" width="166" height="6" rx="3" fill="#263a47"/>
+    <rect x="438" y="264" width="112" height="6" rx="3" fill="#1fc7a0"/>
+    <rect x="412" y="304" width="98" height="50" rx="10" class="soft"/>
+    <text x="432" y="335" class="text" font-size="14" font-weight="650">423 words</text>
+    <rect x="524" y="304" width="112" height="50" rx="10" class="soft"/>
+    <text x="540" y="335" class="text" font-size="14" font-weight="650">Vocab tester</text>
+    <text x="28" y="420" class="gold" font-size="18" font-weight="650">Best if you want refined and friendly.</text>
+  </g>
+
+  <!-- Option 2 -->
+  <g transform="translate(830 160)" class="helvetica">
+    <rect class="panel" width="700" height="440" rx="18"/>
+    <text x="28" y="42" class="label">Option 2 · Helvetica Neue / system</text>
+    <text x="28" y="74" class="subtitle">Cleanest Apple-like choice, very low risk</text>
+    <rect x="28" y="104" width="644" height="292" rx="16" class="hero"/>
+    <rect x="28" y="104" width="644" height="292" rx="16" fill="url(#panelGlow)"/>
+    <text x="54" y="148" class="label" fill="#1fc7a0">Madinah Arabic Book 1</text>
+    <text x="54" y="190" class="strong" font-size="35" font-weight="620">Learn Arabic</text>
+    <text x="54" y="232" class="strong" font-size="35" font-weight="620">through a guided</text>
+    <text x="54" y="274" class="strong" font-size="35" font-weight="620">study workspace.</text>
+    <text x="54" y="314" class="subtitle" font-size="16">Structured lessons, vocabulary review, checked</text>
+    <text x="54" y="338" class="subtitle" font-size="16">exercises, quizzes, and progress tracking.</text>
+    <rect x="54" y="344" width="148" height="38" rx="9" fill="#1fc7a0"/>
+    <text x="77" y="369" fill="#051812" font-size="15" font-weight="650">Sign in to start</text>
+    <rect x="218" y="344" width="128" height="38" rx="9" class="soft"/>
+    <text x="240" y="369" class="text" font-size="15" font-weight="550">Create account</text>
+    <rect x="412" y="134" width="224" height="148" rx="14" class="soft"/>
+    <text x="604" y="166" text-anchor="end" direction="rtl" class="arabic" font-size="34">مَا هٰذَا؟</text>
+    <text x="604" y="214" text-anchor="end" direction="rtl" class="arabic" font-size="34">هٰذَا كِتَابٌ.</text>
+    <text x="438" y="253" class="subtitle" font-size="15">What is this? This is a book.</text>
+    <rect x="438" y="264" width="166" height="6" rx="3" fill="#263a47"/>
+    <rect x="438" y="264" width="112" height="6" rx="3" fill="#1fc7a0"/>
+    <rect x="412" y="304" width="98" height="50" rx="10" class="soft"/>
+    <text x="432" y="335" class="text" font-size="14" font-weight="600">423 words</text>
+    <rect x="524" y="304" width="112" height="50" rx="10" class="soft"/>
+    <text x="540" y="335" class="text" font-size="14" font-weight="600">Vocab tester</text>
+    <text x="28" y="420" class="gold" font-size="18" font-weight="600">Best if you want modern and unobtrusive.</text>
+  </g>
+
+  <!-- Option 3 -->
+  <g transform="translate(70 690)" class="source">
+    <rect class="panel" width="700" height="440" rx="18"/>
+    <text x="28" y="42" class="label">Option 3 · Source Sans 3</text>
+    <text x="28" y="74" class="subtitle">Readable, lighter, excellent for learning content</text>
+    <rect x="28" y="104" width="644" height="292" rx="16" class="hero"/>
+    <rect x="28" y="104" width="644" height="292" rx="16" fill="url(#panelGlow)"/>
+    <text x="54" y="148" class="label" fill="#1fc7a0">Madinah Arabic Book 1</text>
+    <text x="54" y="190" class="strong" font-size="36" font-weight="650">Learn Arabic</text>
+    <text x="54" y="232" class="strong" font-size="36" font-weight="650">through a guided</text>
+    <text x="54" y="274" class="strong" font-size="36" font-weight="650">study workspace.</text>
+    <text x="54" y="314" class="subtitle" font-size="16">Structured lessons, vocabulary review, checked</text>
+    <text x="54" y="338" class="subtitle" font-size="16">exercises, quizzes, and progress tracking.</text>
+    <rect x="54" y="344" width="148" height="38" rx="9" fill="#1fc7a0"/>
+    <text x="77" y="369" fill="#051812" font-size="15" font-weight="650">Sign in to start</text>
+    <rect x="218" y="344" width="128" height="38" rx="9" class="soft"/>
+    <text x="240" y="369" class="text" font-size="15" font-weight="600">Create account</text>
+    <rect x="412" y="134" width="224" height="148" rx="14" class="soft"/>
+    <text x="604" y="166" text-anchor="end" direction="rtl" class="arabic" font-size="34">مَا هٰذَا؟</text>
+    <text x="604" y="214" text-anchor="end" direction="rtl" class="arabic" font-size="34">هٰذَا كِتَابٌ.</text>
+    <text x="438" y="253" class="subtitle" font-size="15">What is this? This is a book.</text>
+    <rect x="438" y="264" width="166" height="6" rx="3" fill="#263a47"/>
+    <rect x="438" y="264" width="112" height="6" rx="3" fill="#1fc7a0"/>
+    <rect x="412" y="304" width="98" height="50" rx="10" class="soft"/>
+    <text x="432" y="335" class="text" font-size="14" font-weight="650">423 words</text>
+    <rect x="524" y="304" width="112" height="50" rx="10" class="soft"/>
+    <text x="540" y="335" class="text" font-size="14" font-weight="650">Vocab tester</text>
+    <text x="28" y="420" class="gold" font-size="18" font-weight="650">Best if lesson text readability matters most.</text>
+  </g>
+
+  <!-- Option 4 -->
+  <g transform="translate(830 690)" class="plex">
+    <rect class="panel" width="700" height="440" rx="18"/>
+    <text x="28" y="42" class="label">Option 4 · IBM Plex Sans</text>
+    <text x="28" y="74" class="subtitle">Calm, academic, serious without feeling heavy</text>
+    <rect x="28" y="104" width="644" height="292" rx="16" class="hero"/>
+    <rect x="28" y="104" width="644" height="292" rx="16" fill="url(#panelGlow)"/>
+    <text x="54" y="148" class="label" fill="#1fc7a0">Madinah Arabic Book 1</text>
+    <text x="54" y="190" class="strong" font-size="35" font-weight="600">Learn Arabic</text>
+    <text x="54" y="232" class="strong" font-size="35" font-weight="600">through a guided</text>
+    <text x="54" y="274" class="strong" font-size="35" font-weight="600">study workspace.</text>
+    <text x="54" y="314" class="subtitle" font-size="16">Structured lessons, vocabulary review, checked</text>
+    <text x="54" y="338" class="subtitle" font-size="16">exercises, quizzes, and progress tracking.</text>
+    <rect x="54" y="344" width="148" height="38" rx="9" fill="#1fc7a0"/>
+    <text x="77" y="369" fill="#051812" font-size="15" font-weight="600">Sign in to start</text>
+    <rect x="218" y="344" width="128" height="38" rx="9" class="soft"/>
+    <text x="240" y="369" class="text" font-size="15" font-weight="550">Create account</text>
+    <rect x="412" y="134" width="224" height="148" rx="14" class="soft"/>
+    <text x="604" y="166" text-anchor="end" direction="rtl" class="arabic" font-size="34">مَا هٰذَا؟</text>
+    <text x="604" y="214" text-anchor="end" direction="rtl" class="arabic" font-size="34">هٰذَا كِتَابٌ.</text>
+    <text x="438" y="253" class="subtitle" font-size="15">What is this? This is a book.</text>
+    <rect x="438" y="264" width="166" height="6" rx="3" fill="#263a47"/>
+    <rect x="438" y="264" width="112" height="6" rx="3" fill="#1fc7a0"/>
+    <rect x="412" y="304" width="98" height="50" rx="10" class="soft"/>
+    <text x="432" y="335" class="text" font-size="14" font-weight="600">423 words</text>
+    <rect x="524" y="304" width="112" height="50" rx="10" class="soft"/>
+    <text x="540" y="335" class="text" font-size="14" font-weight="600">Vocab tester</text>
+    <text x="28" y="420" class="gold" font-size="18" font-weight="600">Best if you want focused and scholarly.</text>
+  </g>
+
+  <g transform="translate(70 1246)" class="helvetica">
+    <rect class="panel" width="1460" height="230" rx="18"/>
+    <text x="34" y="52" class="label">Recommendation</text>
+    <text x="34" y="102" class="strong" font-size="34" font-weight="620">Use Avenir Next for the most premium feel, or Helvetica Neue for the safest Apple-like UI.</text>
+    <text x="34" y="146" class="subtitle" font-size="20">The biggest improvement is weight, not just font family: reduce heavy 900/950 text to 600-700 for headings, 500-650 for buttons, and 400-500 for body copy.</text>
+    <text x="34" y="188" class="subtitle" font-size="20">Keep Arabic separate: Geeza Pro or Noto Naskh Arabic remains clearer than forcing the Latin UI font onto Arabic text.</text>
+  </g>
+</svg>

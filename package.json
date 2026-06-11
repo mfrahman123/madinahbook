@@ -1,0 +1,19 @@
+{
+  "name": "madinah-arabic-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Madinah Arabic learning platform for Books 1, 2, and 3.",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "test": "node --test tests/integration/*.test.mjs",
+    "test:selenium": "node --test tests/selenium/*.test.mjs",
+    "test:all": "npm run test && npm run test:selenium"
+  },
+  "dependencies": {
+    "mongodb": "^6.16.0"
+  },
+  "devDependencies": {
+    "selenium-webdriver": "^4.44.0"
+  }
+}

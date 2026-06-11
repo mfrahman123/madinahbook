@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+.vendor/
+
+# Local environment and OS files
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Logs and test artifacts
+*.log
+npm-debug.log*
+coverage/
+.nyc_output/
+screenshots/
+test-results/
+selenium-screenshots/
+
+# Local JSON persistence. The app recreates these when running without MongoDB.
+data/progress.json
+data/users.json
+data/progress-users.json
+
+# Generated OCR/extraction artifacts. Curated course content lives in data/curriculum.json.
+data/*-ocr.txt
+data/*-extracted.txt
+data/pdf-ocr.txt
