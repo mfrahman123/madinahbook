@@ -85,6 +85,7 @@ describe("Madinah Arabic Selenium flows", () => {
     assert.match(bodyText, /Free/);
     assert.match(bodyText, /Sign out/);
     assert.doesNotMatch(bodyText, /Admin/);
+    assert.doesNotMatch(bodyText, /Resources/);
     assert.doesNotMatch(bodyText, /Sign In/);
     assert.doesNotMatch(bodyText, /Free vs Premium/);
 

@@ -67,7 +67,6 @@ const routes = [
   { id: "grammar", label: "Grammar", icon: "grammar" },
   { id: "exercises", label: "Exercises", icon: "exercises" },
   { id: "review", label: "Mistakes", icon: "target" },
-  { id: "resources", label: "Resources", icon: "resources" },
   { id: "progress", label: "Progress", icon: "progress" },
   { id: "subscription", label: "Subscription", icon: "spark" },
   { id: "admin", label: "Admin", icon: "target" },
@@ -2171,7 +2170,6 @@ function renderRoute() {
   if (state.route === "grammar") return renderGrammarPage();
   if (state.route === "exercises") return renderExercisesPage();
   if (state.route === "review") return renderReviewPage();
-  if (state.route === "resources") return renderResourcesPage();
   if (state.route === "progress") return renderProgressPage();
   if (state.route === "admin") return isAdmin() ? renderAdminPage() : renderUpgradeGate("default");
   if (state.route === "account") return renderAccountPage();
@@ -2522,8 +2520,7 @@ function renderQuickAccess() {
     { route: "vocabulary", label: t("vocabulary", "Vocabulary"), icon: "words", value: `${visibleVocabulary.length} ${t("words", "words")}` },
     { route: "grammar", label: t("grammar", "Grammar"), icon: "grammar", value: `${visibleGrammar.length} ${t("rules", "rules")}` },
     { route: "exercises", label: t("exercises", "Exercises"), icon: "exercises", value: `${state.data.exercises.length} ${t("drills", "drills")}` },
-    { route: "review", label: t("review", "Review"), icon: "target", value: `${mistakeItems().length} ${t("mistakes", "mistakes")}` },
-    { route: "resources", label: t("resources", "Resources"), icon: "resources", value: `${state.data.resources.length} ${t("items", "items")}` }
+    { route: "review", label: t("review", "Review"), icon: "target", value: `${mistakeItems().length} ${t("mistakes", "mistakes")}` }
   ];
 
   return `
