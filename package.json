@@ -6,14 +6,21 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "test": "node --test tests/integration/*.test.mjs",
+    "validate:content": "node scripts/validate-content.mjs",
+    "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:content": "npm run validate:content && node --test tests/content/*.test.mjs",
+    "test:integration": "node --test tests/integration/*.test.mjs",
+    "test": "npm run test:unit && npm run test:content && npm run test:integration",
     "test:selenium": "node --test tests/selenium/*.test.mjs",
-    "test:all": "npm run test && npm run test:selenium"
+    "test:visual": "node scripts/visual-regression.mjs",
+    "test:load": "node scripts/load-test-vocabulary.mjs",
+    "test:all": "npm run test && npm run test:selenium && npm run test:visual && npm run test:load"
   },
   "dependencies": {
     "mongodb": "^6.16.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "selenium-webdriver": "^4.44.0"
   }
 }

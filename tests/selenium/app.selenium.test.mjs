@@ -55,6 +55,20 @@ describe("Madinah Arabic Selenium flows", () => {
     }
   });
 
+  it("opens forgotten password and reset flows from the login modal", async () => {
+    await openFreshHome(driver, server.baseUrl);
+    await clickFirstVisible(driver, '[data-auth-mode="login"]');
+    await waitForText(driver, "Forgot password?");
+
+    await driver.findElement(By.css('[data-auth-mode="forgot"]')).click();
+    await waitForText(driver, "Forgot Password");
+    await driver.findElement(By.css('[data-auth-form] input[name="email"]')).sendKeys("reset-browser@example.test");
+    await driver.findElement(By.css('[data-auth-form] button[type="submit"]')).click();
+
+    await waitForText(driver, "Reset Password");
+    await waitForText(driver, "Back to sign in");
+  });
+
   it("opens account details from the profile avatar instead of signing out", async () => {
     await login(driver, server.baseUrl);
 
@@ -67,8 +81,10 @@ describe("Madinah Arabic Selenium flows", () => {
     assert.match(bodyText, /Account status/);
     assert.match(bodyText, /Subscription status/);
     assert.match(bodyText, /Content access/);
+    assert.match(bodyText, /Email verification/);
     assert.match(bodyText, /Free/);
     assert.match(bodyText, /Sign out/);
+    assert.doesNotMatch(bodyText, /Admin/);
     assert.doesNotMatch(bodyText, /Sign In/);
     assert.doesNotMatch(bodyText, /Free vs Premium/);
 
@@ -94,6 +110,18 @@ describe("Madinah Arabic Selenium flows", () => {
 
     await driver.findElement(By.css('[data-route="progress"]')).click();
     await waitForText(driver, "Upgrade to Premium");
+  });
+
+  it("opens the admin content editor for the admin account", async () => {
+    await login(driver, server.baseUrl, paidTestUser);
+
+    await driver.findElement(By.css('[data-route="admin"]')).click();
+    await waitForText(driver, "Content Management");
+    await waitForText(driver, "Vocabulary");
+    await waitForText(driver, "v-hadha");
+
+    const editors = await driver.findElements(By.css("[data-admin-content-form]"));
+    assert.ok(editors.length > 0);
   });
 
   it("signs out from the account details page", async () => {

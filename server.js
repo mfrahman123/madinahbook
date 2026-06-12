@@ -22,6 +22,8 @@ const authWindowMs = Number(process.env.AUTH_RATE_WINDOW_MS || 15 * 60 * 1000);
 const authMaxByIdentity = Number(process.env.AUTH_RATE_MAX_IDENTITY || 8);
 const authMaxByIp = Number(process.env.AUTH_RATE_MAX_IP || 40);
 const maxXpIncreasePerSave = Number(process.env.MAX_XP_INCREASE_PER_SAVE || 100);
+const tokenTtlMs = Number(process.env.AUTH_TOKEN_TTL_MS || 30 * 60 * 1000);
+const isProduction = process.env.NODE_ENV === "production";
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -34,6 +36,7 @@ const contentTypes = {
 
 const publicStaticFiles = new Set([
   "/index.html",
+  "/learning-core.js",
   "/app.js",
   "/styles.css",
   "/design/font-comparison-home.svg",
@@ -92,6 +95,18 @@ function requestError(message, statusCode) {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
+}
+
+function structuredLog(level, event, details = {}) {
+  const safeDetails = Object.fromEntries(
+    Object.entries(details).filter(([, value]) => value !== undefined)
+  );
+  console.log(JSON.stringify({
+    level,
+    event,
+    timestamp: new Date().toISOString(),
+    ...safeDetails
+  }));
 }
 
 function normalizeEmail(email) {
@@ -217,6 +232,27 @@ function clearAuthRateLimit(request, purpose, email) {
   authAttempts.delete(`${purpose}:identity:${ip}:${normalizedEmail}`);
 }
 
+function createOneTimeToken() {
+  const token = crypto.randomBytes(24).toString("hex");
+  return {
+    token,
+    tokenHash: hashOneTimeToken(token),
+    expiresAt: new Date(Date.now() + tokenTtlMs).toISOString()
+  };
+}
+
+function hashOneTimeToken(token) {
+  return crypto.createHash("sha256").update(String(token || "")).digest("hex");
+}
+
+function devTokenPayload(token) {
+  return isProduction ? {} : { devToken: token };
+}
+
+function isTokenActive(record, hashField, expiryField, token) {
+  return record?.[hashField] === hashOneTimeToken(token) && Date.parse(record?.[expiryField] || 0) > Date.now();
+}
+
 function normalizeSubscriptionPlan(plan) {
   return plan === "paid" ? "paid" : "free";
 }
@@ -225,7 +261,16 @@ function normalizeSubscriptionStatus(status) {
   return ["active", "past_due", "cancelled"].includes(status) ? status : "active";
 }
 
-function publicUser(userId, displayName = "Fahima", email = "", subscriptionPlan = "free", subscriptionStatus = "active", subscriptionEndsAt = null) {
+function publicUser(
+  userId,
+  displayName = "Fahima",
+  email = "",
+  subscriptionPlan = "free",
+  subscriptionStatus = "active",
+  subscriptionEndsAt = null,
+  role = "student",
+  emailVerified = false
+) {
   return {
     userId,
     displayName,
@@ -233,7 +278,9 @@ function publicUser(userId, displayName = "Fahima", email = "", subscriptionPlan
     isDemo: userId === "demo-user",
     subscriptionPlan: normalizeSubscriptionPlan(subscriptionPlan),
     subscriptionStatus: normalizeSubscriptionStatus(subscriptionStatus),
-    subscriptionEndsAt: subscriptionEndsAt || null
+    subscriptionEndsAt: subscriptionEndsAt || null,
+    role: role === "admin" ? "admin" : "student",
+    emailVerified: Boolean(emailVerified)
   };
 }
 
@@ -244,8 +291,14 @@ function publicUserFromRecord(user) {
     user.email,
     user.subscriptionPlan,
     user.subscriptionStatus,
-    user.subscriptionEndsAt
+    user.subscriptionEndsAt,
+    user.role,
+    user.emailVerified
   );
+}
+
+function isAdminUser(user) {
+  return user && !user.isDemo && user.role === "admin";
 }
 
 function planKeyForUser(user) {
@@ -504,6 +557,55 @@ function defaultProgressForUser(curriculum, user) {
   };
 }
 
+const adminCollectionConfig = {
+  vocabulary: {
+    idField: "id",
+    fields: new Set(["arabic", "english", "transliteration", "audioKey", "audioNote"])
+  },
+  lessons: {
+    idField: "id",
+    fields: new Set(["title", "focus", "arabic", "translation", "notes", "examples", "exercisePrompts"])
+  },
+  exercises: {
+    idField: "id",
+    fields: new Set(["prompt", "arabic", "options", "answer"])
+  }
+};
+
+function requireAdmin(user) {
+  if (!isAdminUser(user)) throw requestError("Admin access is required.", 403);
+}
+
+function sanitizeContentPatch(collectionName, patch) {
+  const config = adminCollectionConfig[collectionName];
+  if (!config) throw requestError("Unsupported content collection.", 404);
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+    throw requestError("Content patch must be an object.", 400);
+  }
+
+  const sanitized = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (!config.fields.has(key)) continue;
+    if (Array.isArray(value)) {
+      sanitized[key] = value
+        .filter((item) => typeof item === "string" || (item && typeof item === "object" && !Array.isArray(item)))
+        .slice(0, 40);
+      continue;
+    }
+    sanitized[key] = boundedString(value, key === "arabic" ? 600 : 1200).trim();
+  }
+
+  if (!Object.keys(sanitized).length) throw requestError("No supported content fields were provided.", 400);
+  return sanitized;
+}
+
+function patchContentArray(items, id, patch) {
+  const index = items.findIndex((item) => item.id === id);
+  if (index === -1) throw requestError("Content item not found.", 404);
+  items[index] = { ...items[index], ...patch, updatedAt: new Date().toISOString() };
+  return items[index];
+}
+
 function readBody(request) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -601,12 +703,29 @@ async function seedMongoUsersFromLocalFiles(database, curriculum) {
       displayName: user.displayName || "Student",
       subscriptionPlan: normalizeSubscriptionPlan(user.subscriptionPlan),
       subscriptionStatus: normalizeSubscriptionStatus(user.subscriptionStatus),
-      subscriptionEndsAt: user.subscriptionEndsAt || null
+      subscriptionEndsAt: user.subscriptionEndsAt || null,
+      role: user.role === "admin" ? "admin" : "student",
+      emailVerified: Boolean(user.emailVerified)
     };
 
     await database.collection("users").updateOne(
       { email },
-      { $setOnInsert: seededUser },
+      {
+        $set: {
+          displayName: seededUser.displayName,
+          subscriptionPlan: seededUser.subscriptionPlan,
+          subscriptionStatus: seededUser.subscriptionStatus,
+          subscriptionEndsAt: seededUser.subscriptionEndsAt,
+          role: seededUser.role,
+          emailVerified: seededUser.emailVerified
+        },
+        $setOnInsert: {
+          userId: seededUser.userId,
+          email: seededUser.email,
+          passwordHash: seededUser.passwordHash,
+          createdAt: seededUser.createdAt || new Date().toISOString()
+        }
+      },
       { upsert: true }
     );
 
@@ -624,6 +743,17 @@ function createMongoStore(database, fallbackCurriculum) {
     const progress = await database.collection("userProgress").findOne({ userId }, { projection: { _id: 0 } });
     if (progress) return mergeProgress(defaultProgressForUser(fallbackCurriculum, publicUser(userId)), progress);
     return defaultProgressForUser(fallbackCurriculum, publicUser(userId));
+  }
+
+  async function getUserRecord(userId) {
+    return database.collection("users").findOne({ userId }, { projection: { _id: 0, passwordHash: 0 } });
+  }
+
+  async function requireAdminRecord(userId) {
+    const user = await getUserRecord(userId);
+    const publicRecord = user ? publicUserFromRecord(user) : null;
+    requireAdmin(publicRecord);
+    return publicRecord;
   }
 
   return {
@@ -679,6 +809,8 @@ function createMongoStore(database, fallbackCurriculum) {
         subscriptionPlan: "free",
         subscriptionStatus: "active",
         subscriptionEndsAt: null,
+        role: "student",
+        emailVerified: false,
         createdAt: new Date()
       };
       await database.collection("users").insertOne(user);
@@ -690,6 +822,88 @@ function createMongoStore(database, fallbackCurriculum) {
       const user = await database.collection("users").findOne({ email: normalizedEmail });
       if (!user || !verifyPassword(password, user.passwordHash)) throw requestError("Invalid email or password.", 401);
       return publicUserFromRecord(user);
+    },
+    async requestPasswordReset(email) {
+      const normalizedEmail = normalizeEmail(email);
+      const user = await database.collection("users").findOne({ email: normalizedEmail });
+      structuredLog("info", "auth.password_reset_requested", { email: normalizedEmail, found: Boolean(user) });
+      if (!user) return null;
+      const token = createOneTimeToken();
+      await database.collection("users").updateOne(
+        { userId: user.userId },
+        { $set: { resetTokenHash: token.tokenHash, resetTokenExpiresAt: token.expiresAt } }
+      );
+      return { email: normalizedEmail, token: token.token, expiresAt: token.expiresAt };
+    },
+    async resetPassword({ token, password }) {
+      if (!token || !password) throw requestError("Reset token and password are required.", 400);
+      const tokenHash = hashOneTimeToken(token);
+      const user = await database.collection("users").findOne({ resetTokenHash: tokenHash });
+      if (!isTokenActive(user, "resetTokenHash", "resetTokenExpiresAt", token)) {
+        throw requestError("Reset token is invalid or expired.", 400);
+      }
+      await database.collection("users").updateOne(
+        { userId: user.userId },
+        {
+          $set: { passwordHash: hashPassword(password) },
+          $unset: { resetTokenHash: "", resetTokenExpiresAt: "" }
+        }
+      );
+      structuredLog("info", "auth.password_reset_completed", { userId: user.userId });
+      return publicUserFromRecord(user);
+    },
+    async requestEmailVerification(userId) {
+      const user = await getUserRecord(userId);
+      if (!user || user.isDemo) throw requestError("Sign in required.", 401);
+      const token = createOneTimeToken();
+      await database.collection("users").updateOne(
+        { userId },
+        { $set: { verificationTokenHash: token.tokenHash, verificationTokenExpiresAt: token.expiresAt } }
+      );
+      structuredLog("info", "auth.email_verification_requested", { userId, email: user.email });
+      return { email: user.email, token: token.token, expiresAt: token.expiresAt };
+    },
+    async verifyEmail({ token }) {
+      if (!token) throw requestError("Verification token is required.", 400);
+      const tokenHash = hashOneTimeToken(token);
+      const user = await database.collection("users").findOne({ verificationTokenHash: tokenHash });
+      if (!isTokenActive(user, "verificationTokenHash", "verificationTokenExpiresAt", token)) {
+        throw requestError("Verification token is invalid or expired.", 400);
+      }
+      await database.collection("users").updateOne(
+        { userId: user.userId },
+        {
+          $set: { emailVerified: true },
+          $unset: { verificationTokenHash: "", verificationTokenExpiresAt: "" }
+        }
+      );
+      structuredLog("info", "auth.email_verified", { userId: user.userId });
+      return publicUserFromRecord({ ...user, emailVerified: true });
+    },
+    async adminContent(userId) {
+      await requireAdminRecord(userId);
+      const [books, lessons, vocabulary, grammar, exercises, resources] = await Promise.all([
+        database.collection("books").find({}, { projection: { _id: 0 } }).sort({ slug: 1 }).toArray(),
+        database.collection("lessons").find({}, { projection: { _id: 0 } }).sort({ bookSlug: 1, sequence: 1 }).toArray(),
+        database.collection("vocabulary").find({}, { projection: { _id: 0 } }).sort({ bookSlug: 1, sequence: 1, id: 1 }).toArray(),
+        database.collection("grammar").find({}, { projection: { _id: 0 } }).sort({ bookSlug: 1, sequence: 1 }).toArray(),
+        database.collection("exercises").find({}, { projection: { _id: 0 } }).sort({ bookSlug: 1, sequence: 1 }).toArray(),
+        database.collection("resources").find({}, { projection: { _id: 0 } }).toArray()
+      ]);
+      return { books, lessons, vocabulary, grammar, exercises, resources };
+    },
+    async patchContent(userId, collectionName, id, patch) {
+      await requireAdminRecord(userId);
+      const sanitized = sanitizeContentPatch(collectionName, patch);
+      const result = await database.collection(collectionName).findOneAndUpdate(
+        { id },
+        { $set: { ...sanitized, updatedAt: new Date().toISOString() } },
+        { projection: { _id: 0 }, returnDocument: "after" }
+      );
+      const updated = result?.value || result;
+      if (!updated) throw requestError("Content item not found.", 404);
+      structuredLog("info", "admin.content_updated", { userId, collectionName, id });
+      return updated;
     }
   };
 }
@@ -739,6 +953,34 @@ function createJsonStore(curriculum) {
     return user ? publicUserFromRecord(user) : publicUser("demo-user", readJson(progressPath).displayName);
   }
 
+  function findUserRecord(userId) {
+    return readUsers().find((item) => item.userId === userId) || null;
+  }
+
+  function updateUserRecord(userId, update) {
+    const users = readUsers();
+    const index = users.findIndex((item) => item.userId === userId);
+    if (index === -1) return null;
+    users[index] = { ...users[index], ...update, updatedAt: new Date().toISOString() };
+    writeUsers(users);
+    return users[index];
+  }
+
+  function updateUserRecordByEmail(email, update) {
+    const users = readUsers();
+    const index = users.findIndex((item) => item.email === email);
+    if (index === -1) return null;
+    users[index] = { ...users[index], ...update, updatedAt: new Date().toISOString() };
+    writeUsers(users);
+    return users[index];
+  }
+
+  function requireJsonAdmin(userId) {
+    const user = findUser(userId);
+    requireAdmin(user);
+    return user;
+  }
+
   return {
     mode: "json",
     async bootstrap(userId = "demo-user") {
@@ -776,6 +1018,8 @@ function createJsonStore(curriculum) {
         subscriptionPlan: "free",
         subscriptionStatus: "active",
         subscriptionEndsAt: null,
+        role: "student",
+        emailVerified: false,
         createdAt: new Date().toISOString()
       };
       users.push(user);
@@ -788,6 +1032,72 @@ function createJsonStore(curriculum) {
       const user = readUsers().find((item) => item.email === normalizedEmail);
       if (!user || !verifyPassword(password, user.passwordHash)) throw requestError("Invalid email or password.", 401);
       return publicUserFromRecord(user);
+    },
+    async requestPasswordReset(email) {
+      const normalizedEmail = normalizeEmail(email);
+      const user = readUsers().find((item) => item.email === normalizedEmail);
+      structuredLog("info", "auth.password_reset_requested", { email: normalizedEmail, found: Boolean(user) });
+      if (!user) return null;
+      const token = createOneTimeToken();
+      updateUserRecordByEmail(normalizedEmail, {
+        resetTokenHash: token.tokenHash,
+        resetTokenExpiresAt: token.expiresAt
+      });
+      return { email: normalizedEmail, token: token.token, expiresAt: token.expiresAt };
+    },
+    async resetPassword({ token, password }) {
+      if (!token || !password) throw requestError("Reset token and password are required.", 400);
+      const user = readUsers().find((item) => isTokenActive(item, "resetTokenHash", "resetTokenExpiresAt", token));
+      if (!user) throw requestError("Reset token is invalid or expired.", 400);
+      const updated = updateUserRecord(user.userId, {
+        passwordHash: hashPassword(password),
+        resetTokenHash: "",
+        resetTokenExpiresAt: ""
+      });
+      structuredLog("info", "auth.password_reset_completed", { userId: user.userId });
+      return publicUserFromRecord(updated);
+    },
+    async requestEmailVerification(userId) {
+      const user = findUserRecord(userId);
+      if (!user) throw requestError("Sign in required.", 401);
+      const token = createOneTimeToken();
+      updateUserRecord(userId, {
+        verificationTokenHash: token.tokenHash,
+        verificationTokenExpiresAt: token.expiresAt
+      });
+      structuredLog("info", "auth.email_verification_requested", { userId, email: user.email });
+      return { email: user.email, token: token.token, expiresAt: token.expiresAt };
+    },
+    async verifyEmail({ token }) {
+      if (!token) throw requestError("Verification token is required.", 400);
+      const user = readUsers().find((item) => isTokenActive(item, "verificationTokenHash", "verificationTokenExpiresAt", token));
+      if (!user) throw requestError("Verification token is invalid or expired.", 400);
+      const updated = updateUserRecord(user.userId, {
+        emailVerified: true,
+        verificationTokenHash: "",
+        verificationTokenExpiresAt: ""
+      });
+      structuredLog("info", "auth.email_verified", { userId: user.userId });
+      return publicUserFromRecord(updated);
+    },
+    async adminContent(userId) {
+      requireJsonAdmin(userId);
+      return {
+        books: curriculum.books,
+        lessons: curriculum.lessons,
+        vocabulary: curriculum.vocabulary,
+        grammar: curriculum.grammar,
+        exercises: curriculum.exercises,
+        resources: curriculum.resources
+      };
+    },
+    async patchContent(userId, collectionName, id, patch) {
+      requireJsonAdmin(userId);
+      const sanitized = sanitizeContentPatch(collectionName, patch);
+      const updated = patchContentArray(curriculum[collectionName], id, sanitized);
+      writeJson(dataPath, curriculum);
+      structuredLog("info", "admin.content_updated", { userId, collectionName, id });
+      return updated;
     }
   };
 }
@@ -882,9 +1192,18 @@ async function start() {
   const store = await createStore();
 
   const server = http.createServer(async (request, response) => {
-    try {
-      const parsedUrl = new URL(request.url, "http://localhost");
+    const startedAt = Date.now();
+    const parsedUrl = new URL(request.url, "http://localhost");
+    response.on("finish", () => {
+      structuredLog("info", "http.request", {
+        method: request.method,
+        path: parsedUrl.pathname,
+        statusCode: response.statusCode,
+        durationMs: Date.now() - startedAt
+      });
+    });
 
+    try {
       if (request.method === "GET" && parsedUrl.pathname === "/api/bootstrap") {
         sendJson(response, 200, await store.bootstrap(userFromRequest(request)));
         return;
@@ -901,16 +1220,34 @@ async function start() {
         return;
       }
 
+      if (request.method === "POST" && parsedUrl.pathname === "/api/client-error") {
+        const body = await readBody(request);
+        structuredLog("error", "frontend.error", {
+          message: boundedString(body.message, 300),
+          source: boundedString(body.source, 120),
+          route: boundedString(body.route, 80),
+          userId: authenticatedUserFromRequest(request) || "anonymous"
+        });
+        sendJson(response, 200, { ok: true });
+        return;
+      }
+
       if (request.method === "POST" && parsedUrl.pathname === "/api/auth/register") {
         const body = await readBody(request);
         enforceAuthRateLimit(request, "register", body.email);
         const user = await store.register(body);
+        const verification = await store.requestEmailVerification(user.userId);
         const sessionToken = createSession(user);
         clearAuthRateLimit(request, "register", body.email);
         sendJson(
           response,
           200,
-          { user, progress: (await store.bootstrap(user.userId)).progress },
+          {
+            user,
+            progress: (await store.bootstrap(user.userId)).progress,
+            emailVerificationRequired: !user.emailVerified,
+            ...devTokenPayload(verification?.token)
+          },
           { "set-cookie": sessionCookie(sessionToken, request) }
         );
         return;
@@ -931,10 +1268,74 @@ async function start() {
         return;
       }
 
+      if (request.method === "POST" && parsedUrl.pathname === "/api/auth/forgot-password") {
+        const body = await readBody(request);
+        enforceAuthRateLimit(request, "forgot-password", body.email);
+        const reset = await store.requestPasswordReset(body.email);
+        clearAuthRateLimit(request, "forgot-password", body.email);
+        sendJson(response, 200, {
+          ok: true,
+          message: "If an account exists for that email, a reset link has been prepared.",
+          ...devTokenPayload(reset?.token)
+        });
+        return;
+      }
+
+      if (request.method === "POST" && parsedUrl.pathname === "/api/auth/reset-password") {
+        const body = await readBody(request);
+        const user = await store.resetPassword(body);
+        sendJson(response, 200, { ok: true, user });
+        return;
+      }
+
+      if (request.method === "POST" && parsedUrl.pathname === "/api/auth/send-verification") {
+        const userId = authenticatedUserFromRequest(request);
+        if (!userId) {
+          sendJson(response, 401, { error: "Sign in required to verify email." });
+          return;
+        }
+        const verification = await store.requestEmailVerification(userId);
+        sendJson(response, 200, {
+          ok: true,
+          message: "Verification email prepared.",
+          ...devTokenPayload(verification?.token)
+        });
+        return;
+      }
+
+      if (request.method === "POST" && parsedUrl.pathname === "/api/auth/verify-email") {
+        const body = await readBody(request);
+        const user = await store.verifyEmail(body);
+        sendJson(response, 200, { ok: true, user });
+        return;
+      }
+
       if (request.method === "POST" && parsedUrl.pathname === "/api/auth/logout") {
         const token = sessionTokenFromRequest(request);
         if (token) sessions.delete(token);
         sendJson(response, 200, { ok: true }, { "set-cookie": clearSessionCookie(request) });
+        return;
+      }
+
+      if (request.method === "GET" && parsedUrl.pathname === "/api/admin/content") {
+        const userId = authenticatedUserFromRequest(request);
+        if (!userId) {
+          sendJson(response, 401, { error: "Sign in required." });
+          return;
+        }
+        sendJson(response, 200, await store.adminContent(userId));
+        return;
+      }
+
+      if (request.method === "PATCH" && parsedUrl.pathname === "/api/admin/content") {
+        const userId = authenticatedUserFromRequest(request);
+        if (!userId) {
+          sendJson(response, 401, { error: "Sign in required." });
+          return;
+        }
+        const body = await readBody(request);
+        const item = await store.patchContent(userId, body.collection, body.id, body.patch);
+        sendJson(response, 200, { item });
         return;
       }
 
@@ -945,14 +1346,22 @@ async function start() {
 
       sendStatic(request, response);
     } catch (error) {
+      structuredLog("error", "server.error", {
+        method: request.method,
+        path: parsedUrl.pathname,
+        statusCode: error.statusCode || 500,
+        message: error.message
+      });
       sendJson(response, error.statusCode || 500, { error: error.message });
     }
   });
 
   server.listen(port, "127.0.0.1", () => {
-    console.log(`Madinah Arabic is running at http://localhost:${port}`);
-    console.log(`Database mode: ${store.mode}`);
-    console.log(`Workspace: ${pathToFileURL(root).href}`);
+    structuredLog("info", "server.started", {
+      url: `http://localhost:${port}`,
+      databaseMode: store.mode,
+      workspace: pathToFileURL(root).href
+    });
   });
 }
 

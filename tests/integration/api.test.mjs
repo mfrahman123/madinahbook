@@ -181,6 +181,54 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(login.body.user.subscriptionStatus, "active");
   });
 
+  it("allows admin users to load and patch curated content", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: paidTestUser.email, password: paidTestUser.password })
+    });
+    const content = await api(server.baseUrl, "/api/admin/content", {
+      headers: authHeaders(login)
+    });
+    const patched = await api(server.baseUrl, "/api/admin/content", {
+      method: "PATCH",
+      headers: authHeaders(login),
+      body: JSON.stringify({
+        collection: "vocabulary",
+        id: "v-hadha",
+        patch: {
+          english: "this",
+          passwordHash: "must-not-save"
+        }
+      })
+    });
+
+    assert.equal(login.body.user.role, "admin");
+    assert.equal(content.response.status, 200);
+    assert.ok(content.body.vocabulary.length > 1000);
+    assert.equal(patched.response.status, 200);
+    assert.equal(patched.body.item.english, "this");
+    assert.equal(patched.body.item.passwordHash, undefined);
+  });
+
+  it("blocks non-admin users from content management", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: testUser.email, password: testUser.password })
+    });
+    const content = await api(server.baseUrl, "/api/admin/content", {
+      headers: authHeaders(login)
+    });
+    const patched = await api(server.baseUrl, "/api/admin/content", {
+      method: "PATCH",
+      headers: authHeaders(login),
+      body: JSON.stringify({ collection: "vocabulary", id: "v-hadha", patch: { english: "blocked" } })
+    });
+
+    assert.equal(login.body.user.role, "student");
+    assert.equal(content.response.status, 403);
+    assert.equal(patched.response.status, 403);
+  });
+
   it("never returns password hashes in public auth responses", async () => {
     const login = await api(server.baseUrl, "/api/auth/login", {
       method: "POST",
@@ -269,23 +317,73 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(badRequest.body.error, /invalid json/i);
   });
 
-  it("does not expose forgotten password endpoints yet", async () => {
+  it("accepts frontend error telemetry without requiring login", async () => {
+    const telemetry = await api(server.baseUrl, "/api/client-error", {
+      method: "POST",
+      body: JSON.stringify({ message: "Synthetic UI error", source: "test", route: "home" })
+    });
+
+    assert.equal(telemetry.response.status, 200);
+    assert.equal(telemetry.body.ok, true);
+    assert.match(server.logs(), /frontend\.error/);
+  });
+
+  it("rejects invalid reset and verification tokens", async () => {
+    const reset = await api(server.baseUrl, "/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token: "invalid-token", password: "new-password" })
+    });
+    const verification = await api(server.baseUrl, "/api/auth/verify-email", {
+      method: "POST",
+      body: JSON.stringify({ token: "invalid-token" })
+    });
+
+    assert.equal(reset.response.status, 400);
+    assert.match(reset.body.error, /invalid or expired/i);
+    assert.equal(verification.response.status, 400);
+    assert.match(verification.body.error, /invalid or expired/i);
+  });
+
+  it("supports forgotten password reset and email verification tokens", async () => {
+    const email = uniqueEmail("reset");
+    const created = await api(server.baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ displayName: "Reset Learner", email, password: "test123" })
+    });
     const page = await fetch(`${server.baseUrl}/`).then((response) => response.text());
     const app = await fetch(`${server.baseUrl}/app.js`).then((response) => response.text());
     const forgot = await api(server.baseUrl, "/api/auth/forgot-password", {
       method: "POST",
-      body: JSON.stringify({ email: testUser.email })
+      body: JSON.stringify({ email })
     });
     const reset = await api(server.baseUrl, "/api/auth/reset-password", {
       method: "POST",
-      body: JSON.stringify({ token: "test-token", password: "new-password" })
+      body: JSON.stringify({ token: forgot.body.devToken, password: "new-password" })
+    });
+    const newLogin = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password: "new-password" })
+    });
+    const verification = await api(server.baseUrl, "/api/auth/send-verification", {
+      method: "POST",
+      headers: authHeaders(newLogin)
+    });
+    const verified = await api(server.baseUrl, "/api/auth/verify-email", {
+      method: "POST",
+      body: JSON.stringify({ token: verification.body.devToken })
     });
 
-    assert.doesNotMatch(`${page}\n${app}`, /forgot(?:ten)? password|reset password/i);
-    assert.equal(forgot.response.status, 404);
-    assert.equal(reset.response.status, 404);
-    assert.match(forgot.body.error, /not found/i);
-    assert.match(reset.body.error, /not found/i);
+    assert.equal(created.response.status, 200);
+    assert.equal(created.body.user.emailVerified, false);
+    assert.match(`${page}\n${app}`, /forgot password|reset password/i);
+    assert.equal(forgot.response.status, 200);
+    assert.ok(forgot.body.devToken);
+    assert.equal(reset.response.status, 200);
+    assert.equal(newLogin.response.status, 200);
+    assert.equal(verification.response.status, 200);
+    assert.ok(verification.body.devToken);
+    assert.equal(verified.response.status, 200);
+    assert.equal(verified.body.user.emailVerified, true);
   });
 
   it("rejects anonymous progress writes", async () => {
@@ -456,9 +554,14 @@ describe("Madinah Arabic API and static app", () => {
   it("serves the account page code and cache-busted assets", async () => {
     const page = await fetch(`${server.baseUrl}/`).then((response) => response.text());
     const app = await fetch(`${server.baseUrl}/app.js?v=20260522-book-3-content`).then((response) => response.text());
+    const core = await fetch(`${server.baseUrl}/learning-core.js?v=20260612-production-hardening`).then((response) => response.text());
 
     assert.match(page, /20260522-book-3-content/);
+    assert.match(page, /learning-core\.js/);
     assert.match(app, /renderAccountPage/);
+    assert.match(app, /renderAdminPage/);
+    assert.match(app, /forgot-password/);
+    assert.match(app, /send-verification/);
     assert.match(app, /planEntitlements/);
     assert.match(app, /routeRequiresPremium/);
     assert.match(app, /data-route="account"/);
@@ -466,6 +569,7 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(app, /renderSubscriptionPage/);
     assert.match(app, /data-route="subscription"/);
     assert.match(app, /membership-table/);
+    assert.match(core, /createVocabularyQuestion/);
     assert.match(app, /শব্দভান্ডার/);
     assert.doesNotMatch(app, /data-language-toggle/);
     assert.doesNotMatch(app, /data-vocab-tester-mode/);
@@ -473,10 +577,10 @@ describe("Madinah Arabic API and static app", () => {
   });
 
   it("does not configure transliteration prompts in vocabulary quizzes", async () => {
-    const app = await fetch(`${server.baseUrl}/app.js`).then((response) => response.text());
-    const start = app.indexOf("function createVocabularyQuestion");
-    const end = app.indexOf("function normalizeVocabTesterFilters");
-    const quizCode = app.slice(start, end);
+    const core = await fetch(`${server.baseUrl}/learning-core.js`).then((response) => response.text());
+    const start = core.indexOf("function createVocabularyQuestion");
+    const end = core.indexOf("function createVocabTester");
+    const quizCode = core.slice(start, end);
 
     assert.notEqual(start, -1);
     assert.notEqual(end, -1);

@@ -23,8 +23,15 @@ const state = {
   writingFeedback: {},
   authMode: null,
   authError: "",
+  authNotice: "",
+  authDevToken: "",
   sessionToken: "",
-  user: null
+  user: null,
+  adminContent: null,
+  adminLoading: false,
+  adminError: "",
+  adminStatus: "",
+  adminTab: "vocabulary"
 };
 
 const iconPaths = {
@@ -63,6 +70,7 @@ const routes = [
   { id: "resources", label: "Resources", icon: "resources" },
   { id: "progress", label: "Progress", icon: "progress" },
   { id: "subscription", label: "Subscription", icon: "spark" },
+  { id: "admin", label: "Admin", icon: "target" },
   { id: "account", label: "Account", icon: "user" }
 ];
 
@@ -1286,6 +1294,10 @@ function isAuthenticated() {
   return Boolean(state.user && !state.user.isDemo);
 }
 
+function isAdmin() {
+  return isAuthenticated() && state.user.role === "admin";
+}
+
 function isPublicRoute(routeId) {
   return publicRouteIds.has(routeId);
 }
@@ -1490,12 +1502,24 @@ async function saveProgress(patch) {
 
 async function submitAuth(form) {
   const formData = new FormData(form);
-  const payload = {
-    displayName: formData.get("displayName"),
-    email: formData.get("email"),
-    password: formData.get("password")
+  const authMode = state.authMode || "login";
+  const endpointByMode = {
+    register: "/api/auth/register",
+    login: "/api/auth/login",
+    forgot: "/api/auth/forgot-password",
+    reset: "/api/auth/reset-password",
+    verify: "/api/auth/verify-email"
   };
-  const endpoint = state.authMode === "register" ? "/api/auth/register" : "/api/auth/login";
+  const payload = authMode === "reset"
+    ? { token: formData.get("token"), password: formData.get("password") }
+    : authMode === "verify"
+      ? { token: formData.get("token") }
+      : {
+          displayName: formData.get("displayName"),
+          email: formData.get("email"),
+          password: formData.get("password")
+        };
+  const endpoint = endpointByMode[authMode] || "/api/auth/login";
   const response = await fetch(endpoint, {
     method: "POST",
     credentials: "same-origin",
@@ -1505,7 +1529,38 @@ async function submitAuth(form) {
   const data = await response.json();
   if (!response.ok) {
     state.authError = isBengali() ? t("unableSignIn", "Unable to sign in.") : (data.error || "Unable to sign in.");
+    state.authNotice = "";
     render();
+    return;
+  }
+
+  if (authMode === "forgot") {
+    state.authMode = "reset";
+    state.authError = "";
+    state.authNotice = data.devToken
+      ? `Development reset token: ${data.devToken}`
+      : t("resetEmailPrepared", "If an account exists, reset instructions have been prepared.");
+    state.authDevToken = data.devToken || "";
+    render();
+    return;
+  }
+
+  if (authMode === "reset") {
+    state.authMode = "login";
+    state.authError = "";
+    state.authNotice = t("passwordUpdated", "Password updated. You can sign in now.");
+    state.authDevToken = "";
+    render();
+    return;
+  }
+
+  if (authMode === "verify") {
+    state.user = data.user || state.user;
+    state.authMode = null;
+    state.authError = "";
+    state.authNotice = "";
+    state.authDevToken = "";
+    await loadApp();
     return;
   }
 
@@ -1514,6 +1569,10 @@ async function submitAuth(form) {
   state.progress = data.progress;
   state.authMode = null;
   state.authError = "";
+  state.authNotice = data.devToken
+    ? `Development verification token: ${data.devToken}`
+    : "";
+  state.authDevToken = data.devToken || "";
   await loadApp();
 }
 
@@ -1524,7 +1583,107 @@ async function signOut() {
   state.route = "home";
   state.authMode = null;
   state.authError = "";
+  state.authNotice = "";
+  state.authDevToken = "";
+  state.adminContent = null;
+  state.adminStatus = "";
+  state.adminError = "";
   loadApp();
+}
+
+async function sendEmailVerification() {
+  const response = await fetch("/api/auth/send-verification", authFetchOptions({ method: "POST" }));
+  const data = await response.json();
+  if (!response.ok) {
+    state.authError = data.error || t("unableSignIn", "Unable to sign in.");
+    render();
+    return;
+  }
+
+  state.authMode = "verify";
+  state.authError = "";
+  state.authNotice = data.devToken
+    ? `Development verification token: ${data.devToken}`
+    : t("verificationPrepared", "Verification instructions have been prepared.");
+  state.authDevToken = data.devToken || "";
+  render();
+}
+
+async function loadAdminContent() {
+  if (state.adminLoading) return;
+  state.adminLoading = true;
+  state.adminError = "";
+  render();
+
+  const response = await fetch("/api/admin/content", authFetchOptions());
+  const data = await response.json();
+  state.adminLoading = false;
+
+  if (!response.ok) {
+    state.adminError = data.error || t("adminLoadError", "Unable to load admin content.");
+    render();
+    return;
+  }
+
+  state.adminContent = data;
+  render();
+}
+
+async function saveAdminContent(form) {
+  const formData = new FormData(form);
+  const collection = formData.get("collection");
+  const id = formData.get("id");
+  const patch = {};
+
+  for (const [key, value] of formData.entries()) {
+    if (["collection", "id"].includes(key)) continue;
+    if (key.endsWith("Json")) {
+      const field = key.replace(/Json$/, "");
+      try {
+        patch[field] = JSON.parse(String(value || "[]"));
+      } catch {
+        state.adminError = `${field} must be valid JSON.`;
+        render();
+        return;
+      }
+      continue;
+    }
+    if (key.endsWith("Lines")) {
+      const field = key.replace(/Lines$/, "");
+      patch[field] = String(value || "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+      continue;
+    }
+    patch[key] = value;
+  }
+
+  const response = await fetch("/api/admin/content", authFetchOptions({
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ collection, id, patch })
+  }));
+  const data = await response.json();
+
+  if (!response.ok) {
+    state.adminError = data.error || t("adminSaveError", "Unable to save content.");
+    render();
+    return;
+  }
+
+  const items = state.adminContent?.[collection] || [];
+  const index = items.findIndex((item) => item.id === id);
+  if (index >= 0) items[index] = data.item;
+  state.adminStatus = `${collection} ${id} saved.`;
+  state.adminError = "";
+  render();
+}
+
+function reportFrontendError(error, source = "window") {
+  const message = error?.message || String(error || "");
+  fetch("/api/client-error", authFetchOptions({
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message, source, route: state.route })
+  })).catch(() => {});
 }
 
 function setRoute(route) {
@@ -1532,6 +1691,12 @@ function setRoute(route) {
     state.route = "home";
     state.authMode = "login";
     state.authError = t("signInLearning", "Please sign in to continue learning.");
+    render();
+    return;
+  }
+
+  if (route === "admin" && !isAdmin()) {
+    state.route = "account";
     render();
     return;
   }
@@ -1843,6 +2008,7 @@ function renderSidebar() {
       </div>
       <nav class="nav" aria-label="${t("primaryNavigation", "Primary navigation")}">
         ${routes
+          .filter((route) => route.id !== "admin" || isAdmin())
           .map((route) => {
             const locked = routeIsLocked(route);
             return `
@@ -1916,35 +2082,64 @@ function renderTopbar() {
 function renderAuthModal() {
   if (!state.authMode) return "";
   const register = state.authMode === "register";
+  const forgot = state.authMode === "forgot";
+  const reset = state.authMode === "reset";
+  const verify = state.authMode === "verify";
+  const title = register
+    ? t("createAccount", "Create Account")
+    : forgot
+      ? t("forgotPassword", "Forgot Password")
+      : reset
+        ? t("resetPassword", "Reset Password")
+        : verify
+          ? t("verifyEmail", "Verify Email")
+          : t("signInTitle", "Sign In");
   return `
     <div class="modal-backdrop">
       <form class="auth-card" data-auth-form>
         <div class="card-heading">
           <div>
             <p class="section-label">${t("accountLabel", "Account")}</p>
-            <h2>${register ? t("createAccount", "Create Account") : t("signInTitle", "Sign In")}</h2>
+            <h2>${title}</h2>
           </div>
           <button class="icon-button" type="button" data-auth-close aria-label="${t("close", "Close")}">${icon("x")}</button>
         </div>
         ${state.authError ? `<div class="feedback incorrect">${icon("x")}<span>${escapeHtml(state.authError)}</span></div>` : ""}
+        ${state.authNotice ? `<div class="feedback correct">${icon("check")}<span>${escapeHtml(state.authNotice)}</span></div>` : ""}
         ${register ? `
           <label class="form-field">
             <span>${t("name", "Name")}</span>
             <input name="displayName" autocomplete="name" required />
           </label>
         ` : ""}
-        <label class="form-field">
-          <span>${t("email", "Email")}</span>
-          <input name="email" type="email" autocomplete="email" required />
-        </label>
-        <label class="form-field">
-          <span>${t("password", "Password")}</span>
-          <input name="password" type="password" autocomplete="${register ? "new-password" : "current-password"}" required />
-        </label>
-        <button class="primary-button" type="submit">${register ? t("createAccount", "Create account") : t("signIn", "Sign in")} ${icon("arrow")}</button>
-        <button class="ghost-button" type="button" data-auth-mode="${register ? "login" : "register"}">
-          ${register ? t("alreadyAccount", "I already have an account") : t("createNewAccount", "Create a new account")}
+        ${reset || verify ? `
+          <label class="form-field">
+            <span>${t("token", "Token")}</span>
+            <input name="token" value="${escapeHtml(state.authDevToken)}" autocomplete="one-time-code" required />
+          </label>
+        ` : `
+          <label class="form-field">
+            <span>${t("email", "Email")}</span>
+            <input name="email" type="email" autocomplete="email" required />
+          </label>
+        `}
+        ${verify || forgot ? "" : `
+          <label class="form-field">
+            <span>${t("password", "Password")}</span>
+            <input name="password" type="password" autocomplete="${register || reset ? "new-password" : "current-password"}" required />
+          </label>
+        `}
+        <button class="primary-button" type="submit">
+          ${register ? t("createAccount", "Create account") : forgot ? t("sendReset", "Send reset") : reset ? t("resetPassword", "Reset password") : verify ? t("verifyEmail", "Verify email") : t("signIn", "Sign in")}
+          ${icon("arrow")}
         </button>
+        ${!forgot && !reset && !verify ? `
+          <button class="ghost-button" type="button" data-auth-mode="${register ? "login" : "register"}">
+            ${register ? t("alreadyAccount", "I already have an account") : t("createNewAccount", "Create a new account")}
+          </button>
+        ` : ""}
+        ${!register && !forgot && !reset && !verify ? `<button class="ghost-button" type="button" data-auth-mode="forgot">${t("forgotPassword", "Forgot password?")}</button>` : ""}
+        ${forgot || reset || verify ? `<button class="ghost-button" type="button" data-auth-mode="login">${t("backToSignIn", "Back to sign in")}</button>` : ""}
       </form>
     </div>
   `;
@@ -1978,6 +2173,7 @@ function renderRoute() {
   if (state.route === "review") return renderReviewPage();
   if (state.route === "resources") return renderResourcesPage();
   if (state.route === "progress") return renderProgressPage();
+  if (state.route === "admin") return isAdmin() ? renderAdminPage() : renderUpgradeGate("default");
   if (state.route === "account") return renderAccountPage();
   return renderHome();
 }
@@ -2981,31 +3177,13 @@ function createVocabularyQuiz(lesson, lessonVocabulary) {
 }
 
 function createVocabularyQuestion(word, optionPool, idPrefix) {
-  const modes = [
-    {
-      prompt: "Choose the English meaning.",
-      arabic: word.arabic,
-      answerKey: "english"
-    },
-    {
-      prompt: `Choose the Arabic word for "${word.english}".`,
-      display: word.english,
-      answerKey: "arabic"
-    }
-  ];
-  const mode = randomItem(modes);
-  const options = buildVocabularyOptions(optionPool, word, mode.answerKey);
-
-  return {
-    id: `${idPrefix}-${word.id}-${Date.now()}-${Math.round(Math.random() * 100000)}`,
-    wordId: word.id,
-    lessonId: state.data.lessons.find((lesson) => lesson.bookSlug === word.bookSlug && lesson.number === word.lessonNumber)?.id || "",
-    prompt: mode.prompt,
-    arabic: mode.arabic || "",
-    display: mode.display || "",
-    answer: word[mode.answerKey],
-    options
-  };
+  return window.MadinahLearningCore.createVocabularyQuestion({
+    word,
+    optionPool,
+    allVocabulary: state.data.vocabulary,
+    lessons: state.data.lessons,
+    idPrefix
+  });
 }
 
 function normalizeVocabTesterFilters() {
@@ -3077,32 +3255,17 @@ function vocabTesterFilterKey() {
 
 function createVocabTester(size = 3) {
   const pool = getVocabTesterPool();
-  const words = shuffle(pool).slice(0, Math.min(size, pool.length));
-  const optionPool = pool.length >= 4 ? pool : state.data.vocabulary;
-
-  return {
-    id: `vocab-tester-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-    filterKey: vocabTesterFilterKey(),
-    poolSize: pool.length,
-    questions: words.map((word, index) => ({
-      ...createVocabularyQuestion(word, optionPool, `tester-${index + 1}`),
-      number: index + 1
-    }))
-  };
+  return window.MadinahLearningCore.createVocabTester({
+    pool,
+    allVocabulary: state.data.vocabulary,
+    lessons: state.data.lessons,
+    size,
+    filterKey: vocabTesterFilterKey()
+  });
 }
 
 function buildVocabularyOptions(lessonWords, targetWord, answerKey) {
-  const answer = targetWord[answerKey];
-  const lessonOptions = lessonWords
-    .map((word) => word[answerKey])
-    .filter(Boolean);
-  const globalOptions = state.data.vocabulary
-    .filter((word) => word.id !== targetWord.id)
-    .map((word) => word[answerKey])
-    .filter(Boolean);
-  const distractors = uniqueValues([...shuffle(lessonOptions), ...shuffle(globalOptions)]).filter((option) => option !== answer);
-  return shuffle([answer, ...distractors.slice(0, 3)]);
+  return window.MadinahLearningCore.buildVocabularyOptions(lessonWords, targetWord, answerKey, state.data.vocabulary);
 }
 
 function uniqueValues(values) {
@@ -3615,6 +3778,7 @@ function renderAccountPage() {
   const unlockedBooks = state.data.books.filter((book) => book.status === "available" && canAccessBookSlug(book.slug)).length;
   const accountStats = [
     { label: t("accountStatus", "Account status"), value: t("active", "Active"), detail: t("signedInSaved", "Signed in and progress is saved") },
+    { label: t("emailVerification", "Email verification"), value: state.user.emailVerified ? t("verified", "Verified") : t("unverified", "Unverified"), detail: state.user.emailVerified ? t("emailVerifiedText", "Email confirmed") : t("verifyEmailText", "Verify before production use") },
     { label: t("currentPlan", "Current plan"), value: planName, detail: planKey === "paid" ? t("allBooksUnlocked", "Books 1-3 unlocked") : t("bookOneIncluded", "Book 1 included") },
     { label: t("subscriptionStatus", "Subscription status"), value: subscriptionStatus, detail: t("membershipAccess", "Membership access status") },
     { label: t("contentAccess", "Content access"), value: `${unlockedBooks}/${state.data.books.length} ${t("books", "books")}`, detail: planKey === "paid" ? t("fullWorkspace", "Full workspace") : t("freeWorkspace", "Free workspace") }
@@ -3641,6 +3805,8 @@ function renderAccountPage() {
         <div class="account-actions">
           <button class="primary-button" type="button" data-route="${escapeHtml(currentLesson.bookSlug)}">${icon("book")} ${t("continue", "Continue")} ${escapeHtml(localizedBookTitle(getBook(currentLesson.bookSlug)))}</button>
           <button class="ghost-button" type="button" data-route="subscription">${icon("spark")} ${t("subscription", "Subscription")}</button>
+          ${state.user.emailVerified ? "" : `<button class="ghost-button" type="button" data-send-verification>${icon("check")} ${t("verifyEmail", "Verify email")}</button>`}
+          ${isAdmin() ? `<button class="ghost-button" type="button" data-route="admin">${icon("target")} ${t("admin", "Admin")}</button>` : ""}
           <button class="ghost-button danger-button" type="button" data-auth-signout>${icon("x")} ${t("signOut", "Sign out")}</button>
         </div>
       </section>
@@ -3681,6 +3847,104 @@ function renderAccountPage() {
         </dl>
       </section>
     </section>
+  `;
+}
+
+function renderAdminPage() {
+  if (!state.adminContent && !state.adminLoading && !state.adminError) {
+    loadAdminContent();
+  }
+
+  const tabs = [
+    ["vocabulary", t("vocabulary", "Vocabulary")],
+    ["lessons", t("lessons", "Lessons")],
+    ["exercises", t("exercises", "Exercises")]
+  ];
+  const items = state.adminContent?.[state.adminTab] || [];
+  const visibleItems = items.slice(0, 12);
+
+  return `
+    <section class="page-stack admin-page">
+      <div class="page-heading">
+        <div>
+          <p class="section-label">${t("admin", "Admin")}</p>
+          <h2>${t("contentManagement", "Content Management")}</h2>
+        </div>
+        <span class="pill">${items.length} ${t("items", "items")}</span>
+      </div>
+      <section class="card admin-panel">
+        <div class="vocabulary-tabs" role="tablist" aria-label="${t("adminSections", "Admin sections")}">
+          ${tabs.map(([id, label]) => `
+            <button class="vocab-tab ${state.adminTab === id ? "active" : ""}" type="button" data-admin-tab="${id}">
+              ${escapeHtml(label)}
+            </button>
+          `).join("")}
+        </div>
+        ${state.adminStatus ? `<div class="feedback correct">${icon("check")}<span>${escapeHtml(state.adminStatus)}</span></div>` : ""}
+        ${state.adminError ? `<div class="feedback incorrect">${icon("x")}<span>${escapeHtml(state.adminError)}</span></div>` : ""}
+        ${state.adminLoading ? `<p class="translation">${t("loading", "Loading...")}</p>` : ""}
+        ${state.adminContent ? `
+          <div class="admin-list">
+            ${visibleItems.map((item) => renderAdminEditor(state.adminTab, item)).join("")}
+          </div>
+        ` : ""}
+      </section>
+    </section>
+  `;
+}
+
+function renderAdminEditor(collection, item) {
+  if (collection === "vocabulary") {
+    return `
+      <form class="admin-editor" data-admin-content-form>
+        <input type="hidden" name="collection" value="vocabulary" />
+        <input type="hidden" name="id" value="${escapeHtml(item.id)}" />
+        <div class="admin-editor-heading">
+          <strong>${escapeHtml(item.id)}</strong>
+          <span>${escapeHtml(item.bookSlug)} · ${escapeHtml(item.lessonNumber)}</span>
+        </div>
+        <label class="form-field"><span>${t("arabic", "Arabic")}</span><input name="arabic" value="${escapeHtml(item.arabic)}" dir="rtl" /></label>
+        <label class="form-field"><span>${t("english", "English")}</span><input name="english" value="${escapeHtml(item.english)}" /></label>
+        <label class="form-field"><span>${t("transliteration", "Transliteration")}</span><input name="transliteration" value="${escapeHtml(item.transliteration || "")}" /></label>
+        <label class="form-field"><span>${t("audioNote", "Audio note")}</span><input name="audioNote" value="${escapeHtml(item.audioNote || "")}" /></label>
+        <button class="primary-button compact-button" type="submit">${t("save", "Save")}</button>
+      </form>
+    `;
+  }
+
+  if (collection === "lessons") {
+    return `
+      <form class="admin-editor wide" data-admin-content-form>
+        <input type="hidden" name="collection" value="lessons" />
+        <input type="hidden" name="id" value="${escapeHtml(item.id)}" />
+        <div class="admin-editor-heading">
+          <strong>${escapeHtml(item.title)}</strong>
+          <span>${escapeHtml(item.bookSlug)} · ${t("lesson", "Lesson")} ${escapeHtml(item.number)}</span>
+        </div>
+        <label class="form-field"><span>${t("title", "Title")}</span><input name="title" value="${escapeHtml(item.title)}" /></label>
+        <label class="form-field"><span>${t("focus", "Focus")}</span><textarea name="focus">${escapeHtml(item.focus || "")}</textarea></label>
+        <label class="form-field"><span>${t("translation", "Translation")}</span><textarea name="translation">${escapeHtml(item.translation || "")}</textarea></label>
+        <label class="form-field"><span>${t("exercisePrompts", "Exercise prompts")}</span><textarea name="exercisePromptsLines">${escapeHtml((item.exercisePrompts || []).join("\n"))}</textarea></label>
+        <label class="form-field"><span>${t("examplesJson", "Examples JSON")}</span><textarea name="examplesJson">${escapeHtml(JSON.stringify(item.examples || [], null, 2))}</textarea></label>
+        <button class="primary-button compact-button" type="submit">${t("save", "Save")}</button>
+      </form>
+    `;
+  }
+
+  return `
+    <form class="admin-editor wide" data-admin-content-form>
+      <input type="hidden" name="collection" value="exercises" />
+      <input type="hidden" name="id" value="${escapeHtml(item.id)}" />
+      <div class="admin-editor-heading">
+        <strong>${escapeHtml(item.id)}</strong>
+        <span>${escapeHtml(item.bookSlug)} · ${escapeHtml(item.lessonId)}</span>
+      </div>
+      <label class="form-field"><span>${t("prompt", "Prompt")}</span><textarea name="prompt">${escapeHtml(item.prompt || "")}</textarea></label>
+      <label class="form-field"><span>${t("arabic", "Arabic")}</span><input name="arabic" value="${escapeHtml(item.arabic || "")}" dir="rtl" /></label>
+      <label class="form-field"><span>${t("correctAnswer", "Correct answer")}</span><input name="answer" value="${escapeHtml(item.answer || "")}" /></label>
+      <label class="form-field"><span>${t("options", "Options")}</span><textarea name="optionsLines">${escapeHtml((item.options || []).join("\n"))}</textarea></label>
+      <button class="primary-button compact-button" type="submit">${t("save", "Save")}</button>
+    </form>
   `;
 }
 
@@ -3765,6 +4029,8 @@ document.addEventListener("click", (event) => {
   if (authModeButton) {
     state.authMode = authModeButton.dataset.authMode;
     state.authError = "";
+    state.authNotice = "";
+    state.authDevToken = "";
     render();
     return;
   }
@@ -3773,6 +4039,8 @@ document.addEventListener("click", (event) => {
   if (authCloseButton) {
     state.authMode = null;
     state.authError = "";
+    state.authNotice = "";
+    state.authDevToken = "";
     render();
     return;
   }
@@ -3780,6 +4048,21 @@ document.addEventListener("click", (event) => {
   const authSignoutButton = event.target.closest("[data-auth-signout]");
   if (authSignoutButton) {
     signOut();
+    return;
+  }
+
+  const sendVerificationButton = event.target.closest("[data-send-verification]");
+  if (sendVerificationButton) {
+    sendEmailVerification();
+    return;
+  }
+
+  const adminTabButton = event.target.closest("[data-admin-tab]");
+  if (adminTabButton) {
+    state.adminTab = adminTabButton.dataset.adminTab;
+    state.adminStatus = "";
+    state.adminError = "";
+    render();
     return;
   }
 
@@ -3904,6 +4187,13 @@ document.addEventListener("submit", (event) => {
   if (checkedExerciseForm) {
     event.preventDefault();
     checkBookExercise(checkedExerciseForm);
+    return;
+  }
+
+  const adminForm = event.target.closest("[data-admin-content-form]");
+  if (adminForm) {
+    event.preventDefault();
+    saveAdminContent(adminForm);
   }
 });
 
@@ -3929,6 +4219,14 @@ document.addEventListener("input", (event) => {
     state.vocabularyTab = "list";
     render();
   }
+});
+
+window.addEventListener("error", (event) => {
+  reportFrontendError(event.error || event.message, "error");
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  reportFrontendError(event.reason, "unhandledrejection");
 });
 
 loadApp();

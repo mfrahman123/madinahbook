@@ -16,6 +16,7 @@ coverage/
 screenshots/
 test-results/
 selenium-screenshots/
+test-artifacts/
 
 # Local JSON persistence. The app recreates these when running without MongoDB.
 data/progress.json

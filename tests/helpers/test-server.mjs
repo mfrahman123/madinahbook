@@ -87,6 +87,8 @@ async function createDataFixture() {
             subscriptionPlan: "free",
             subscriptionStatus: "active",
             subscriptionEndsAt: null,
+            role: "student",
+            emailVerified: false,
             createdAt: "2026-05-21T12:10:25.032Z"
           },
           {
@@ -97,6 +99,8 @@ async function createDataFixture() {
             subscriptionPlan: "paid",
             subscriptionStatus: "active",
             subscriptionEndsAt: null,
+            role: "admin",
+            emailVerified: true,
             createdAt: "2026-06-11T12:00:00.000Z"
           }
         ]

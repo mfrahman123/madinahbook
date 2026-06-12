@@ -65,7 +65,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -526,6 +527,7 @@ h3 {
 }
 
 .form-field input,
+.form-field textarea,
 .checked-input input {
   min-height: 44px;
   width: 100%;
@@ -535,6 +537,12 @@ h3 {
   color: var(--text-strong);
   padding: 0 12px;
   outline: 0;
+}
+
+.form-field textarea {
+  min-height: 96px;
+  padding: 12px;
+  resize: vertical;
 }
 
 .view {
@@ -2285,6 +2293,63 @@ tr:nth-child(even) td {
   max-width: 1120px;
 }
 
+.admin-page {
+  max-width: 1180px;
+}
+
+.admin-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-editor {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.85fr) minmax(150px, 0.75fr) minmax(160px, 0.75fr) minmax(160px, 0.75fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.admin-editor.wide {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+}
+
+.admin-editor-heading {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-height: 44px;
+}
+
+.admin-editor-heading strong {
+  color: var(--text-strong);
+}
+
+.admin-editor-heading span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.admin-editor.wide .admin-editor-heading,
+.admin-editor.wide label {
+  grid-column: span 1;
+}
+
+.admin-editor.wide label:nth-of-type(2),
+.admin-editor.wide label:nth-of-type(3),
+.admin-editor.wide label:nth-of-type(4) {
+  grid-column: 1 / -1;
+}
+
 .account-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2334,7 +2399,7 @@ tr:nth-child(even) td {
 
 .account-stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
 }
 
@@ -2456,12 +2521,22 @@ tr:nth-child(even) td {
   .lesson-layout,
   .exercise-layout,
   .account-hero,
-  .account-detail-panel {
+  .account-detail-panel,
+  .admin-editor,
+  .admin-editor.wide {
     grid-template-columns: 1fr;
   }
 
   .account-actions {
     justify-content: start;
+  }
+
+  .admin-editor.wide .admin-editor-heading,
+  .admin-editor.wide label,
+  .admin-editor.wide label:nth-of-type(2),
+  .admin-editor.wide label:nth-of-type(3),
+  .admin-editor.wide label:nth-of-type(4) {
+    grid-column: auto;
   }
 
   .tester-filter-panel {

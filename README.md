@@ -18,17 +18,20 @@ A modern Arabic learning platform for the Madinah Arabic book series. The app cu
 - Browser speech-synthesis audio notes with final-vowel pronunciation
 - Free and premium plan UI with locked premium surfaces
 - Account details page, local sign-up/sign-in, progress saving, and sign out
+- Forgotten password, reset password, and email-verification flows
+- Admin-only content management for vocabulary, lessons, examples, exercise prompts, and exercises
+- Structured server logs and frontend error telemetry
 - English interface active; Bengali localization data is preserved but hidden for now
 
 ## Current Auth Notes
 
-The app supports local email/password registration, login, logout, and password hashing.
+The app supports local email/password registration, login, logout, password hashing, forgotten-password reset tokens, and email verification tokens.
 
-Forgotten-password/reset-password functionality is not implemented yet. There is no reset route, email delivery, reset-token storage, or forgotten-password UI at the moment.
+In local development and tests, reset/verification endpoints return a `devToken` so the flow is usable without an email provider. In production (`NODE_ENV=production`), tokens are not returned in API responses; connect a transactional email provider before launching publicly.
 
 Automated tests seed these accounts:
 
-- Premium test account: `99muhammad.r@gmail.com` / `test123`
+- Premium/admin test account: `99muhammad.r@gmail.com` / `test123`
 - Free test account: `free.madinah@example.com` / `test123`
 
 Local runtime account files are intentionally ignored by Git. A fresh clone can register accounts through the UI, or MongoDB can be seeded for deployment.
@@ -72,10 +75,16 @@ Do not commit `.env`. It is ignored by Git.
 
 ## Tests
 
-Run integration/API tests:
+Run unit, content, and integration/API tests:
 
 ```sh
 npm run test
+```
+
+Run content validation directly:
+
+```sh
+npm run validate:content
 ```
 
 Run Selenium end-to-end tests:
@@ -84,7 +93,19 @@ Run Selenium end-to-end tests:
 npm run test:selenium
 ```
 
-Run both:
+Run Playwright visual screenshot checks:
+
+```sh
+npm run test:visual
+```
+
+Run the vocabulary load check:
+
+```sh
+npm run test:load
+```
+
+Run the full suite:
 
 ```sh
 npm run test:all
@@ -97,14 +118,18 @@ Current coverage includes:
 - Vocabulary translation hygiene and pronunciation-note checks
 - Slash formatting for paired verb forms
 - Auth login/register/logout/session behavior
+- Forgotten password, reset password, and email verification behavior
+- Admin content loading/editing and non-admin blocking
 - HttpOnly cookie session behavior
 - Server-side free vs premium entitlement filtering
 - Login rate limiting and progress update validation
 - Password-hash response leakage checks
-- Missing forgotten-password endpoint checks
+- Frontend error telemetry endpoint checks
 - Static-file exposure checks for `.env`, user JSON, and source files
 - Free vs premium UI gating
 - Account details and sign-out browser flows
+- Playwright desktop/mobile visual screenshots and overflow checks
+- Vocabulary-heavy bootstrap load checks
 - Lesson practice tabs, quizzes, and vocabulary tester flows
 - Mobile-width landing/login smoke test
 
@@ -127,4 +152,4 @@ The free/premium split is enforced server-side for bootstrap data as well as in 
 
 Security controls currently include HttpOnly same-site session cookies, in-memory session expiry, login/register throttling, progress update validation, static asset allowlisting, and baseline browser security headers.
 
-Before production launch, rotate any MongoDB credentials that were shared outside `.env`, set `COOKIE_SECURE=true` behind HTTPS, and consider moving sessions/rate limits to a shared store if the app runs on more than one server process.
+Before production launch, rotate any MongoDB credentials that were shared outside `.env`, set `COOKIE_SECURE=true` behind HTTPS, wire reset/verification tokens to a real email provider, restrict admin accounts carefully, forward structured JSON logs to a log platform, and consider moving sessions/rate limits to a shared store if the app runs on more than one server process.
