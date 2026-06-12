@@ -4226,4 +4226,12 @@ window.addEventListener("unhandledrejection", (event) => {
   reportFrontendError(event.reason, "unhandledrejection");
 });
 
+if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/service-worker.js")
+      .catch((error) => reportFrontendError(error, "service-worker"));
+  });
+}
+
 loadApp();

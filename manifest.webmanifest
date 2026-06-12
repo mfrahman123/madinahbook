@@ -1,0 +1,38 @@
+{
+  "name": "Madinah Arabic",
+  "short_name": "Madinah",
+  "description": "Madinah Arabic learning platform for Books 1-3 lessons, vocabulary, grammar, exercises, quizzes, progress, and account access.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "orientation": "portrait",
+  "background_color": "#081521",
+  "theme_color": "#081521",
+  "categories": ["education", "books"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/assets/madinah-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Continue Learning",
+      "short_name": "Continue",
+      "url": "/?route=book-1",
+      "icons": [{ "src": "/assets/madinah-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Vocabulary Tester",
+      "short_name": "Vocab Test",
+      "url": "/?route=vocabulary&vocabTab=tester",
+      "icons": [{ "src": "/assets/madinah-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}

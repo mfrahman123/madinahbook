@@ -555,9 +555,13 @@ describe("Madinah Arabic API and static app", () => {
     const page = await fetch(`${server.baseUrl}/`).then((response) => response.text());
     const app = await fetch(`${server.baseUrl}/app.js?v=20260522-book-3-content`).then((response) => response.text());
     const core = await fetch(`${server.baseUrl}/learning-core.js?v=20260612-production-hardening`).then((response) => response.text());
+    const manifestResponse = await fetch(`${server.baseUrl}/manifest.webmanifest`);
+    const manifest = await manifestResponse.json();
+    const serviceWorker = await fetch(`${server.baseUrl}/service-worker.js`).then((response) => response.text());
 
     assert.match(page, /20260522-book-3-content/);
     assert.match(page, /learning-core\.js/);
+    assert.match(page, /manifest\.webmanifest/);
     assert.match(app, /renderAccountPage/);
     assert.match(app, /renderAdminPage/);
     assert.match(app, /forgot-password/);
@@ -570,6 +574,11 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(app, /data-route="subscription"/);
     assert.match(app, /membership-table/);
     assert.match(core, /createVocabularyQuestion/);
+    assert.equal(manifest.name, "Madinah Arabic");
+    assert.equal(manifest.display, "standalone");
+    assert.match(manifestResponse.headers.get("content-type") || "", /manifest\+json/);
+    assert.match(serviceWorker, /CACHE_NAME/);
+    assert.match(serviceWorker, /\/api\//);
     assert.match(app, /শব্দভান্ডার/);
     assert.doesNotMatch(app, /data-language-toggle/);
     assert.doesNotMatch(app, /data-vocab-tester-mode/);

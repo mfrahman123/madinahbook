@@ -21,6 +21,8 @@ A modern Arabic learning platform for the Madinah Arabic book series. The app cu
 - Forgotten password, reset password, and email-verification flows
 - Admin-only content management for vocabulary, lessons, examples, exercise prompts, and exercises
 - Structured server logs and frontend error telemetry
+- Installable mobile PWA metadata with offline shell caching
+- Capacitor iOS and Android mobile app shells that load the same platform
 - English interface active; Bengali localization data is preserved but hidden for now
 
 ## Current Auth Notes
@@ -105,6 +107,12 @@ Run the vocabulary load check:
 npm run test:load
 ```
 
+Sync the native mobile shells after changing mobile config/assets:
+
+```sh
+npm run mobile:sync
+```
+
 Run the full suite:
 
 ```sh
@@ -132,6 +140,26 @@ Current coverage includes:
 - Vocabulary-heavy bootstrap load checks
 - Lesson practice tabs, quizzes, and vocabulary tester flows
 - Mobile-width landing/login smoke test
+- PWA manifest/service-worker and Capacitor config checks
+
+## Mobile App
+
+The repo includes a Capacitor mobile app shell in `ios/` and `android/`, plus a fallback shell in `mobile/www/`.
+
+By default `capacitor.config.json` points the mobile app at:
+
+```text
+http://localhost:4173
+```
+
+For production, deploy the web/API app to HTTPS and change `server.url` to that hosted URL. For Android emulator local testing, use `http://10.0.2.2:4173` instead of `localhost`.
+
+Open the native projects with:
+
+```sh
+npm run mobile:ios
+npm run mobile:android
+```
 
 ## Repository Hygiene
 

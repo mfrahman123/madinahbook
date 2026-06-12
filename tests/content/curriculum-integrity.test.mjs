@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const curriculum = JSON.parse(fs.readFileSync(path.join(root, "data", "curriculum.json"), "utf8"));
+const capacitorConfig = JSON.parse(fs.readFileSync(path.join(root, "capacitor.config.json"), "utf8"));
 
 describe("curriculum content integrity", () => {
   it("keeps the expected Book 1-3 lesson snapshot", () => {
@@ -48,5 +49,21 @@ describe("curriculum content integrity", () => {
       assert.ok(word.english, `${word.id} missing English`);
       assert.ok(word.audioKey || word.audioNote, `${word.id} missing audio metadata`);
     }
+  });
+});
+
+describe("mobile app configuration", () => {
+  it("keeps Capacitor pointed at the mobile shell and configured app id", () => {
+    assert.equal(capacitorConfig.appId, "com.madinaharabic.app");
+    assert.equal(capacitorConfig.appName, "Madinah Arabic");
+    assert.equal(capacitorConfig.webDir, "mobile/www");
+    assert.equal(capacitorConfig.server.cleartext, true);
+  });
+
+  it("includes fallback mobile shell assets", () => {
+    assert.ok(fs.existsSync(path.join(root, "mobile", "www", "index.html")));
+    assert.ok(fs.existsSync(path.join(root, "mobile", "www", "assets", "madinah-icon.svg")));
+    assert.ok(fs.existsSync(path.join(root, "ios", "App", "App.xcodeproj", "project.pbxproj")));
+    assert.ok(fs.existsSync(path.join(root, "android", "settings.gradle")));
   });
 });

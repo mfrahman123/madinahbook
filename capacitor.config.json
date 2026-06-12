@@ -1,0 +1,15 @@
+{
+  "appId": "com.madinaharabic.app",
+  "appName": "Madinah Arabic",
+  "webDir": "mobile/www",
+  "server": {
+    "url": "http://localhost:4173",
+    "cleartext": true
+  },
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

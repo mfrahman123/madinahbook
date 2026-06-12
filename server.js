@@ -30,6 +30,7 @@ const contentTypes = {
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
   ".png": "image/png",
   ".svg": "image/svg+xml; charset=utf-8"
 };
@@ -39,6 +40,9 @@ const publicStaticFiles = new Set([
   "/learning-core.js",
   "/app.js",
   "/styles.css",
+  "/manifest.webmanifest",
+  "/service-worker.js",
+  "/assets/madinah-icon.svg",
   "/design/font-comparison-home.svg",
   "/design/font-comparison-home.svg.png"
 ]);
