@@ -28,8 +28,8 @@ Forgotten-password/reset-password functionality is not implemented yet. There is
 
 Automated tests seed these accounts:
 
-- Free test account: `99muhammad.r@gmail.com` / `test123`
-- Premium test account: `premium.madinah@example.com` / `test123`
+- Premium test account: `99muhammad.r@gmail.com` / `test123`
+- Free test account: `free.madinah@example.com` / `test123`
 
 Local runtime account files are intentionally ignored by Git. A fresh clone can register accounts through the UI, or MongoDB can be seeded for deployment.
 

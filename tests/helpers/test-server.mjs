@@ -10,18 +10,18 @@ const helperDir = path.dirname(fileURLToPath(import.meta.url));
 export const projectRoot = path.resolve(helperDir, "../..");
 
 export const testUser = {
-  displayName: "Muhammad",
-  email: "99muhammad.r@gmail.com",
+  displayName: "Free Learner",
+  email: "free.madinah@example.com",
   password: "test123",
-  userId: "user-test-muhammad",
+  userId: "user-test-free",
   passwordHash: "da9954747ee5b445cc63adc36bdced59:b6a986029a63a9c88e1f82064226d1025bd1311bde1ed546f00dc91e0cb88a7e"
 };
 
 export const paidTestUser = {
-  displayName: "Premium Learner",
-  email: "premium.madinah@example.com",
+  displayName: "Muhammad",
+  email: "99muhammad.r@gmail.com",
   password: "test123",
-  userId: "user-test-premium",
+  userId: "user-test-muhammad",
   passwordHash: testUser.passwordHash
 };
 
