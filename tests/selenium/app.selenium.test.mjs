@@ -55,6 +55,27 @@ describe("Madinah Arabic Selenium flows", () => {
     }
   });
 
+  it("uses the mobile app shell for signed-in learners", async () => {
+    try {
+      await driver.manage().window().setRect({ width: 390, height: 844 });
+      await login(driver, server.baseUrl, paidTestUser);
+
+      await driver.wait(until.elementLocated(By.css(".mobile-bottom-nav")), 8000);
+      assert.equal(await driver.findElement(By.css(".mobile-bottom-nav")).isDisplayed(), true);
+      assert.equal(await driver.findElement(By.css(".mobile-appbar")).isDisplayed(), true);
+      assert.equal(await driver.findElement(By.css(".sidebar")).isDisplayed(), false);
+      assert.equal(await hasHorizontalOverflow(driver), false);
+
+      await driver.findElement(By.css('.mobile-bottom-nav [data-route="book-1"]')).click();
+      await waitForText(driver, "Lesson 1 of 23");
+      assert.equal(await driver.findElement(By.css(".mobile-lesson-picker")).isDisplayed(), true);
+      assert.equal(await driver.findElement(By.css(".lesson-list")).isDisplayed(), false);
+      assert.equal(await hasHorizontalOverflow(driver), false);
+    } finally {
+      await driver.manage().window().setRect({ width: 1440, height: 1100 });
+    }
+  });
+
   it("opens forgotten password and reset flows from the login modal", async () => {
     await openFreshHome(driver, server.baseUrl);
     await clickFirstVisible(driver, '[data-auth-mode="login"]');
@@ -98,7 +119,7 @@ describe("Madinah Arabic Selenium flows", () => {
   it("locks premium content for the free plan", async () => {
     await login(driver, server.baseUrl);
 
-    await driver.findElement(By.css('[data-route="book-2"]')).click();
+    await driver.findElement(By.css('.sidebar [data-route="book-2"]')).click();
     await waitForText(driver, "Upgrade to Premium");
     await waitForText(driver, "Book 2");
 
@@ -109,14 +130,14 @@ describe("Madinah Arabic Selenium flows", () => {
     assert.notEqual(await book2.getAttribute("disabled"), null);
     assert.notEqual(await due.getAttribute("disabled"), null);
 
-    await driver.findElement(By.css('[data-route="progress"]')).click();
+    await driver.findElement(By.css('.sidebar [data-route="progress"]')).click();
     await waitForText(driver, "Upgrade to Premium");
   });
 
   it("opens the admin content editor for the admin account", async () => {
     await login(driver, server.baseUrl, paidTestUser);
 
-    await driver.findElement(By.css('[data-route="admin"]')).click();
+    await driver.findElement(By.css('.sidebar [data-route="admin"]')).click();
     await waitForText(driver, "Content Management");
     await waitForText(driver, "Vocabulary");
     await waitForText(driver, "v-hadha");
@@ -236,7 +257,7 @@ describe("Madinah Arabic Selenium flows", () => {
 
   it("opens Book 2 lessons as available course content", async () => {
     await login(driver, server.baseUrl, paidTestUser);
-    await driver.findElement(By.css('[data-route="book-2"]')).click();
+    await driver.findElement(By.css('.sidebar [data-route="book-2"]')).click();
 
     await waitForText(driver, "Book 2");
     await waitForText(driver, "إِنَّ, لَعَلَّ, ذُو and Large Numbers");

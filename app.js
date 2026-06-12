@@ -13,6 +13,7 @@ const state = {
   vocabularyQuizFeedback: {},
   vocabularyTab: new URLSearchParams(window.location.search).get("vocabTab") || "list",
   selectedVocabularyBookSlug: new URLSearchParams(window.location.search).get("vocabBook") || "book-1",
+  vocabularyPage: 1,
   vocabTesterFilters: {
     bookSlugs: ["book-1"],
     lessonKey: "all",
@@ -31,7 +32,8 @@ const state = {
   adminLoading: false,
   adminError: "",
   adminStatus: "",
-  adminTab: "vocabulary"
+  adminTab: "vocabulary",
+  adminSearch: ""
 };
 
 const iconPaths = {
@@ -1836,6 +1838,7 @@ function setVocabularyBook(slug) {
   if (!book || book.status !== "available" || !canAccessBookSlug(slug)) return;
 
   state.selectedVocabularyBookSlug = slug;
+  state.vocabularyPage = 1;
   state.vocabTesterFilters.bookSlugs = [slug];
   state.vocabTesterFilters.lessonKey = "all";
   resetVocabTester();
@@ -1951,11 +1954,13 @@ function render() {
   app.className = isAuthenticated() ? "app-shell" : "public-shell";
   app.innerHTML = isAuthenticated()
     ? `
+      ${renderMobileAppbar()}
       ${renderSidebar()}
       <div class="main-shell">
         ${renderTopbar()}
         <main class="view">${renderRoute()}</main>
       </div>
+      ${renderMobileBottomNav()}
       ${renderAuthModal()}
     `
     : `
@@ -1991,6 +1996,75 @@ function renderPublicHeader() {
         <button class="primary-button compact-button" type="button" data-auth-mode="register">${t("createAccount", "Create account")}</button>
       </div>
     </header>
+  `;
+}
+
+function mobileLearningRoute() {
+  if (isBookRoute(state.route) && canAccessBookSlug(state.route)) return state.route;
+  if (state.progress?.activeBookSlug && canAccessBookSlug(state.progress.activeBookSlug)) return state.progress.activeBookSlug;
+  return "book-1";
+}
+
+function renderMobileAppbar() {
+  const initial = state.user?.displayName?.slice(0, 1).toUpperCase() || "M";
+  const moreRoutes = [
+    { id: "grammar", label: t("grammar", "Grammar"), icon: "grammar" },
+    { id: "progress", label: t("progress", "Progress"), icon: "progress" },
+    { id: "subscription", label: t("subscription", "Subscription"), icon: "spark" },
+    ...(isAdmin() ? [{ id: "admin", label: t("admin", "Admin"), icon: "target" }] : [])
+  ];
+
+  return `
+    <header class="mobile-appbar">
+      <div class="mobile-appbar-row">
+        <details class="mobile-more-menu">
+          <summary aria-label="${t("openNavigation", "Open navigation")}">${icon("menu")}</summary>
+          <div class="mobile-more-panel">
+            ${moreRoutes.map((route) => `
+              <button type="button" data-route="${route.id}">
+                ${icon(route.icon)}
+                <span>${escapeHtml(route.label)}</span>
+              </button>
+            `).join("")}
+            <button type="button" data-theme-toggle>
+              ${icon(state.theme === "dark" ? "sun" : "moon")}
+              <span>${state.theme === "dark" ? t("light", "Light") : t("dark", "Dark")}</span>
+            </button>
+          </div>
+        </details>
+        <div class="mobile-title">
+          <p class="eyebrow">${t("today", "Today")}</p>
+          <strong>${routeTitle()}</strong>
+        </div>
+        <span class="mobile-streak">${icon("flame")} ${state.progress.dailyStreakDays}</span>
+        <button class="avatar mobile-avatar ${state.route === "account" ? "active" : ""}" type="button" data-route="account" aria-label="${t("openAccountDetails", "Open account details")}">${escapeHtml(initial)}</button>
+      </div>
+      <label class="search mobile-search">
+        ${icon("search")}
+        <input value="${escapeHtml(state.search)}" placeholder="${t("searchPlaceholder", "Search lessons or words")}" aria-label="${t("searchAria", "Search lessons or words")}" data-search />
+      </label>
+    </header>
+  `;
+}
+
+function renderMobileBottomNav() {
+  const items = [
+    { id: "home", route: "home", label: t("home", "Home"), icon: "home", active: state.route === "home" },
+    { id: "lessons", route: mobileLearningRoute(), label: t("lessons", "Lessons"), icon: "book", active: isBookRoute(state.route) },
+    { id: "vocabulary", route: "vocabulary", label: t("vocabShort", "Vocab"), icon: "words", active: state.route === "vocabulary" },
+    { id: "practice", route: "exercises", label: t("practice", "Practice"), icon: "exercises", active: state.route === "exercises" || state.route === "review" },
+    { id: "account", route: "account", label: t("account", "Account"), icon: "user", active: state.route === "account" }
+  ];
+
+  return `
+    <nav class="mobile-bottom-nav" aria-label="${t("primaryNavigation", "Primary navigation")}">
+      ${items.map((item) => `
+        <button class="${item.active ? "active" : ""}" type="button" data-route="${item.route}">
+          ${icon(item.icon)}
+          <span>${escapeHtml(item.label)}</span>
+        </button>
+      `).join("")}
+    </nav>
   `;
 }
 
@@ -2185,6 +2259,8 @@ function renderPublicRoute() {
 }
 
 function renderHome() {
+  if (isAuthenticated()) return renderAuthenticatedHome();
+
   return `
     <section class="landing-page">
       <div class="landing-hero card">
@@ -2225,6 +2301,77 @@ function renderHome() {
             <span class="quick-icon">${icon("check")}</span>
             <h3>${title}</h3>
             <p>${body}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderAuthenticatedHome() {
+  const currentLesson = getCurrentLesson();
+  return `
+    <section class="dashboard-grid learning-dashboard">
+      <div class="primary-stack">
+        ${renderContinueCard(currentLesson)}
+        ${renderQuickAccess()}
+        ${renderTodayReviewPanel(currentLesson)}
+      </div>
+      <aside class="side-stack">
+        ${renderProgressPanel()}
+        ${renderBooksPanel()}
+      </aside>
+    </section>
+  `;
+}
+
+function renderTodayReviewPanel(currentLesson) {
+  const dueWords = dueVocabularyItems().filter((word) => word.bookSlug === currentLesson.bookSlug && canAccessBookSlug(word.bookSlug));
+  const mistakes = mistakeItems();
+  const nextLesson = byId(state.data.lessons, nextLessonId(currentLesson.id)) || currentLesson;
+  const modules = [
+    {
+      iconName: "words",
+      label: t("spacedRepetition", "Spaced Repetition"),
+      title: `${dueWords.length} ${t("wordsDue", "words due")}`,
+      body: dueWords.slice(0, 4).map((word) => word.arabic).join("  ") || t("noDueWords", "No due words right now."),
+      route: "vocabulary"
+    },
+    {
+      iconName: "target",
+      label: t("mistakeReview", "Mistake review"),
+      title: `${mistakes.length} ${t("openMistakes", "open mistakes")}`,
+      body: mistakes[0]?.prompt || t("noMistakes", "No mistakes to review right now."),
+      route: "review"
+    },
+    {
+      iconName: "book",
+      label: t("nextStep", "Next step"),
+      title: `${localizedBookTitle(getBook(nextLesson.bookSlug))} · ${t("lesson", "Lesson")} ${nextLesson.number}`,
+      body: localizedLessonFocus(nextLesson),
+      lessonId: nextLesson.id
+    }
+  ];
+
+  return `
+    <section class="card today-review-panel">
+      <div class="panel-heading inline">
+        <div>
+          <p class="section-label">${t("today", "Today")}</p>
+          <h2>${t("learningOverview", "Learning Overview")}</h2>
+        </div>
+        <span class="pill">${state.progress.xp.toLocaleString()} XP</span>
+      </div>
+      <div class="today-review-grid">
+        ${modules.map((item) => `
+          <article class="today-review-card">
+            <span class="quick-icon">${icon(item.iconName)}</span>
+            <p class="section-label">${escapeHtml(item.label)}</p>
+            <h3>${escapeHtml(item.title)}</h3>
+            <p>${escapeHtml(item.body)}</p>
+            <button class="ghost-button compact-button" type="button" ${item.lessonId ? `data-lesson="${escapeHtml(item.lessonId)}"` : `data-route="${escapeHtml(item.route)}"`}>
+              ${t("open", "Open")} ${icon("arrow")}
+            </button>
           </article>
         `).join("")}
       </div>
@@ -2576,6 +2723,7 @@ function renderBook(bookSlug) {
           </div>
           <span class="status-chip ${complete ? "complete" : ""}">${complete ? t("completed", "Completed") : t("inProgress", "In progress")}</span>
         </div>
+        ${renderMobileLessonPicker(book, lesson, bookLessons)}
         <p class="focus">${escapeHtml(localizedLessonFocus(lesson))}</p>
         ${renderLessonPath(lesson)}
         <div class="lesson-tabs" role="tablist" aria-label="${t("lessonSections", "Lesson sections")}">
@@ -2596,6 +2744,27 @@ function renderBook(bookSlug) {
         </div>
         ${renderLessonTabContent(lesson, lessonVocabulary, lessonGrammar, complete)}
       </article>
+    </section>
+  `;
+}
+
+function renderMobileLessonPicker(book, lesson, bookLessons) {
+  return `
+    <section class="mobile-lesson-picker" aria-label="${t("lessonPicker", "Lesson picker")}">
+      <div>
+        <p class="section-label">${escapeHtml(localizedBookTitle(book))}</p>
+        <strong>${t("lesson", "Lesson")} ${lesson.number} ${t("of", "of")} ${bookLessons.length}</strong>
+      </div>
+      <label>
+        <span>${t("chooseLesson", "Choose lesson")}</span>
+        <select data-lesson-select>
+          ${bookLessons.map((item) => `
+            <option value="${escapeHtml(item.id)}" ${item.id === lesson.id ? "selected" : ""}>
+              ${t("lesson", "Lesson")} ${escapeHtml(item.number)} - ${escapeHtml(localizedLessonTitle(item))}
+            </option>
+          `).join("")}
+        </select>
+      </label>
     </section>
   `;
 }
@@ -3312,9 +3481,25 @@ function renderVocabularyPage() {
           )
           .join("")}
       </div>
-      ${state.vocabularyTab === "tester" ? renderVocabTester() : `${renderVocabularyReviewStrip(selectedBook.slug)}${renderVocabularyTable(words)}`}
+      ${state.vocabularyTab === "tester" ? renderVocabTester() : `${renderVocabularyReviewStrip(selectedBook.slug)}${renderVocabularyTable(words)}${renderVocabularyCards(words)}`}
     </section>
   `;
+}
+
+function paginatedVocabularyWords(words) {
+  const pageSize = 80;
+  const totalPages = Math.max(1, Math.ceil(words.length / pageSize));
+  const page = Math.min(Math.max(Number(state.vocabularyPage) || 1, 1), totalPages);
+  if (page !== state.vocabularyPage) state.vocabularyPage = page;
+  const start = (page - 1) * pageSize;
+  return {
+    page,
+    pageSize,
+    totalPages,
+    start,
+    end: Math.min(start + pageSize, words.length),
+    words: words.slice(start, start + pageSize)
+  };
 }
 
 function renderVocabularyBookSelector(selectedSlug) {
@@ -3497,11 +3682,19 @@ function renderVocabularyReviewStrip(bookSlug) {
 }
 
 function renderVocabularyTable(words) {
+  const page = paginatedVocabularyWords(words);
   return `
     <section class="card table-card">
       <div class="table-title">
-        <h2>${t("vocabulary", "Vocabulary")}</h2>
-        <button class="ghost-button" type="button" data-route="vocabulary">${t("viewAll", "View all")}</button>
+        <div>
+          <h2>${t("vocabulary", "Vocabulary")}</h2>
+          <p>${words.length ? `${page.start + 1}-${page.end}` : "0"} ${t("of", "of")} ${words.length} ${t("words", "words")}</p>
+        </div>
+        <div class="table-actions">
+          <button class="ghost-button compact-button" type="button" data-vocab-page="${page.page - 1}" ${page.page <= 1 ? "disabled" : ""}>${t("previous", "Previous")}</button>
+          <span class="pill">${page.page}/${page.totalPages}</span>
+          <button class="ghost-button compact-button" type="button" data-vocab-page="${page.page + 1}" ${page.page >= page.totalPages ? "disabled" : ""}>${t("next", "Next")}</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -3516,7 +3709,7 @@ function renderVocabularyTable(words) {
             </tr>
           </thead>
           <tbody>
-            ${words
+            ${page.words
               .map(
                 (word) => `
                   <tr>
@@ -3533,6 +3726,34 @@ function renderVocabularyTable(words) {
           </tbody>
         </table>
       </div>
+      <div class="table-pagination">
+        <button class="ghost-button compact-button" type="button" data-vocab-page="${page.page - 1}" ${page.page <= 1 ? "disabled" : ""}>${t("previous", "Previous")}</button>
+        <span>${words.length ? `${page.start + 1}-${page.end}` : "0"} ${t("of", "of")} ${words.length}</span>
+        <button class="ghost-button compact-button" type="button" data-vocab-page="${page.page + 1}" ${page.page >= page.totalPages ? "disabled" : ""}>${t("next", "Next")}</button>
+      </div>
+    </section>
+  `;
+}
+
+function renderVocabularyCards(words) {
+  return `
+    <section class="vocab-mobile-list" aria-label="${t("vocabulary", "Vocabulary")}">
+      ${words
+        .map((word) => `
+          <article class="vocab-mobile-card">
+            <div>
+              <button class="vocab-mobile-arabic" type="button" data-speak="${escapeHtml(word.arabic)}" lang="ar">${word.arabic}</button>
+              <p>${escapeHtml(localizedText(word.english))}</p>
+            </div>
+            <div class="vocab-mobile-meta">
+              <span>${escapeHtml(localizedBookTitle(getBook(word.bookSlug) || word.bookSlug))}</span>
+              <span>${t("lesson", "Lesson")} ${escapeHtml(word.lessonNumber)}</span>
+              ${word.transliteration ? `<span>${escapeHtml(word.transliteration)}</span>` : ""}
+            </div>
+            <button class="icon-button" type="button" data-speak="${escapeHtml(word.arabic)}" aria-label="${t("playAudio", "Play audio")}">${icon("speaker")}</button>
+          </article>
+        `)
+        .join("")}
     </section>
   `;
 }
@@ -3858,7 +4079,11 @@ function renderAdminPage() {
     ["exercises", t("exercises", "Exercises")]
   ];
   const items = state.adminContent?.[state.adminTab] || [];
-  const visibleItems = items.slice(0, 12);
+  const adminQuery = state.adminSearch.trim().toLowerCase();
+  const filteredItems = adminQuery
+    ? items.filter((item) => JSON.stringify(item).toLowerCase().includes(adminQuery))
+    : items;
+  const visibleItems = filteredItems.slice(0, 12);
 
   return `
     <section class="page-stack admin-page">
@@ -3867,7 +4092,7 @@ function renderAdminPage() {
           <p class="section-label">${t("admin", "Admin")}</p>
           <h2>${t("contentManagement", "Content Management")}</h2>
         </div>
-        <span class="pill">${items.length} ${t("items", "items")}</span>
+        <span class="pill">${filteredItems.length}/${items.length} ${t("items", "items")}</span>
       </div>
       <section class="card admin-panel">
         <div class="vocabulary-tabs" role="tablist" aria-label="${t("adminSections", "Admin sections")}">
@@ -3877,12 +4102,20 @@ function renderAdminPage() {
             </button>
           `).join("")}
         </div>
+        <div class="admin-toolbar">
+          <label class="search admin-search">
+            ${icon("search")}
+            <input value="${escapeHtml(state.adminSearch)}" placeholder="${t("adminSearchPlaceholder", "Search content by Arabic, English, lesson, or ID")}" aria-label="${t("adminSearchPlaceholder", "Search content by Arabic, English, lesson, or ID")}" data-admin-search />
+          </label>
+          <span class="pill muted">${visibleItems.length} ${t("shown", "shown")}</span>
+          <button class="ghost-button compact-button" type="button" data-admin-search-clear ${state.adminSearch ? "" : "disabled"}>${t("clear", "Clear")}</button>
+        </div>
         ${state.adminStatus ? `<div class="feedback correct">${icon("check")}<span>${escapeHtml(state.adminStatus)}</span></div>` : ""}
         ${state.adminError ? `<div class="feedback incorrect">${icon("x")}<span>${escapeHtml(state.adminError)}</span></div>` : ""}
         ${state.adminLoading ? `<p class="translation">${t("loading", "Loading...")}</p>` : ""}
         ${state.adminContent ? `
           <div class="admin-list">
-            ${visibleItems.map((item) => renderAdminEditor(state.adminTab, item)).join("")}
+            ${visibleItems.map((item) => renderAdminEditor(state.adminTab, item)).join("") || `<p class="empty-state">${t("noContentMatches", "No content matches this search.")}</p>`}
           </div>
         ` : ""}
       </section>
@@ -4057,8 +4290,16 @@ document.addEventListener("click", (event) => {
   const adminTabButton = event.target.closest("[data-admin-tab]");
   if (adminTabButton) {
     state.adminTab = adminTabButton.dataset.adminTab;
+    state.adminSearch = "";
     state.adminStatus = "";
     state.adminError = "";
+    render();
+    return;
+  }
+
+  const adminSearchClearButton = event.target.closest("[data-admin-search-clear]");
+  if (adminSearchClearButton) {
+    state.adminSearch = "";
     render();
     return;
   }
@@ -4092,6 +4333,13 @@ document.addEventListener("click", (event) => {
   const vocabularyBookButton = event.target.closest("[data-vocabulary-book]");
   if (vocabularyBookButton) {
     setVocabularyBook(vocabularyBookButton.dataset.vocabularyBook);
+    return;
+  }
+
+  const vocabPageButton = event.target.closest("[data-vocab-page]");
+  if (vocabPageButton) {
+    state.vocabularyPage = Number(vocabPageButton.dataset.vocabPage) || 1;
+    render();
     return;
   }
 
@@ -4195,12 +4443,23 @@ document.addEventListener("submit", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.matches("[data-lesson-select]")) {
+    setLesson(event.target.value);
+    return;
+  }
+
   if (event.target.matches("[data-vocab-tester-lesson]")) {
     setVocabTesterLesson(event.target.value);
   }
 });
 
 document.addEventListener("input", (event) => {
+  if (event.target.matches("[data-admin-search]")) {
+    state.adminSearch = event.target.value;
+    render();
+    return;
+  }
+
   if (event.target.matches("[data-search]")) {
     state.search = event.target.value;
     if (!isAuthenticated()) {
@@ -4213,6 +4472,7 @@ document.addEventListener("input", (event) => {
     if (state.route !== "vocabulary") {
       state.route = "vocabulary";
     }
+    state.vocabularyPage = 1;
     state.vocabularyTab = "list";
     render();
   }

@@ -16,25 +16,50 @@ async function main() {
     await capture(desktop, server.baseUrl, "public-home-desktop");
 
     const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });
-    await capture(mobile, server.baseUrl, "public-home-mobile");
+    await capture(mobile, server.baseUrl, "public-home-mobile", { viewportOnly: true });
 
     const freePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
     await login(freePage, server.baseUrl, testUser);
-    await freePage.locator('[data-route="book-2"]').click();
+    await freePage.locator('.sidebar [data-route="book-2"]').click();
     await freePage.waitForSelector("text=Upgrade to Premium");
     await capture(freePage, server.baseUrl, "free-upgrade-gate");
 
     const paidPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
     await login(paidPage, server.baseUrl, paidTestUser);
-    await paidPage.locator('[data-route="book-2"]').click();
+    await capture(paidPage, server.baseUrl, "premium-dashboard-desktop");
+    await paidPage.locator('.sidebar [data-route="book-2"]').click();
     await paidPage.waitForSelector("text=إِنَّ, لَعَلَّ, ذُو and Large Numbers");
     await capture(paidPage, server.baseUrl, "premium-book-2");
+    await gotoRoute(paidPage, server.baseUrl, "?route=vocabulary", ".vocabulary-tabs");
+    await capture(paidPage, server.baseUrl, "premium-vocabulary-desktop");
+    await gotoRoute(paidPage, server.baseUrl, "?route=vocabulary&vocabTab=tester", ".vocab-tester-card");
+    await capture(paidPage, server.baseUrl, "premium-vocab-tester-desktop");
+    await gotoRoute(paidPage, server.baseUrl, "?route=subscription", ".subscription-hero");
+    await capture(paidPage, server.baseUrl, "premium-subscription-desktop");
+    await gotoRoute(paidPage, server.baseUrl, "?route=account", ".account-hero");
+    await capture(paidPage, server.baseUrl, "premium-account-desktop");
 
     const adminPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
     await login(adminPage, server.baseUrl, paidTestUser);
-    await adminPage.locator('[data-route="admin"]').click();
+    await adminPage.locator('.sidebar [data-route="admin"]').click();
     await adminPage.waitForSelector("text=Content Management");
     await capture(adminPage, server.baseUrl, "admin-content");
+
+    const mobilePaidPage = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 3 });
+    await login(mobilePaidPage, server.baseUrl, paidTestUser);
+    await capture(mobilePaidPage, server.baseUrl, "mobile-dashboard", { mobileShell: true, viewportOnly: true });
+    await gotoRoute(mobilePaidPage, server.baseUrl, "?route=book-1&lesson=lesson-1", ".lesson-reader");
+    await capture(mobilePaidPage, server.baseUrl, "mobile-book-1-learn", { mobileShell: true, viewportOnly: true });
+    await gotoRoute(mobilePaidPage, server.baseUrl, "?route=book-1&lesson=lesson-1&tab=book-exercises", ".book-exercise-panel");
+    await capture(mobilePaidPage, server.baseUrl, "mobile-book-1-exercises", { mobileShell: true, viewportOnly: true });
+    await gotoRoute(mobilePaidPage, server.baseUrl, "?route=vocabulary", ".vocabulary-tabs");
+    await capture(mobilePaidPage, server.baseUrl, "mobile-vocabulary", { mobileShell: true, viewportOnly: true });
+    await gotoRoute(mobilePaidPage, server.baseUrl, "?route=vocabulary&vocabTab=tester", ".vocab-tester-card");
+    await capture(mobilePaidPage, server.baseUrl, "mobile-vocab-tester", { mobileShell: true, viewportOnly: true });
+    await gotoRoute(mobilePaidPage, server.baseUrl, "?route=subscription", ".subscription-hero");
+    await capture(mobilePaidPage, server.baseUrl, "mobile-subscription", { mobileShell: true, viewportOnly: true });
+    await gotoRoute(mobilePaidPage, server.baseUrl, "?route=account", ".account-hero");
+    await capture(mobilePaidPage, server.baseUrl, "mobile-account", { mobileShell: true, viewportOnly: true });
   } finally {
     await browser?.close();
     await server.stop();
@@ -47,17 +72,46 @@ async function login(page, baseUrl, user) {
   await page.locator('[data-auth-form] input[name="email"]').fill(user.email);
   await page.locator('[data-auth-form] input[name="password"]').fill(user.password);
   await page.locator('[data-auth-form] button[type="submit"]').click();
-  await page.waitForSelector(".auth-avatar");
+  await page.waitForSelector(".auth-avatar:visible, .mobile-avatar:visible");
 }
 
-async function capture(page, baseUrl, name) {
+async function gotoRoute(page, baseUrl, route, selector) {
+  await page.goto(`${baseUrl}/${route}`);
+  await page.waitForLoadState("networkidle");
+  await page.waitForSelector(selector);
+}
+
+async function capture(page, baseUrl, name, options = {}) {
   if (page.url() === "about:blank") await page.goto(baseUrl);
   await page.waitForLoadState("networkidle");
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
   if (overflow) throw new Error(`${name} has horizontal overflow`);
 
+  if (options.mobileShell) {
+    const mobileState = await page.evaluate(() => {
+      const visible = (selector) => {
+        const element = document.querySelector(selector);
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      };
+      const viewTop = document.querySelector(".view")?.getBoundingClientRect().top || 0;
+      return {
+        sidebarVisible: visible(".sidebar"),
+        mobileAppbarVisible: visible(".mobile-appbar"),
+        mobileBottomNavVisible: visible(".mobile-bottom-nav"),
+        viewTop
+      };
+    });
+    if (mobileState.sidebarVisible) throw new Error(`${name} shows the desktop sidebar on mobile`);
+    if (!mobileState.mobileAppbarVisible) throw new Error(`${name} is missing the mobile app bar`);
+    if (!mobileState.mobileBottomNavVisible) throw new Error(`${name} is missing the mobile bottom navigation`);
+    if (mobileState.viewTop > 190) throw new Error(`${name} pushes content too far below the mobile app bar`);
+  }
+
   const screenshotPath = path.join(artifactDir, `${name}.png`);
-  await page.screenshot({ path: screenshotPath, fullPage: true });
+  await page.screenshot({ path: screenshotPath, fullPage: !options.viewportOnly });
   const stat = await fs.stat(screenshotPath);
   if (stat.size < 10_000) throw new Error(`${name} screenshot looks blank or incomplete`);
   console.log(`Captured ${screenshotPath}`);
