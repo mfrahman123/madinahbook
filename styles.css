@@ -711,6 +711,52 @@ h3 {
   text-align: right;
 }
 
+.answer-reveal {
+  margin-top: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface-soft) 76%, transparent);
+  overflow: hidden;
+}
+
+.answer-reveal summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 0 14px;
+  color: var(--text-strong);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  list-style: none;
+}
+
+.answer-reveal summary::-webkit-details-marker {
+  display: none;
+}
+
+.answer-reveal summary svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+  transition: transform 180ms ease;
+}
+
+.answer-reveal[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.answer-reveal[open] summary svg {
+  transform: rotate(90deg);
+}
+
+.answer-reveal .translation {
+  margin: 0;
+  padding: 14px;
+}
+
 .translation,
 .focus {
   color: var(--muted);

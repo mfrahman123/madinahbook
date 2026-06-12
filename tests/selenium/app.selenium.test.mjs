@@ -160,6 +160,15 @@ describe("Madinah Arabic Selenium flows", () => {
     await waitForText(driver, "مَا هٰذَا؟ هٰذَا كِتَابٌ.");
     const learnExamples = await driver.findElements(By.css(".lesson-example-card"));
     assert.equal(learnExamples.length, 3);
+    const firstExampleText = await learnExamples[0].getText();
+    assert.match(firstExampleText, /View answer/);
+    assert.doesNotMatch(firstExampleText, /This is a pen\./);
+
+    await learnExamples[0].findElement(By.css(".answer-reveal summary")).click();
+    await driver.wait(async () => {
+      const text = await learnExamples[0].getText();
+      return text.includes("This is a pen.");
+    }, 5000);
 
     await driver.findElement(By.css('[data-lesson-tab="book-exercises"]')).click();
     await waitForText(driver, "Book Exercises");

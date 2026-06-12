@@ -2250,7 +2250,13 @@ function renderLessonExamples(lesson) {
                   <small>${escapeHtml(localizedSourceLabel(example.source))}</small>
                 </div>
                 <button class="lesson-example-arabic" type="button" data-speak="${escapeHtml(example.arabic)}" lang="ar">${example.arabic}</button>
-                <p class="translation">${escapeHtml(localizedText(example.translation))}</p>
+                <details class="answer-reveal">
+                  <summary>
+                    <span>${t("viewAnswer", "View answer")}</span>
+                    ${icon("arrow")}
+                  </summary>
+                  <p class="translation">${escapeHtml(localizedText(example.translation))}</p>
+                </details>
               </div>
             </article>
           `)
