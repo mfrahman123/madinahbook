@@ -23,6 +23,16 @@ describe("Madinah Arabic Selenium flows", () => {
     await openFreshHome(driver, server.baseUrl);
 
     await waitForText(driver, "Learn Arabic through a guided, premium study workspace.");
+    await waitForText(driver, "About");
+    await waitForText(driver, "Curriculum");
+    await waitForText(driver, "Pricing");
+    assert.equal((await driver.findElements(By.css(".sidebar"))).length, 0);
+
+    await driver.findElement(By.css('[data-route="subscription"]')).click();
+    await waitForText(driver, "Free vs Premium");
+
+    await driver.findElement(By.css('[data-route="curriculum"]')).click();
+    await waitForText(driver, "Madinah Arabic Books 1-3");
     await driver.findElement(By.css('[data-route="book-1"]')).click();
 
     await waitForText(driver, "Please sign in to continue learning.");
@@ -54,11 +64,13 @@ describe("Madinah Arabic Selenium flows", () => {
     await waitForText(driver, "Local JSON");
 
     const bodyText = await driver.findElement(By.css("body")).getText();
-    assert.match(bodyText, /Current lesson/);
-    assert.match(bodyText, /XP points/);
+    assert.match(bodyText, /Account status/);
+    assert.match(bodyText, /Subscription status/);
+    assert.match(bodyText, /Content access/);
     assert.match(bodyText, /Free/);
     assert.match(bodyText, /Sign out/);
     assert.doesNotMatch(bodyText, /Sign In/);
+    assert.doesNotMatch(bodyText, /Free vs Premium/);
 
     const storedToken = await driver.executeScript("return window.localStorage.getItem('madinah-session-token');");
     const visibleCookies = await driver.executeScript("return document.cookie;");
@@ -195,13 +207,14 @@ describe("Madinah Arabic Selenium flows", () => {
 
   it("opens Book 2 lessons as available course content", async () => {
     await login(driver, server.baseUrl, paidTestUser);
-    await driver.get(`${server.baseUrl}/?route=book-2`);
+    await driver.findElement(By.css('[data-route="book-2"]')).click();
 
     await waitForText(driver, "Book 2");
     await waitForText(driver, "إِنَّ, لَعَلَّ, ذُو and Large Numbers");
 
     const lockedText = await driver.findElement(By.css("body")).getText();
-    assert.doesNotMatch(lockedText, /Coming Soon\\s+Locked until released/);
+    assert.doesNotMatch(lockedText, /Coming Soon/);
+    assert.doesNotMatch(lockedText, /Upgrade to Premium/);
 
     await driver.findElement(By.css('[data-lesson-tab="quiz"]')).click();
     await waitForText(driver, "Random Vocabulary Quiz");

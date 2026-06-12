@@ -462,6 +462,10 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(app, /planEntitlements/);
     assert.match(app, /routeRequiresPremium/);
     assert.match(app, /data-route="account"/);
+    assert.match(app, /renderPublicHeader/);
+    assert.match(app, /renderSubscriptionPage/);
+    assert.match(app, /data-route="subscription"/);
+    assert.match(app, /membership-table/);
     assert.match(app, /শব্দভান্ডার/);
     assert.doesNotMatch(app, /data-language-toggle/);
     assert.doesNotMatch(app, /data-vocab-tester-mode/);

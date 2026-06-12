@@ -62,8 +62,18 @@ const routes = [
   { id: "review", label: "Mistakes", icon: "target" },
   { id: "resources", label: "Resources", icon: "resources" },
   { id: "progress", label: "Progress", icon: "progress" },
+  { id: "subscription", label: "Subscription", icon: "spark" },
   { id: "account", label: "Account", icon: "user" }
 ];
+
+const publicRoutes = [
+  { id: "home", label: "Home" },
+  { id: "about", label: "About" },
+  { id: "curriculum", label: "Curriculum" },
+  { id: "subscription", label: "Pricing" }
+];
+
+const publicRouteIds = new Set(publicRoutes.map((route) => route.id));
 
 const planEntitlements = {
   free: {
@@ -906,6 +916,10 @@ function routeLabel(route) {
   return t(route.id, route.label);
 }
 
+function publicRouteLabel(route) {
+  return t(route.id, route.label);
+}
+
 function localizedText(value) {
   const text = String(value || "");
   if (!isBengali()) return text;
@@ -1272,6 +1286,10 @@ function isAuthenticated() {
   return Boolean(state.user && !state.user.isDemo);
 }
 
+function isPublicRoute(routeId) {
+  return publicRouteIds.has(routeId);
+}
+
 function currentPlanKey() {
   if (!isAuthenticated()) return "free";
   return state.user.subscriptionPlan === "paid" && state.user.subscriptionStatus === "active" ? "paid" : "free";
@@ -1496,7 +1514,7 @@ async function submitAuth(form) {
   state.progress = data.progress;
   state.authMode = null;
   state.authError = "";
-  render();
+  await loadApp();
 }
 
 async function signOut() {
@@ -1510,7 +1528,7 @@ async function signOut() {
 }
 
 function setRoute(route) {
-  if (route !== "home" && !isAuthenticated()) {
+  if (!isPublicRoute(route) && !isAuthenticated()) {
     state.route = "home";
     state.authMode = "login";
     state.authError = t("signInLearning", "Please sign in to continue learning.");
@@ -1765,13 +1783,50 @@ function checkBookExercise(form) {
 function render() {
   document.documentElement.dataset.theme = state.theme;
   document.documentElement.lang = isBengali() ? "bn" : "en";
-  document.getElementById("app").innerHTML = `
-    ${renderSidebar()}
-    <div class="main-shell">
-      ${renderTopbar()}
-      <main class="view">${renderRoute()}</main>
-    </div>
-    ${renderAuthModal()}
+  const app = document.getElementById("app");
+  app.className = isAuthenticated() ? "app-shell" : "public-shell";
+  app.innerHTML = isAuthenticated()
+    ? `
+      ${renderSidebar()}
+      <div class="main-shell">
+        ${renderTopbar()}
+        <main class="view">${renderRoute()}</main>
+      </div>
+      ${renderAuthModal()}
+    `
+    : `
+      ${renderPublicHeader()}
+      <main class="public-view">${renderPublicRoute()}</main>
+      ${renderAuthModal()}
+    `;
+}
+
+function renderPublicHeader() {
+  return `
+    <header class="public-header">
+      <button class="public-brand" type="button" data-route="home" aria-label="Madinah Arabic home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>
+          <strong>Madinah Arabic</strong>
+          <small>${t("guidedArabicPlatform", "Guided Arabic learning")}</small>
+        </span>
+      </button>
+      <nav class="public-nav" aria-label="${t("publicNavigation", "Public navigation")}">
+        ${publicRoutes.map((route) => `
+          <button class="${state.route === route.id ? "active" : ""}" type="button" data-route="${route.id}">
+            ${escapeHtml(publicRouteLabel(route))}
+          </button>
+        `).join("")}
+      </nav>
+      <div class="public-actions">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="${t("toggleTheme", "Toggle theme")}">
+          ${icon(state.theme === "dark" ? "sun" : "moon")}
+          <span>${state.theme === "dark" ? t("light", "Light") : t("dark", "Dark")}</span>
+        </button>
+        <button class="ghost-button compact-button" type="button" data-auth-mode="login">${t("signIn", "Sign in")}</button>
+        <button class="primary-button compact-button" type="button" data-auth-mode="register">${t("createAccount", "Create account")}</button>
+      </div>
+    </header>
   `;
 }
 
@@ -1899,7 +1954,9 @@ function routeTitle() {
   if (state.route === "home") return "Madinah Arabic";
   if (isBookRoute(state.route)) return localizedBookTitle(getBook(state.route));
   const route = routes.find((item) => item.id === state.route);
-  return route ? routeLabel(route) : "Madinah Arabic";
+  if (route) return routeLabel(route);
+  const publicRoute = publicRoutes.find((item) => item.id === state.route);
+  return publicRoute ? publicRouteLabel(publicRoute) : "Madinah Arabic";
 }
 
 function renderRoute() {
@@ -1908,6 +1965,9 @@ function renderRoute() {
     const feature = isBookRoute(state.route) ? "book" : ["review", "progress"].includes(state.route) ? "progress" : "default";
     return renderUpgradeGate(feature);
   }
+  if (state.route === "about") return renderAboutPage();
+  if (state.route === "curriculum") return renderCurriculumPage();
+  if (state.route === "subscription") return renderSubscriptionPage();
   if (isBookRoute(state.route)) {
     const book = getBook(state.route);
     return book?.status === "available" ? renderBook(state.route) : renderLockedBook();
@@ -1920,6 +1980,14 @@ function renderRoute() {
   if (state.route === "progress") return renderProgressPage();
   if (state.route === "account") return renderAccountPage();
   return renderHome();
+}
+
+function renderPublicRoute() {
+  if (state.route === "about") return renderAboutPage();
+  if (state.route === "curriculum") return renderCurriculumPage();
+  if (state.route === "subscription") return renderSubscriptionPage();
+  if (state.route === "home") return renderHome();
+  return renderSignInGate();
 }
 
 function renderHome() {
@@ -1966,7 +2034,176 @@ function renderHome() {
           </article>
         `).join("")}
       </div>
-      ${renderPlanComparison()}
+    </section>
+  `;
+}
+
+function renderAboutPage() {
+  const totalLessonCount = state.data.books.reduce(
+    (sum, book) => sum + (Number(book.lessonCount) || lessonsForBook(book.slug).length),
+    0
+  );
+  const values = [
+    [icon("book"), t("bookBasedStudy", "Book-based study"), t("bookBasedStudyText", "Lessons follow the Madinah Arabic sequence so students can move from recognition to confident sentence building.")],
+    [icon("words"), t("vocabularyDepth", "Vocabulary depth"), t("vocabularyDepthText", "Each book keeps its vocabulary grouped by source content, with tester filters ready for future Book 2 and Book 3 revision.")],
+    [icon("exercises"), t("practiceFirst", "Practice first"), t("practiceFirstText", "Lesson pages combine examples, collapsible exercises, checked prompts, and quizzes without crowding the student.")],
+    [icon("progress"), t("progressAware", "Progress-aware"), t("progressAwareText", "Saved progress, XP, streaks, review queues, and mistake tracking help learners know what to do next.")]
+  ];
+
+  return `
+    <section class="page-stack public-page">
+      <section class="public-hero card">
+        <div>
+          <p class="section-label">${t("about", "About")}</p>
+          <h2>${t("aboutTitle", "A focused workspace for learning the Madinah Arabic Books.")}</h2>
+          <p>${t("aboutText", "Madinah Arabic keeps the interface calm and study-centred: authentic Arabic examples, clear English meanings, lesson exercises, vocabulary testing, and account-based progress in one place.")}</p>
+        </div>
+        <div class="public-hero-metrics" aria-label="${t("platformSnapshot", "Platform snapshot")}">
+          <span><strong>${state.data.books.length}</strong>${t("books", "Books")}</span>
+          <span><strong>${totalLessonCount}</strong>${t("lessons", "Lessons")}</span>
+          <span><strong>${state.data.vocabulary.length}</strong>${t("words", "Words")}</span>
+        </div>
+      </section>
+      <section class="public-info-grid">
+        ${values.map(([itemIcon, title, body]) => `
+          <article class="card public-info-card">
+            <span class="quick-icon">${itemIcon}</span>
+            <h3>${title}</h3>
+            <p>${body}</p>
+          </article>
+        `).join("")}
+      </section>
+    </section>
+  `;
+}
+
+function renderCurriculumPage() {
+  const totalLessonCount = state.data.books.reduce(
+    (sum, book) => sum + (Number(book.lessonCount) || lessonsForBook(book.slug).length),
+    0
+  );
+  return `
+    <section class="page-stack public-page">
+      <div class="page-heading">
+        <div>
+          <p class="section-label">${t("curriculum", "Curriculum")}</p>
+          <h2>${t("curriculumTitle", "Madinah Arabic Books 1-3")}</h2>
+        </div>
+        <span class="pill">${totalLessonCount} ${t("lessons", "lessons")}</span>
+      </div>
+      <section class="curriculum-grid">
+        ${state.data.books.map((book, index) => {
+          const accessible = isAuthenticated() && book.status === "available" && canAccessBookSlug(book.slug);
+          const freeBook = book.slug === "book-1";
+          const lessonCount = lessonsForBook(book.slug).length || book.lessonCount || 0;
+          const wordCount = getVocabularyWordsForBook(book.slug).length;
+          return `
+            <article class="card curriculum-card ${accessible ? "available" : ""}">
+              <div class="card-heading">
+                <span class="book-number">${index + 1}</span>
+                <span class="pill ${freeBook ? "" : "muted"}">${freeBook ? t("freePlan", "Free") : t("premiumPlan", "Premium")}</span>
+              </div>
+              <h3>${escapeHtml(localizedBookTitle(book))}</h3>
+              <p>${escapeHtml(localizedBookSummary(book))}</p>
+              <div class="curriculum-meta">
+                <span>${lessonCount} ${t("lessons", "lessons")}</span>
+                ${wordCount ? `<span>${wordCount} ${t("words", "words")}</span>` : ""}
+              </div>
+              <button class="${accessible ? "primary-button" : "ghost-button"}" type="button" data-route="${freeBook || accessible ? book.slug : "subscription"}">
+                ${accessible ? t("continueLearning", "Continue learning") : freeBook ? t("signInToStart", "Sign in to start") : t("viewPlan", "View plan")}
+                ${icon("arrow")}
+              </button>
+            </article>
+          `;
+        }).join("")}
+      </section>
+    </section>
+  `;
+}
+
+function renderSubscriptionPage() {
+  const planKey = currentPlanKey();
+  const signedIn = isAuthenticated();
+  return `
+    <section class="page-stack subscription-page">
+      <section class="subscription-hero card">
+        <div>
+          <p class="section-label">${t("subscription", "Subscription")}</p>
+          <h2>${t("subscriptionTitle", "Choose the access level that fits your study.")}</h2>
+          <p>${t("subscriptionText", "Start with Book 1 for free, then unlock the full Books 1-3 workspace when you are ready for exercises, review, and complete vocabulary testing.")}</p>
+        </div>
+        <div class="subscription-status">
+          <span class="pill">${signedIn ? t("currentPlan", "Current plan") : t("accountLabel", "Account")}</span>
+          <strong>${signedIn ? escapeHtml(localizedPlanLabel(planKey)) : t("signIn", "Sign in")}</strong>
+          <small>${signedIn ? escapeHtml(state.user.subscriptionStatus || "active") : t("signInToSeePlan", "Sign in to see your plan status")}</small>
+        </div>
+      </section>
+      ${renderMembershipTable()}
+      <section class="card subscription-next">
+        <div>
+          <p class="section-label">${t("nextStep", "Next step")}</p>
+          <h3>${hasPremiumAccess() ? t("premiumActive", "Premium is active on this account") : t("startLearningToday", "Start learning today")}</h3>
+          <p>${hasPremiumAccess() ? t("premiumActiveText", "Book 1, Book 2, Book 3, quizzes, exercises, and review tools are unlocked.") : t("startLearningText", "Create an account to save progress, or sign in with an existing account to continue where you left off.")}</p>
+        </div>
+        <div class="landing-actions">
+          ${signedIn
+            ? `<button class="primary-button" type="button" data-route="account">${t("account", "Account")} ${icon("arrow")}</button>`
+            : `<button class="primary-button" type="button" data-auth-mode="register">${t("createAccount", "Create account")} ${icon("arrow")}</button>
+               <button class="ghost-button" type="button" data-auth-mode="login">${t("signIn", "Sign in")}</button>`}
+        </div>
+      </section>
+    </section>
+  `;
+}
+
+function renderMembershipTable() {
+  const rows = [
+    [t("bookOneAccess", "Book 1 lessons"), true, true],
+    [t("bookTwoThreeAccess", "Book 2 and Book 3 lessons"), false, true],
+    [t("lessonExamples", "Lesson examples"), true, true],
+    [t("bookExerciseSections", "Book exercise sections"), false, true],
+    [t("lessonVocabularyQuizzes", "Lesson vocabulary quizzes"), false, true],
+    [t("vocabTesterAccess", "Vocabulary tester"), t("basicTester", "Basic tester"), t("fullTester", "Full tester")],
+    [t("mistakeReviewAccess", "Mistake review"), false, true],
+    [t("spacedReviewAccess", "Due-word and spaced review"), false, true],
+    [t("progressDashboardAccess", "Progress dashboard"), false, true]
+  ];
+
+  const cell = (value) => {
+    if (value === true) return `<span class="table-check">${icon("check")} ${t("included", "Included")}</span>`;
+    if (value === false) return `<span class="table-muted">${t("notIncluded", "Not included")}</span>`;
+    return `<span>${escapeHtml(value)}</span>`;
+  };
+
+  return `
+    <section class="card membership-card">
+      <div class="table-title">
+        <div>
+          <p class="section-label">${t("membershipTiers", "Membership tiers")}</p>
+          <h2>${t("freeVsPremium", "Free vs Premium")}</h2>
+        </div>
+        <span class="pill">${escapeHtml(localizedPlanLabel())}</span>
+      </div>
+      <div class="membership-table-wrap">
+        <table class="membership-table">
+          <thead>
+            <tr>
+              <th>${t("feature", "Feature")}</th>
+              <th>${t("freePlan", "Free")}</th>
+              <th>${t("premiumPlan", "Premium")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(([feature, free, premium]) => `
+              <tr>
+                <td>${escapeHtml(feature)}</td>
+                <td>${cell(free)}</td>
+                <td>${cell(premium)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
     </section>
   `;
 }
@@ -2004,7 +2241,7 @@ function renderUpgradeGate(feature = "default", embedded = false) {
         `).join("")}
       </div>
       <div class="landing-actions">
-        <button class="primary-button" type="button" data-route="account">${t("viewPlan", "View plan")} ${icon("arrow")}</button>
+        <button class="primary-button" type="button" data-route="subscription">${t("viewPlan", "View plan")} ${icon("arrow")}</button>
         <button class="ghost-button" type="button" data-route="book-1">${t("continueBookOne", "Continue Book 1")}</button>
       </div>
     </section>
@@ -2047,7 +2284,7 @@ function renderPremiumInline(labelKey, body) {
         <h3>${t("premiumFeature", "Premium feature")}</h3>
         <p>${escapeHtml(body)}</p>
       </div>
-      <button class="ghost-button compact-button" type="button" data-route="account">${t("viewPlan", "View plan")}</button>
+      <button class="ghost-button compact-button" type="button" data-route="subscription">${t("viewPlan", "View plan")}</button>
     </section>
   `;
 }
@@ -3371,26 +3608,16 @@ function renderProgressPage() {
 
 function renderAccountPage() {
   const currentLesson = getCurrentLesson();
-  const book = state.data.books.find((item) => item.slug === state.progress.activeBookSlug) || state.data.books[0];
-  const currentBookLessons = lessonsForBook(book?.slug);
-  const currentBookCompleted = state.progress.completedLessonIds.filter((id) => currentBookLessons.some((lesson) => lesson.id === id)).length;
-  const learned = state.progress.learnedVocabularyIds.length;
-  const completed = state.progress.completedLessonIds.length;
-  const due = dueVocabularyItems().length;
-  const openMistakes = mistakeItems().length;
   const databaseMode = state.data.databaseMode === "mongodb" ? "MongoDB Atlas" : "Local JSON";
   const planKey = currentPlanKey();
   const planName = localizedPlanLabel(planKey);
+  const subscriptionStatus = state.user.subscriptionStatus || "active";
+  const unlockedBooks = state.data.books.filter((book) => book.status === "available" && canAccessBookSlug(book.slug)).length;
   const accountStats = [
-    { label: t("currentPlan", "Current plan"), value: planName, detail: planKey === "paid" ? t("active", "active") : t("basicTester", "Basic tester") },
-    { label: t("currentBook", "Current book"), value: localizedBookTitle(book), detail: `${currentBookLessons.length} ${t("lessons", "lessons")} ${t("available", "available")}` },
-    { label: t("currentLesson", "Current lesson"), value: `${t("lesson", "Lesson")} ${currentLesson.number}`, detail: localizedLessonTitle(currentLesson) },
-    { label: t("xpPoints", "XP points"), value: state.progress.xp.toLocaleString(), detail: t("savedAccount", "Saved to your account") },
-    { label: t("dailyStreak", "Daily streak"), value: `${state.progress.dailyStreakDays} ${t("days", "days")}`, detail: t("keepHabit", "Keep the habit warm") },
-    { label: t("vocabulary", "Vocabulary"), value: `${learned}/${state.data.vocabulary.length}`, detail: `${due} ${t("wordsDue", "words due")}` },
-    { label: t("lessons", "Lessons"), value: `${currentBookCompleted}/${currentBookLessons.length}`, detail: `${lessonProgressPercent(book?.slug)}% ${t("completed", "complete")}` },
-    { label: t("weeklyGoal", "Weekly goal"), value: `${state.progress.weeklyGoalCompleted}/${state.progress.weeklyGoalTarget}`, detail: `${weeklyPercent()}% ${t("thisWeek", "this week")}` },
-    { label: t("reviewQueue", "Review queue"), value: openMistakes, detail: t("openMistakes", "Open mistakes") }
+    { label: t("accountStatus", "Account status"), value: t("active", "Active"), detail: t("signedInSaved", "Signed in and progress is saved") },
+    { label: t("currentPlan", "Current plan"), value: planName, detail: planKey === "paid" ? t("allBooksUnlocked", "Books 1-3 unlocked") : t("bookOneIncluded", "Book 1 included") },
+    { label: t("subscriptionStatus", "Subscription status"), value: subscriptionStatus, detail: t("membershipAccess", "Membership access status") },
+    { label: t("contentAccess", "Content access"), value: `${unlockedBooks}/${state.data.books.length} ${t("books", "books")}`, detail: planKey === "paid" ? t("fullWorkspace", "Full workspace") : t("freeWorkspace", "Free workspace") }
   ];
 
   return `
@@ -3413,7 +3640,7 @@ function renderAccountPage() {
         </div>
         <div class="account-actions">
           <button class="primary-button" type="button" data-route="${escapeHtml(currentLesson.bookSlug)}">${icon("book")} ${t("continue", "Continue")} ${escapeHtml(localizedBookTitle(getBook(currentLesson.bookSlug)))}</button>
-          <button class="ghost-button" type="button" data-route="progress">${icon("progress")} ${t("viewProgress", "View progress")}</button>
+          <button class="ghost-button" type="button" data-route="subscription">${icon("spark")} ${t("subscription", "Subscription")}</button>
           <button class="ghost-button danger-button" type="button" data-auth-signout>${icon("x")} ${t("signOut", "Sign out")}</button>
         </div>
       </section>
@@ -3428,12 +3655,11 @@ function renderAccountPage() {
           `)
           .join("")}
       </section>
-      ${renderPlanComparison(true)}
       <section class="card account-detail-panel">
         <div>
           <p class="section-label">${t("accountData", "Account data")}</p>
-          <h3>${t("privateAccountData", "Learning progress is private to this login")}</h3>
-          <p>${t("privateAccountDataText", "Your completed lessons, vocabulary review history, writing attempts, mistakes, streak, and XP are connected to this account.")}</p>
+          <h3>${t("accountStatusDetails", "Current membership and login details")}</h3>
+          <p>${t("accountStatusText", "This page only shows the status of the signed-in account. Plan features are listed in the Subscription tab.")}</p>
         </div>
         <dl class="account-detail-list">
           <div>
@@ -3450,7 +3676,7 @@ function renderAccountPage() {
           </div>
           <div>
             <dt>${t("subscriptionStatus", "Subscription status")}</dt>
-            <dd>${escapeHtml(planName)} · ${escapeHtml(state.user.subscriptionStatus || "active")}</dd>
+            <dd>${escapeHtml(planName)} · ${escapeHtml(subscriptionStatus)}</dd>
           </div>
         </dl>
       </section>
