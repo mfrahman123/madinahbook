@@ -16,6 +16,8 @@ loadLocalEnv(path.join(root, ".env"));
 const port = Number(process.env.PORT || 4173);
 const sessions = new Map();
 const authAttempts = new Map();
+const oauthStates = new Map();
+const jwksCache = new Map();
 const sessionCookieName = "madinah_session";
 const sessionTtlMs = Number(process.env.SESSION_TTL_MS || 7 * 24 * 60 * 60 * 1000);
 const authWindowMs = Number(process.env.AUTH_RATE_WINDOW_MS || 15 * 60 * 1000);
@@ -23,6 +25,7 @@ const authMaxByIdentity = Number(process.env.AUTH_RATE_MAX_IDENTITY || 8);
 const authMaxByIp = Number(process.env.AUTH_RATE_MAX_IP || 40);
 const maxXpIncreasePerSave = Number(process.env.MAX_XP_INCREASE_PER_SAVE || 100);
 const tokenTtlMs = Number(process.env.AUTH_TOKEN_TTL_MS || 30 * 60 * 1000);
+const oauthStateTtlMs = Number(process.env.OAUTH_STATE_TTL_MS || 10 * 60 * 1000);
 const isProduction = process.env.NODE_ENV === "production";
 const host = process.env.HOST || (isProduction ? "0.0.0.0" : "127.0.0.1");
 
@@ -300,6 +303,309 @@ function publicUserFromRecord(user) {
     user.role,
     user.emailVerified
   );
+}
+
+function providerDisplayName(provider) {
+  return {
+    google: "Google",
+    microsoft: "Microsoft",
+    apple: "Apple"
+  }[provider] || provider;
+}
+
+function oauthProviderConfig(provider) {
+  const base = {
+    google: {
+      provider: "google",
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+      tokenUrl: "https://oauth2.googleapis.com/token",
+      jwksUrl: "https://www.googleapis.com/oauth2/v3/certs",
+      scope: "openid email profile",
+      issuer: "https://accounts.google.com"
+    },
+    microsoft: {
+      provider: "microsoft",
+      clientId: process.env.MICROSOFT_CLIENT_ID,
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+      tenant: process.env.MICROSOFT_TENANT || "common",
+      scope: "openid email profile"
+    },
+    apple: {
+      provider: "apple",
+      clientId: process.env.APPLE_CLIENT_ID,
+      teamId: process.env.APPLE_TEAM_ID,
+      keyId: process.env.APPLE_KEY_ID,
+      privateKey: normalizePrivateKey(process.env.APPLE_PRIVATE_KEY),
+      authorizationUrl: "https://appleid.apple.com/auth/authorize",
+      tokenUrl: "https://appleid.apple.com/auth/token",
+      jwksUrl: "https://appleid.apple.com/auth/keys",
+      scope: "openid email name",
+      issuer: "https://appleid.apple.com"
+    }
+  }[provider];
+
+  if (!base) return null;
+  if (provider === "microsoft") {
+    base.authorizationUrl = `https://login.microsoftonline.com/${encodeURIComponent(base.tenant)}/oauth2/v2.0/authorize`;
+    base.tokenUrl = `https://login.microsoftonline.com/${encodeURIComponent(base.tenant)}/oauth2/v2.0/token`;
+    base.jwksUrl = `https://login.microsoftonline.com/${encodeURIComponent(base.tenant)}/discovery/v2.0/keys`;
+  }
+  return base;
+}
+
+function isOAuthProviderConfigured(provider) {
+  const config = oauthProviderConfig(provider);
+  if (!config?.clientId) return false;
+  if (provider === "apple") return Boolean(config.teamId && config.keyId && config.privateKey);
+  return Boolean(config.clientSecret);
+}
+
+function availableOAuthProviderIds() {
+  return ["google", "microsoft", "apple"].filter(isOAuthProviderConfigured);
+}
+
+function requestOrigin(request) {
+  if (process.env.AUTH_BASE_URL) return process.env.AUTH_BASE_URL.replace(/\/$/, "");
+  const proto = request.headers["x-forwarded-proto"] || (request.socket.encrypted ? "https" : "http");
+  return `${proto}://${request.headers.host}`;
+}
+
+function oauthRedirectUri(request, provider) {
+  return `${requestOrigin(request)}/api/auth/${provider}/callback`;
+}
+
+function redirect(response, location, statusCode = 302, headers = {}) {
+  response.writeHead(statusCode, responseHeaders({ location, ...headers }));
+  response.end();
+}
+
+function normalizePrivateKey(value = "") {
+  return String(value || "").replace(/\\n/g, "\n").trim();
+}
+
+function base64UrlEncode(input) {
+  return Buffer.from(input)
+    .toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+function base64UrlDecode(value) {
+  const normalized = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+  return Buffer.from(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="), "base64");
+}
+
+function parseJwt(token) {
+  const [encodedHeader, encodedPayload, encodedSignature] = String(token || "").split(".");
+  if (!encodedHeader || !encodedPayload || !encodedSignature) throw requestError("Identity token is malformed.", 401);
+  return {
+    encodedHeader,
+    encodedPayload,
+    encodedSignature,
+    header: JSON.parse(base64UrlDecode(encodedHeader).toString("utf8")),
+    payload: JSON.parse(base64UrlDecode(encodedPayload).toString("utf8")),
+    signature: base64UrlDecode(encodedSignature)
+  };
+}
+
+async function fetchJwks(jwksUrl) {
+  const cached = jwksCache.get(jwksUrl);
+  if (cached && cached.expiresAt > Date.now()) return cached.keys;
+
+  const response = await fetch(jwksUrl);
+  if (!response.ok) throw requestError("Unable to load identity provider keys.", 502);
+  const body = await response.json();
+  const keys = body.keys || [];
+  jwksCache.set(jwksUrl, { keys, expiresAt: Date.now() + 60 * 60 * 1000 });
+  return keys;
+}
+
+async function verifyOidcToken(provider, idToken, expectedNonce) {
+  const config = oauthProviderConfig(provider);
+  if (!config) throw requestError("Unsupported identity provider.", 404);
+  const token = parseJwt(idToken);
+  if (token.header.alg !== "RS256") throw requestError("Unsupported identity token algorithm.", 401);
+
+  const keys = await fetchJwks(config.jwksUrl);
+  const jwk = keys.find((key) => key.kid === token.header.kid);
+  if (!jwk) throw requestError("Identity provider key was not found.", 401);
+
+  const verifier = crypto.createVerify("RSA-SHA256");
+  verifier.update(`${token.encodedHeader}.${token.encodedPayload}`);
+  verifier.end();
+  const validSignature = verifier.verify(crypto.createPublicKey({ key: jwk, format: "jwk" }), token.signature);
+  if (!validSignature) throw requestError("Identity token signature is invalid.", 401);
+
+  validateOidcClaims(provider, config, token.payload, expectedNonce);
+  return token.payload;
+}
+
+function validateOidcClaims(provider, config, payload, expectedNonce) {
+  const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+  if (!audiences.includes(config.clientId)) throw requestError("Identity token audience is invalid.", 401);
+  if (payload.nonce !== expectedNonce) throw requestError("Identity token nonce is invalid.", 401);
+  if (Number(payload.exp || 0) * 1000 <= Date.now()) throw requestError("Identity token is expired.", 401);
+
+  if (provider === "google" && payload.iss !== config.issuer && payload.iss !== "accounts.google.com") {
+    throw requestError("Google identity token issuer is invalid.", 401);
+  }
+  if (provider === "apple" && payload.iss !== config.issuer) {
+    throw requestError("Apple identity token issuer is invalid.", 401);
+  }
+  if (provider === "microsoft" && !String(payload.iss || "").match(/^https:\/\/login\.microsoftonline\.com\/[^/]+\/v2\.0$/)) {
+    throw requestError("Microsoft identity token issuer is invalid.", 401);
+  }
+}
+
+function oauthProfileFromClaims(provider, claims, appleName = null) {
+  const email = normalizeEmail(claims.email || claims.preferred_username || claims.upn || "");
+  const displayName = String(
+    claims.name ||
+    [appleName?.firstName, appleName?.lastName].filter(Boolean).join(" ") ||
+    email.split("@")[0] ||
+    providerDisplayName(provider)
+  ).trim();
+  const emailVerified = provider === "microsoft" ? Boolean(email) : claims.email_verified === true || claims.email_verified === "true";
+  return {
+    provider,
+    subject: String(claims.sub || ""),
+    email,
+    displayName,
+    emailVerified
+  };
+}
+
+function createPkceChallenge(verifier) {
+  return base64UrlEncode(crypto.createHash("sha256").update(verifier).digest());
+}
+
+function createOAuthState(provider) {
+  cleanupOAuthStates();
+  const state = crypto.randomBytes(24).toString("hex");
+  const nonce = crypto.randomBytes(24).toString("hex");
+  const codeVerifier = base64UrlEncode(crypto.randomBytes(48));
+  oauthStates.set(state, {
+    provider,
+    nonce,
+    codeVerifier,
+    expiresAt: Date.now() + oauthStateTtlMs
+  });
+  return { state, nonce, codeVerifier };
+}
+
+function consumeOAuthState(provider, state) {
+  cleanupOAuthStates();
+  const record = oauthStates.get(state);
+  oauthStates.delete(state);
+  if (!record || record.provider !== provider || record.expiresAt <= Date.now()) {
+    throw requestError("Sign-in state is invalid or expired. Please try again.", 400);
+  }
+  return record;
+}
+
+function cleanupOAuthStates() {
+  const now = Date.now();
+  for (const [state, record] of oauthStates.entries()) {
+    if (!record || record.expiresAt <= now) oauthStates.delete(state);
+  }
+}
+
+function appleClientSecret(config) {
+  const header = {
+    alg: "ES256",
+    kid: config.keyId
+  };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: config.teamId,
+    iat: now,
+    exp: now + 60 * 60 * 24 * 180,
+    aud: "https://appleid.apple.com",
+    sub: config.clientId
+  };
+  const signingInput = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(payload))}`;
+  const signature = crypto.sign("sha256", Buffer.from(signingInput), {
+    key: config.privateKey,
+    dsaEncoding: "ieee-p1363"
+  });
+  return `${signingInput}.${base64UrlEncode(signature)}`;
+}
+
+function oauthAuthorizationUrl(request, provider) {
+  const config = oauthProviderConfig(provider);
+  if (!config || !isOAuthProviderConfigured(provider)) throw requestError(`${providerDisplayName(provider)} sign-in is not configured.`, 503);
+  const state = createOAuthState(provider);
+  const url = new URL(config.authorizationUrl);
+  url.searchParams.set("client_id", config.clientId);
+  url.searchParams.set("redirect_uri", oauthRedirectUri(request, provider));
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", config.scope);
+  url.searchParams.set("state", state.state);
+  url.searchParams.set("nonce", state.nonce);
+  url.searchParams.set("code_challenge", createPkceChallenge(state.codeVerifier));
+  url.searchParams.set("code_challenge_method", "S256");
+  if (provider === "google") url.searchParams.set("prompt", "select_account");
+  if (provider === "apple") url.searchParams.set("response_mode", "form_post");
+  return url.toString();
+}
+
+async function exchangeOAuthCode(request, provider, code, stateRecord) {
+  const config = oauthProviderConfig(provider);
+  const params = new URLSearchParams({
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: oauthRedirectUri(request, provider),
+    client_id: config.clientId,
+    code_verifier: stateRecord.codeVerifier
+  });
+  if (provider === "apple") {
+    params.set("client_secret", appleClientSecret(config));
+  } else {
+    params.set("client_secret", config.clientSecret);
+  }
+
+  const response = await fetch(config.tokenUrl, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: params
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body.id_token) {
+    structuredLog("error", "oauth.token_exchange_failed", {
+      provider,
+      statusCode: response.status,
+      error: boundedString(body.error || body.error_description || "token exchange failed", 180)
+    });
+    throw requestError(`${providerDisplayName(provider)} sign-in could not be completed.`, 502);
+  }
+  return body;
+}
+
+async function completeOAuthCallback(request, response, store, provider, params) {
+  if (params.get("error")) throw requestError(params.get("error_description") || params.get("error"), 400);
+  const code = params.get("code");
+  const state = params.get("state");
+  if (!code || !state) throw requestError("OAuth callback is missing required parameters.", 400);
+
+  const stateRecord = consumeOAuthState(provider, state);
+  const tokenSet = await exchangeOAuthCode(request, provider, code, stateRecord);
+  const claims = await verifyOidcToken(provider, tokenSet.id_token, stateRecord.nonce);
+  let appleName = null;
+  if (provider === "apple" && params.get("user")) {
+    try {
+      appleName = JSON.parse(params.get("user"))?.name || null;
+    } catch {
+      appleName = null;
+    }
+  }
+  const profile = oauthProfileFromClaims(provider, claims, appleName);
+  const user = await store.loginWithOAuth(profile);
+  const sessionToken = createSession(user);
+  structuredLog("info", "oauth.login_completed", { provider, userId: user.userId });
+  redirect(response, "/", 302, { "set-cookie": sessionCookie(sessionToken, request) });
 }
 
 function isAdminUser(user) {
@@ -641,6 +947,21 @@ function readBody(request) {
   });
 }
 
+function readTextBody(request) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 1_000_000) {
+        reject(requestError("Request body is too large.", 413));
+        request.destroy();
+      }
+    });
+    request.on("end", () => resolve(body));
+    request.on("error", reject);
+  });
+}
+
 async function createStore() {
   const curriculum = readJson(dataPath);
 
@@ -789,6 +1110,7 @@ function createMongoStore(database, fallbackCurriculum) {
         resources,
         progress,
         user: publicRecord,
+        authProviders: availableOAuthProviderIds(),
         databaseMode: "mongodb"
       }, fallbackCurriculum, publicRecord);
     },
@@ -830,6 +1152,51 @@ function createMongoStore(database, fallbackCurriculum) {
       const normalizedEmail = normalizeEmail(email);
       const user = await database.collection("users").findOne({ email: normalizedEmail });
       if (!user || !verifyPassword(password, user.passwordHash)) throw requestError("Invalid email or password.", 401);
+      return publicUserFromRecord(user);
+    },
+    async loginWithOAuth(profile) {
+      if (!profile?.provider || !profile.subject) throw requestError("OAuth profile is incomplete.", 400);
+      if (!profile.email && !profile.subject) throw requestError("OAuth account did not provide an email address.", 400);
+      const providerRecord = { provider: profile.provider, subject: profile.subject };
+      const byProvider = await database.collection("users").findOne({
+        authProviders: { $elemMatch: providerRecord }
+      });
+      if (byProvider) return publicUserFromRecord(byProvider);
+
+      const byEmail = profile.email && profile.emailVerified
+        ? await database.collection("users").findOne({ email: profile.email })
+        : null;
+      if (byEmail) {
+        await database.collection("users").updateOne(
+          { userId: byEmail.userId },
+          {
+            $addToSet: { authProviders: providerRecord },
+            $set: {
+              emailVerified: Boolean(byEmail.emailVerified || profile.emailVerified),
+              updatedAt: new Date()
+            }
+          }
+        );
+        return publicUserFromRecord({ ...byEmail, emailVerified: Boolean(byEmail.emailVerified || profile.emailVerified) });
+      }
+
+      if (!profile.email) throw requestError("OAuth account did not provide an email address.", 400);
+      if (!profile.emailVerified) throw requestError("OAuth account email is not verified.", 401);
+      const user = {
+        userId: `user-${crypto.randomUUID()}`,
+        displayName: profile.displayName || "Student",
+        email: profile.email,
+        passwordHash: "",
+        subscriptionPlan: "free",
+        subscriptionStatus: "active",
+        subscriptionEndsAt: null,
+        role: "student",
+        emailVerified: Boolean(profile.emailVerified),
+        authProviders: [providerRecord],
+        createdAt: new Date()
+      };
+      await database.collection("users").insertOne(user);
+      await database.collection("userProgress").insertOne(defaultProgressForUser(fallbackCurriculum, user));
       return publicUserFromRecord(user);
     },
     async requestPasswordReset(email) {
@@ -1003,6 +1370,7 @@ function createJsonStore(curriculum) {
         resources: curriculum.resources,
         progress: getJsonProgress(user),
         user,
+        authProviders: availableOAuthProviderIds(),
         databaseMode: "local-json"
       }, curriculum, user);
     },
@@ -1040,6 +1408,54 @@ function createJsonStore(curriculum) {
       const normalizedEmail = normalizeEmail(email);
       const user = readUsers().find((item) => item.email === normalizedEmail);
       if (!user || !verifyPassword(password, user.passwordHash)) throw requestError("Invalid email or password.", 401);
+      return publicUserFromRecord(user);
+    },
+    async loginWithOAuth(profile) {
+      if (!profile?.provider || !profile.subject) throw requestError("OAuth profile is incomplete.", 400);
+      const providerRecord = { provider: profile.provider, subject: profile.subject };
+      const users = readUsers();
+      const byProvider = users.find((user) =>
+        (user.authProviders || []).some((item) => item.provider === providerRecord.provider && item.subject === providerRecord.subject)
+      );
+      if (byProvider) return publicUserFromRecord(byProvider);
+
+      const email = normalizeEmail(profile.email);
+      const emailIndex = email && profile.emailVerified ? users.findIndex((user) => user.email === email) : -1;
+      if (emailIndex >= 0) {
+        users[emailIndex] = {
+          ...users[emailIndex],
+          emailVerified: Boolean(users[emailIndex].emailVerified || profile.emailVerified),
+          authProviders: [
+            ...(users[emailIndex].authProviders || []),
+            providerRecord
+          ],
+          updatedAt: new Date().toISOString()
+        };
+        users[emailIndex].authProviders = Array.from(
+          new Map(users[emailIndex].authProviders.map((item) => [`${item.provider}:${item.subject}`, item])).values()
+        );
+        writeUsers(users);
+        return publicUserFromRecord(users[emailIndex]);
+      }
+
+      if (!email) throw requestError("OAuth account did not provide an email address.", 400);
+      if (!profile.emailVerified) throw requestError("OAuth account email is not verified.", 401);
+      const user = {
+        userId: `user-${crypto.randomUUID()}`,
+        displayName: profile.displayName || "Student",
+        email,
+        passwordHash: "",
+        subscriptionPlan: "free",
+        subscriptionStatus: "active",
+        subscriptionEndsAt: null,
+        role: "student",
+        emailVerified: Boolean(profile.emailVerified),
+        authProviders: [providerRecord],
+        createdAt: new Date().toISOString()
+      };
+      users.push(user);
+      writeUsers(users);
+      writeJsonProgress(user.userId, defaultProgressForUser(curriculum, user));
       return publicUserFromRecord(user);
     },
     async requestPasswordReset(email) {
@@ -1238,6 +1654,22 @@ async function start() {
           userId: authenticatedUserFromRequest(request) || "anonymous"
         });
         sendJson(response, 200, { ok: true });
+        return;
+      }
+
+      const oauthStart = parsedUrl.pathname.match(/^\/api\/auth\/(google|microsoft|apple)$/);
+      if (request.method === "GET" && oauthStart) {
+        redirect(response, oauthAuthorizationUrl(request, oauthStart[1]));
+        return;
+      }
+
+      const oauthCallback = parsedUrl.pathname.match(/^\/api\/auth\/(google|microsoft|apple)\/callback$/);
+      if (oauthCallback && (request.method === "GET" || request.method === "POST")) {
+        const provider = oauthCallback[1];
+        const params = request.method === "POST"
+          ? new URLSearchParams(await readTextBody(request))
+          : parsedUrl.searchParams;
+        await completeOAuthCallback(request, response, store, provider, params);
         return;
       }
 

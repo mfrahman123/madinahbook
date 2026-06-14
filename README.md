@@ -75,6 +75,41 @@ MONGODB_DB="madinah_arabic"
 
 Do not commit `.env`. It is ignored by Git.
 
+## Social login
+
+The app supports Google, Microsoft, and Apple OAuth/OpenID Connect login. Add provider credentials to `.env` locally or Heroku config vars in production:
+
+```sh
+AUTH_BASE_URL="https://madinahbook-71ce82c26733.herokuapp.com"
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+MICROSOFT_CLIENT_ID=""
+MICROSOFT_CLIENT_SECRET=""
+MICROSOFT_TENANT="common"
+APPLE_CLIENT_ID=""
+APPLE_TEAM_ID=""
+APPLE_KEY_ID=""
+APPLE_PRIVATE_KEY=""
+```
+
+Use these production callback URLs in the provider dashboards:
+
+```text
+https://madinahbook-71ce82c26733.herokuapp.com/api/auth/google/callback
+https://madinahbook-71ce82c26733.herokuapp.com/api/auth/microsoft/callback
+https://madinahbook-71ce82c26733.herokuapp.com/api/auth/apple/callback
+```
+
+For local development, use:
+
+```text
+http://localhost:4173/api/auth/google/callback
+http://localhost:4173/api/auth/microsoft/callback
+http://localhost:4173/api/auth/apple/callback
+```
+
+Google and Microsoft require a client ID and client secret. Apple requires a Services ID as `APPLE_CLIENT_ID`, Team ID, Key ID, and the private key contents. `MICROSOFT_TENANT=common` allows personal Microsoft accounts plus work/school accounts; use `consumers` for Outlook/Hotmail/Live accounts only.
+
 ## Tests
 
 Run unit, content, and integration/API tests:

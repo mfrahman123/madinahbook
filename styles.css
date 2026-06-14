@@ -867,6 +867,56 @@ h3 {
   box-shadow: var(--shadow);
 }
 
+.oauth-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.oauth-divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.oauth-divider::before,
+.oauth-divider::after {
+  height: 1px;
+  content: "";
+  background: var(--line);
+}
+
+.oauth-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.oauth-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface-soft) 70%, transparent);
+  color: var(--text-strong);
+  font-weight: 750;
+  text-decoration: none;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    transform var(--motion-fast) var(--motion-ease);
+}
+
+.oauth-button:hover {
+  border-color: var(--selected-border);
+  background: var(--selected-surface);
+  transform: translateY(-1px);
+}
+
 .form-field,
 .checked-input {
   display: grid;

@@ -31,6 +31,18 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(body.lessons.some((lesson) => lesson.bookSlug === "book-2" || lesson.bookSlug === "book-3"), false);
     assert.equal(body.vocabulary.some((word) => word.bookSlug === "book-2" || word.bookSlug === "book-3"), false);
     assert.equal(body.exercises.some((exercise) => exercise.bookSlug === "book-2" || exercise.bookSlug === "book-3"), false);
+    assert.deepEqual(body.authProviders, []);
+  });
+
+  it("fails safely when OAuth providers are not configured", async () => {
+    const google = await fetch(`${server.baseUrl}/api/auth/google`, { redirect: "manual" });
+    const microsoft = await fetch(`${server.baseUrl}/api/auth/microsoft`, { redirect: "manual" });
+    const apple = await fetch(`${server.baseUrl}/api/auth/apple`, { redirect: "manual" });
+
+    assert.equal(google.status, 503);
+    assert.equal(microsoft.status, 503);
+    assert.equal(apple.status, 503);
+    assert.match(await google.text(), /Google sign-in is not configured/);
   });
 
   it("serves the full Book 1, Book 2 and Book 3 curriculum to premium users", async () => {
@@ -634,6 +646,7 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(page, /learning-core\.js/);
     assert.match(page, /manifest\.webmanifest/);
     assert.match(app, /renderAccountPage/);
+    assert.match(app, /renderOAuthButtons/);
     assert.match(app, /renderAdminPage/);
     assert.match(app, /forgot-password/);
     assert.match(app, /send-verification/);
@@ -644,6 +657,7 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(app, /renderSubscriptionPage/);
     assert.match(app, /data-route="subscription"/);
     assert.match(app, /membership-table/);
+    assert.match(app, /\/api\/auth\/\$\{escapeHtml\(provider\)\}/);
     assert.match(core, /createVocabularyQuestion/);
     assert.equal(manifest.name, "Madinah Arabic");
     assert.equal(manifest.display, "standalone");

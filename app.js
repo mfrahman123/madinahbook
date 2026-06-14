@@ -2400,6 +2400,7 @@ function renderAuthModal() {
         </div>
         ${state.authError ? `<div class="feedback incorrect">${icon("x")}<span>${escapeHtml(state.authError)}</span></div>` : ""}
         ${state.authNotice ? `<div class="feedback correct">${icon("check")}<span>${escapeHtml(state.authNotice)}</span></div>` : ""}
+        ${!forgot && !reset && !verify ? renderOAuthButtons() : ""}
         ${register ? `
           <label class="form-field">
             <span>${t("name", "Name")}</span>
@@ -2436,6 +2437,29 @@ function renderAuthModal() {
         ${forgot || reset || verify ? `<button class="ghost-button" type="button" data-auth-mode="login">${t("backToSignIn", "Back to sign in")}</button>` : ""}
       </form>
     </div>
+  `;
+}
+
+function renderOAuthButtons() {
+  const providers = state.data?.authProviders || [];
+  if (!providers.length) return "";
+  const labels = {
+    google: "Google",
+    microsoft: "Microsoft",
+    apple: "Apple"
+  };
+
+  return `
+    <section class="oauth-panel" aria-label="${t("socialSignIn", "Social sign in")}">
+      <div class="oauth-divider"><span>${t("continueWith", "Continue with")}</span></div>
+      <div class="oauth-grid">
+        ${providers.map((provider) => `
+          <a class="oauth-button ${provider}" href="/api/auth/${escapeHtml(provider)}">
+            <span>${escapeHtml(labels[provider] || provider.slice(0, 1).toUpperCase() + provider.slice(1))}</span>
+          </a>
+        `).join("")}
+      </div>
+    </section>
   `;
 }
 

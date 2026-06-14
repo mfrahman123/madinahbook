@@ -35,7 +35,17 @@ export async function startTestServer() {
       PORT: String(port),
       DATA_DIR: dataDir,
       MONGODB_URI: "",
-      MONGODB_DB: ""
+      MONGODB_DB: "",
+      AUTH_BASE_URL: "",
+      GOOGLE_CLIENT_ID: "",
+      GOOGLE_CLIENT_SECRET: "",
+      MICROSOFT_CLIENT_ID: "",
+      MICROSOFT_CLIENT_SECRET: "",
+      MICROSOFT_TENANT: "",
+      APPLE_CLIENT_ID: "",
+      APPLE_TEAM_ID: "",
+      APPLE_KEY_ID: "",
+      APPLE_PRIVATE_KEY: ""
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
