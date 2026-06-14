@@ -34,6 +34,14 @@ async function main() {
     await capture(paidPage, server.baseUrl, "premium-vocabulary-desktop");
     await gotoRoute(paidPage, server.baseUrl, "?route=vocabulary&vocabTab=tester", ".vocab-tester-card");
     await capture(paidPage, server.baseUrl, "premium-vocab-tester-desktop");
+    await gotoRoute(paidPage, server.baseUrl, "?route=vocabulary&theme=light", ".vocabulary-tabs");
+    await capture(paidPage, server.baseUrl, "light-premium-vocabulary-desktop");
+    await assertLightSelectionPalette(paidPage, "light premium vocabulary");
+    await gotoRoute(paidPage, server.baseUrl, "?route=vocabulary&vocabTab=tester&theme=light", ".vocab-tester-card");
+    await capture(paidPage, server.baseUrl, "light-premium-vocab-tester-desktop");
+    await assertLightSelectionPalette(paidPage, "light premium vocabulary tester");
+    await gotoRoute(paidPage, server.baseUrl, "?route=book-1&lesson=lesson-5&tab=quiz", ".cumulative-card");
+    await capture(paidPage, server.baseUrl, "premium-lesson-5-quiz-desktop");
     await gotoRoute(paidPage, server.baseUrl, "?route=subscription", ".subscription-hero");
     await capture(paidPage, server.baseUrl, "premium-subscription-desktop");
     await gotoRoute(paidPage, server.baseUrl, "?route=account", ".account-hero");
@@ -56,6 +64,12 @@ async function main() {
     await capture(mobilePaidPage, server.baseUrl, "mobile-vocabulary", { mobileShell: true, viewportOnly: true });
     await gotoRoute(mobilePaidPage, server.baseUrl, "?route=vocabulary&vocabTab=tester", ".vocab-tester-card");
     await capture(mobilePaidPage, server.baseUrl, "mobile-vocab-tester", { mobileShell: true, viewportOnly: true });
+    await mobilePaidPage.locator("[data-vocab-tester-filters-toggle]").click();
+    await mobilePaidPage.waitForSelector(".mobile-filter-sheet");
+    await capture(mobilePaidPage, server.baseUrl, "mobile-vocab-filter-sheet", { mobileShell: true, viewportOnly: true });
+    await gotoRoute(mobilePaidPage, server.baseUrl, "?route=vocabulary&vocabTab=tester&theme=light", ".vocab-tester-card");
+    await capture(mobilePaidPage, server.baseUrl, "mobile-light-vocab-tester", { mobileShell: true, viewportOnly: true });
+    await assertLightSelectionPalette(mobilePaidPage, "mobile light vocabulary tester");
     await gotoRoute(mobilePaidPage, server.baseUrl, "?route=subscription", ".subscription-hero");
     await capture(mobilePaidPage, server.baseUrl, "mobile-subscription", { mobileShell: true, viewportOnly: true });
     await gotoRoute(mobilePaidPage, server.baseUrl, "?route=account", ".account-hero");
@@ -115,6 +129,49 @@ async function capture(page, baseUrl, name, options = {}) {
   const stat = await fs.stat(screenshotPath);
   if (stat.size < 10_000) throw new Error(`${name} screenshot looks blank or incomplete`);
   console.log(`Captured ${screenshotPath}`);
+}
+
+async function assertLightSelectionPalette(page, name) {
+  const samples = await page.evaluate(() => {
+    const parseRgb = (value) => {
+      const match = value.match(/rgba?\(([^)]+)\)/);
+      if (!match) return null;
+      return match[1].split(",").slice(0, 3).map((part) => Number.parseFloat(part.trim()));
+    };
+    const read = (selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      const visibility = window.getComputedStyle(element);
+      if (visibility.display === "none" || visibility.visibility === "hidden" || rect.width === 0 || rect.height === 0) return null;
+      const styles = window.getComputedStyle(element);
+      return {
+        selector,
+        color: parseRgb(styles.color),
+        background: parseRgb(styles.backgroundColor)
+      };
+    };
+
+    return [
+      read(".lesson-tab.active"),
+      read(".vocab-book-card.active"),
+      read(".filter-chip.active"),
+      read(".mobile-bottom-nav button.active")
+    ].filter(Boolean);
+  });
+
+  if (!samples.length) throw new Error(`${name} did not expose any selected controls`);
+
+  const yellowText = samples.filter(({ color }) => color && color[0] > 120 && color[1] > 95 && color[2] < 95);
+  if (yellowText.length) {
+    throw new Error(`${name} has yellow selected text: ${yellowText.map(({ selector }) => selector).join(", ")}`);
+  }
+
+  const selectedSurfaces = samples.filter(({ background }) => background);
+  const missingSurface = selectedSurfaces.filter(({ background }) => background.every((channel) => channel > 238));
+  if (missingSurface.length) {
+    throw new Error(`${name} selected controls are too close to the page background: ${missingSurface.map(({ selector }) => selector).join(", ")}`);
+  }
 }
 
 main().catch((error) => {

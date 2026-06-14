@@ -1,0 +1,9 @@
+android/
+ios/
+mobile/
+test-artifacts/
+tests/
+design/
+tools/
+.github/
+.DS_Store

@@ -201,6 +201,23 @@ describe("Madinah Arabic Selenium flows", () => {
     await waitForQuestionCount(driver, 3);
   });
 
+  it("keeps light mode selected controls calm and non-yellow", async () => {
+    await login(driver, server.baseUrl, paidTestUser);
+    await driver.get(`${server.baseUrl}/?route=vocabulary&theme=light`);
+
+    await waitForText(driver, "Book 1 Vocabulary");
+    const vocabularyPalette = await readSelectedPalette(driver, [".lesson-tab.active", ".vocab-book-card.active"]);
+    assertLightSelectedPalette(vocabularyPalette);
+
+    await driver.get(`${server.baseUrl}/?route=vocabulary&vocabTab=tester&theme=light`);
+    await waitForText(driver, "Vocab Tester");
+    const testerPalette = await readSelectedPalette(driver, [".lesson-tab.active", ".filter-chip.active"]);
+    assertLightSelectedPalette(testerPalette);
+
+    const backgrounds = testerPalette.map((sample) => sample.background).filter(Boolean);
+    assert.ok(colorDistance(backgrounds[0], backgrounds[1]) < 8, "top tabs and lower chips should share the same selected surface");
+  });
+
   it("shows slash-formatted Book 3 verb pairs in the vocabulary list", async () => {
     await login(driver, server.baseUrl, paidTestUser);
     await driver.get(`${server.baseUrl}/?route=vocabulary&vocabBook=book-3`);
@@ -241,6 +258,22 @@ describe("Madinah Arabic Selenium flows", () => {
     await driver.findElement(By.css('[data-lesson-tab="quiz"]')).click();
     await waitForText(driver, "Vocabulary Quiz");
     await waitForText(driver, "Random Vocabulary Quiz");
+    await waitForText(driver, "Sentence Builder");
+  });
+
+  it("shows adaptive milestone practice and account learning preferences", async () => {
+    await login(driver, server.baseUrl, paidTestUser);
+    await driver.get(`${server.baseUrl}/?route=book-1&lesson=lesson-5&tab=quiz`);
+
+    await waitForText(driver, "Sentence Builder");
+    await waitForText(driver, "Cumulative Check");
+    await waitForText(driver, "Through lesson 5");
+    assert.ok((await driver.findElements(By.css(".cumulative-question"))).length > 0);
+
+    await driver.findElement(By.css(".auth-avatar")).click();
+    await waitForText(driver, "Learning Preferences");
+    await waitForText(driver, "Arabic audio speed");
+    await waitForText(driver, "Arabic text size");
   });
 
   it("pads sparse source lessons into five practice sections", async () => {
@@ -350,4 +383,49 @@ async function clickFirstVisible(driver, selector) {
     }
   }
   throw new Error(`No visible element found for selector: ${selector}`);
+}
+
+async function readSelectedPalette(driver, selectors) {
+  return driver.executeScript(`
+    const parseRgb = (value) => {
+      const match = value.match(/rgba?\\(([^)]+)\\)/);
+      if (!match) return null;
+      return match[1].split(",").slice(0, 3).map((part) => Number.parseFloat(part.trim()));
+    };
+
+    return arguments[0].map((selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const styles = window.getComputedStyle(element);
+      return {
+        selector,
+        color: parseRgb(styles.color),
+        background: parseRgb(styles.backgroundColor)
+      };
+    }).filter(Boolean);
+  `, selectors);
+}
+
+function assertLightSelectedPalette(samples) {
+  assert.ok(samples.length > 0, "expected selected controls to be visible");
+  for (const sample of samples) {
+    assert.ok(!isYellow(sample.color), `${sample.selector} selected text should not be yellow/gold`);
+    assert.ok(!isNearlyPageBackground(sample.background), `${sample.selector} selected background should be visibly highlighted`);
+  }
+}
+
+function isYellow(color) {
+  if (!color) return false;
+  const [red, green, blue] = color;
+  return red > 120 && green > 90 && blue < 100;
+}
+
+function isNearlyPageBackground(color) {
+  if (!color) return true;
+  return color.every((channel) => channel > 238);
+}
+
+function colorDistance(a, b) {
+  if (!a || !b) return Number.POSITIVE_INFINITY;
+  return Math.sqrt(a.reduce((sum, channel, index) => sum + (channel - b[index]) ** 2, 0));
 }

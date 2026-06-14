@@ -210,6 +210,23 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(patched.body.item.passwordHash, undefined);
   });
 
+  it("allows admins to export editable curriculum content", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: paidTestUser.email, password: paidTestUser.password })
+    });
+    const exported = await api(server.baseUrl, "/api/admin/export", {
+      headers: authHeaders(login)
+    });
+
+    assert.equal(login.body.user.role, "admin");
+    assert.equal(exported.response.status, 200);
+    assert.match(exported.response.headers.get("content-disposition") || "", /madinah-content-export/);
+    assert.ok(exported.body.exportedAt);
+    assert.ok(exported.body.content.lessons.some((lesson) => lesson.sourceRef && lesson.contentStatus));
+    assert.ok(exported.body.content.vocabulary.length > 1000);
+  });
+
   it("blocks non-admin users from content management", async () => {
     const login = await api(server.baseUrl, "/api/auth/login", {
       method: "POST",
@@ -223,10 +240,14 @@ describe("Madinah Arabic API and static app", () => {
       headers: authHeaders(login),
       body: JSON.stringify({ collection: "vocabulary", id: "v-hadha", patch: { english: "blocked" } })
     });
+    const exported = await api(server.baseUrl, "/api/admin/export", {
+      headers: authHeaders(login)
+    });
 
     assert.equal(login.body.user.role, "student");
     assert.equal(content.response.status, 403);
     assert.equal(patched.response.status, 403);
+    assert.equal(exported.response.status, 403);
   });
 
   it("never returns password hashes in public auth responses", async () => {
@@ -524,6 +545,56 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(secondSave.body.progress.exerciseAttempts["ex-lesson-2"], "incorrect");
     assert.equal(secondSave.body.progress.vocabularyStats["v-hadha"].correct, 1);
     assert.equal(secondSave.body.progress.vocabularyStats["v-baytun"].attempts, 1);
+  });
+
+  it("persists adaptive practice progress keys safely", async () => {
+    const email = uniqueEmail("adaptive");
+    const created = await api(server.baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ displayName: "Adaptive Learner", email, password: "test123" })
+    });
+
+    const saved = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      headers: authHeaders(created),
+      body: JSON.stringify({
+        xp: 37,
+        exerciseAttempts: {
+          "sentence-lesson-1": "correct",
+          "morphology-morph-lesson-1-1-past": "incorrect",
+          "cumulative-cumulative-vocab-1-v-hadha-1770000000000-1": "correct"
+        },
+        vocabularyStats: {
+          "v-hadha": {
+            level: 6,
+            correct: 2,
+            incorrect: 0,
+            reviewCount: 2,
+            lastReviewedAt: "2026-06-13T10:00:00.000Z",
+            dueAt: "2026-06-20T10:00:00.000Z"
+          }
+        },
+        mistakes: {
+          "sentence-lesson-1": {
+            id: "sentence-lesson-1",
+            type: "Sentence Builder",
+            lessonId: "lesson-1",
+            prompt: "Rebuild the sentence",
+            expected: "هٰذَا كِتَابٌ",
+            given: "كِتَابٌ هٰذَا",
+            resolved: false,
+            createdAt: "2026-06-13T10:00:00.000Z"
+          }
+        }
+      })
+    });
+
+    assert.equal(saved.response.status, 200);
+    assert.equal(saved.body.progress.exerciseAttempts["sentence-lesson-1"], "correct");
+    assert.equal(saved.body.progress.exerciseAttempts["morphology-morph-lesson-1-1-past"], "incorrect");
+    assert.equal(saved.body.progress.exerciseAttempts["cumulative-cumulative-vocab-1-v-hadha-1770000000000-1"], "correct");
+    assert.equal(saved.body.progress.vocabularyStats["v-hadha"].level, 5);
+    assert.equal(saved.body.progress.mistakes["sentence-lesson-1"].type, "Sentence Builder");
   });
 
   it("does not expose private files through static routes", async () => {

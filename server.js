@@ -24,6 +24,7 @@ const authMaxByIp = Number(process.env.AUTH_RATE_MAX_IP || 40);
 const maxXpIncreasePerSave = Number(process.env.MAX_XP_INCREASE_PER_SAVE || 100);
 const tokenTtlMs = Number(process.env.AUTH_TOKEN_TTL_MS || 30 * 60 * 1000);
 const isProduction = process.env.NODE_ENV === "production";
+const host = process.env.HOST || (isProduction ? "0.0.0.0" : "127.0.0.1");
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -391,7 +392,11 @@ function progressKeyAllowed(key, context) {
     normalized === `vocab-${lesson.id}` ||
     normalized.startsWith(`vocab-${lesson.id}-`) ||
     normalized.startsWith(`book-${lesson.id}-`) ||
-    normalized.startsWith(`write-book-${lesson.id}-`)
+    normalized.startsWith(`write-book-${lesson.id}-`) ||
+    normalized === `sentence-${lesson.id}` ||
+    normalized.startsWith(`morphology-morph-${lesson.id}-`) ||
+    normalized.startsWith(`cumulative-cumulative-`) ||
+    normalized.startsWith(`cumulative-${lesson.id}-`)
   );
 }
 
@@ -568,7 +573,7 @@ const adminCollectionConfig = {
   },
   lessons: {
     idField: "id",
-    fields: new Set(["title", "focus", "arabic", "translation", "notes", "examples", "exercisePrompts"])
+    fields: new Set(["title", "focus", "arabic", "translation", "notes", "examples", "grammarExplanation", "morphologyCards", "exercisePrompts", "contentStatus", "sourceRef"])
   },
   exercises: {
     idField: "id",
@@ -1331,6 +1336,22 @@ async function start() {
         return;
       }
 
+      if (request.method === "GET" && parsedUrl.pathname === "/api/admin/export") {
+        const userId = authenticatedUserFromRequest(request);
+        if (!userId) {
+          sendJson(response, 401, { error: "Sign in required." });
+          return;
+        }
+        const content = await store.adminContent(userId);
+        sendJson(response, 200, {
+          exportedAt: new Date().toISOString(),
+          content
+        }, {
+          "content-disposition": `attachment; filename="madinah-content-export-${new Date().toISOString().slice(0, 10)}.json"`
+        });
+        return;
+      }
+
       if (request.method === "PATCH" && parsedUrl.pathname === "/api/admin/content") {
         const userId = authenticatedUserFromRequest(request);
         if (!userId) {
@@ -1360,9 +1381,10 @@ async function start() {
     }
   });
 
-  server.listen(port, "127.0.0.1", () => {
+  server.listen(port, host, () => {
     structuredLog("info", "server.started", {
       url: `http://localhost:${port}`,
+      host,
       databaseMode: store.mode,
       workspace: pathToFileURL(root).href
     });

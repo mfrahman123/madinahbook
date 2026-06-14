@@ -6,7 +6,25 @@ const require = createRequire(import.meta.url);
 const core = require("../../learning-core.js");
 
 const lessons = [
-  { id: "lesson-1", bookSlug: "book-1", number: "1" }
+  {
+    id: "lesson-1",
+    bookSlug: "book-1",
+    number: "1",
+    arabic: "هٰذَا كِتَابٌ",
+    vocabularyIds: ["w1", "w2"],
+    morphologyCards: [
+      {
+        title: "دَرَسَ",
+        root: "د ر س",
+        forms: {
+          past: "دَرَسَ",
+          present: "يَدْرُسُ",
+          verbalNoun: "دِرَاسَةٌ",
+          activeParticiple: "دَارِسٌ"
+        }
+      }
+    ]
+  }
 ];
 
 const vocabulary = [
@@ -61,6 +79,71 @@ describe("learning-core vocabulary quizzes", () => {
     assert.equal(tester.filterKey, "book-1");
     assert.deepEqual(tester.questions.map((question) => question.number), [1, 2, 3]);
     assert.equal(new Set(tester.questions.map((question) => question.wordId)).size, 3);
+  });
+});
+
+describe("learning-core adaptive practice helpers", () => {
+  it("explains vocabulary answers and tracks spaced review metadata", () => {
+    const question = core.createVocabularyQuestion({
+      word: vocabulary[0],
+      optionPool: vocabulary,
+      allVocabulary: vocabulary,
+      lessons,
+      idPrefix: "unit",
+      now: () => 1770000000000,
+      random: seededRandom([0.2, 0.8, 0.4, 0.1, 0.7, 0.3])
+    });
+    const stats = core.nextReviewStats({ level: 1, correct: 1, incorrect: 0 }, true, () => 1770000000000);
+
+    assert.match(core.createQuizExplanation(question, "wrong"), /Correct answer:/);
+    assert.equal(stats.level, 2);
+    assert.equal(stats.correct, 2);
+    assert.equal(stats.reviewCount, 1);
+    assert.ok(stats.dueAt);
+  });
+
+  it("prioritises weak vocabulary from mistakes and incorrect reviews", () => {
+    const weak = core.weakVocabulary(vocabulary, {
+      learnedVocabularyIds: ["w1"],
+      vocabularyStats: {
+        w1: { correct: 1, incorrect: 4, dueAt: "2020-01-01T00:00:00.000Z" },
+        w2: { correct: 5, incorrect: 0, dueAt: "2099-01-01T00:00:00.000Z" }
+      },
+      mistakes: {
+        "tester-w3": { resolved: false }
+      }
+    }, 2, () => 1770000000000);
+
+    assert.deepEqual(weak.map((word) => word.id), ["w1", "w3"]);
+  });
+
+  it("generates sentence, morphology, and cumulative drills", () => {
+    const sentence = core.createSentenceBuilder(lessons[0], seededRandom([0.9, 0.1, 0.6]));
+    const morphology = core.createMorphologyDrills(lessons[0], seededRandom([0.3, 0.7, 0.2]));
+    const cumulative = core.createCumulativeTest({
+      throughLesson: lessons[0],
+      lessons,
+      vocabulary,
+      exercises: [
+        {
+          id: "ex-1",
+          lessonId: "lesson-1",
+          prompt: "Choose the meaning.",
+          arabic: "هٰذَا كِتَابٌ",
+          answer: "This is a book.",
+          options: ["This is a book.", "This is a pen.", "This is a house.", "This is a door."]
+        }
+      ],
+      size: 3,
+      now: () => 1770000000000,
+      random: seededRandom([0.9, 0.1, 0.6, 0.2, 0.4, 0.7, 0.3, 0.5])
+    });
+
+    assert.equal(sentence.answer, "هٰذَا كِتَابٌ");
+    assert.ok(sentence.tokens.length >= 2);
+    assert.ok(morphology.length >= 1);
+    assert.ok(morphology[0].options.includes(morphology[0].answer));
+    assert.equal(cumulative.questions.length, 3);
   });
 });
 

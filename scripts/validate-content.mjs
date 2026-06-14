@@ -49,6 +49,8 @@ const lessonsByBookAndNumber = new Set(curriculum.lessons.map((lesson) => `${les
 const lessonIds = new Set(curriculum.lessons.map((lesson) => lesson.id));
 const grammarIds = new Set(curriculum.grammar.map((rule) => rule.id));
 const vocabularyIds = new Set(curriculum.vocabulary.map((word) => word.id));
+const morphologyFormKeys = ["past", "present", "command", "verbalNoun", "activeParticiple", "passiveParticiple"];
+const contentStatuses = new Set(["generated-review", "needs-review", "verified"]);
 
 for (const word of curriculum.vocabulary) {
   if (!word.id) fail("Vocabulary record missing id.");
@@ -69,8 +71,38 @@ for (const lesson of curriculum.lessons) {
   if (!books.has(lesson.bookSlug)) fail(`${lesson.id} references unknown book ${lesson.bookSlug}.`);
   if (!lesson.title) fail(`${lesson.id} is missing title.`);
   if (!lesson.translation) fail(`${lesson.id} is missing translation.`);
+  if (!lesson.sourceRef) fail(`${lesson.id} is missing sourceRef.`);
+  if (!contentStatuses.has(lesson.contentStatus)) fail(`${lesson.id} has unsupported contentStatus ${lesson.contentStatus}.`);
   if (hasConflictingMarks(lesson.arabic)) fail(`${lesson.id} has conflicting Arabic diacritics.`);
   if (!Array.isArray(lesson.examples) || lesson.examples.length !== 3) fail(`${lesson.id} must have exactly 3 learn examples.`);
+  if (!lesson.grammarExplanation) {
+    fail(`${lesson.id} is missing grammarExplanation.`);
+  } else {
+    for (const field of ["rule", "example", "exampleTranslation", "commonMistake", "summary"]) {
+      if (!lesson.grammarExplanation[field]) fail(`${lesson.id} grammarExplanation is missing ${field}.`);
+    }
+    if (hasConflictingMarks(lesson.grammarExplanation.example)) {
+      fail(`${lesson.id} grammarExplanation has conflicting Arabic diacritics.`);
+    }
+  }
+  for (const card of lesson.morphologyCards || []) {
+    const cardId = `${lesson.id} morphology card ${card.title || "untitled"}`;
+    if (!card.title) fail(`${cardId} is missing title.`);
+    if (!card.meaning) fail(`${cardId} is missing meaning.`);
+    if (!card.root) fail(`${cardId} is missing root.`);
+    if (!card.pattern) fail(`${cardId} is missing pattern.`);
+    if (!card.forms || typeof card.forms !== "object" || Array.isArray(card.forms)) {
+      fail(`${cardId} is missing forms.`);
+      continue;
+    }
+    if (!card.forms.past || !card.forms.present || !card.forms.verbalNoun || !card.forms.activeParticiple) {
+      fail(`${cardId} must include at least past, present, verbalNoun and activeParticiple forms.`);
+    }
+    for (const field of ["title", "pattern", ...morphologyFormKeys]) {
+      const value = field === "title" || field === "pattern" ? card[field] : card.forms[field];
+      if (value && hasConflictingMarks(value)) fail(`${cardId} has conflicting Arabic diacritics in ${field}: ${value}`);
+    }
+  }
   for (const grammarId of lesson.grammarIds || []) {
     if (!grammarIds.has(grammarId)) fail(`${lesson.id} references missing grammar ${grammarId}.`);
   }

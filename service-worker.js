@@ -1,4 +1,4 @@
-const CACHE_NAME = "madinah-arabic-shell-v1";
+const CACHE_NAME = "madinah-arabic-shell-v2";
 const SHELL_ASSETS = [
   "/",
   "/index.html",
@@ -29,7 +29,27 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  if (request.method !== "GET" || url.pathname.startsWith("/api/")) return;
+  if (request.method !== "GET") return;
+
+  if (url.pathname === "/api/bootstrap") {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          return cached || Response.json({ error: "Offline curriculum cache is not ready." }, { status: 503 });
+        })
+    );
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/")) return;
 
   event.respondWith(
     fetch(request)

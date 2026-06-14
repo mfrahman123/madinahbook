@@ -11,6 +11,10 @@ const state = {
   exerciseFeedback: {},
   vocabularyQuizByLesson: {},
   vocabularyQuizFeedback: {},
+  cumulativeTestByLesson: {},
+  cumulativeFeedback: {},
+  sentenceBuilderFeedback: {},
+  morphologyFeedback: {},
   vocabularyTab: new URLSearchParams(window.location.search).get("vocabTab") || "list",
   selectedVocabularyBookSlug: new URLSearchParams(window.location.search).get("vocabBook") || "book-1",
   vocabularyPage: 1,
@@ -33,7 +37,18 @@ const state = {
   adminError: "",
   adminStatus: "",
   adminTab: "vocabulary",
-  adminSearch: ""
+  adminSearch: "",
+  audioRate: Number(localStorage.getItem("madinah-audio-rate") || 0.82),
+  arabicFontScale: Number(localStorage.getItem("madinah-arabic-scale") || 1),
+  reminderNotice: localStorage.getItem("madinah-reminders") || "",
+  offlineNotice: "",
+  mobileFilterSheetOpen: false,
+  motion: {
+    view: false,
+    tester: false,
+    xpBurst: null,
+    celebration: ""
+  }
 };
 
 const iconPaths = {
@@ -1354,17 +1369,7 @@ function paidFeatureText(feature = "default") {
 
 function reviewStatsFor(wordId, correct) {
   const current = progressRecord("vocabularyStats")[wordId] || { level: 0, correct: 0, incorrect: 0 };
-  const level = correct ? Math.min(5, Number(current.level || 0) + 1) : Math.max(0, Number(current.level || 0) - 1);
-  const intervals = [0, 1, 2, 4, 7, 14];
-  const dueAt = new Date(Date.now() + intervals[level] * 24 * 60 * 60 * 1000).toISOString();
-  return {
-    ...current,
-    level,
-    correct: Number(current.correct || 0) + (correct ? 1 : 0),
-    incorrect: Number(current.incorrect || 0) + (correct ? 0 : 1),
-    lastReviewedAt: new Date().toISOString(),
-    dueAt
-  };
+  return window.MadinahLearningCore.nextReviewStats(current, correct);
 }
 
 function dueVocabularyItems(lesson = null) {
@@ -1373,6 +1378,11 @@ function dueVocabularyItems(lesson = null) {
     if (lessonIds && !lessonIds.has(word.id)) return false;
     return isVocabularyDue(word);
   });
+}
+
+function weakVocabularyItems(limit = 12) {
+  const accessibleWords = state.data.vocabulary.filter((word) => canAccessBookSlug(word.bookSlug));
+  return window.MadinahLearningCore.weakVocabulary(accessibleWords, state.progress, limit);
 }
 
 function isVocabularyDue(word) {
@@ -1456,6 +1466,8 @@ function normalizeAnswer(value) {
 }
 
 async function loadApp() {
+  document.getElementById("app").innerHTML = renderLoadingShell();
+
   try {
     const response = await fetch("/api/bootstrap", authFetchOptions());
     if (!response.ok) throw new Error("Unable to load app data.");
@@ -1476,6 +1488,23 @@ async function loadApp() {
       </main>
     `;
   }
+}
+
+function renderLoadingShell() {
+  return `
+    <main class="loading-shell" aria-busy="true">
+      <section class="card loading-card">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div class="skeleton-line wide"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-grid">
+          <span class="skeleton-block"></span>
+          <span class="skeleton-block"></span>
+          <span class="skeleton-block"></span>
+        </div>
+      </section>
+    </main>
+  `;
 }
 
 function authFetchOptions(options = {}) {
@@ -1610,6 +1639,38 @@ async function sendEmailVerification() {
   render();
 }
 
+async function requestReminderPermission() {
+  if (!("Notification" in window)) {
+    state.reminderNotice = t("notificationsUnsupported", "Notifications are not supported in this browser.");
+    render();
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+  state.reminderNotice = permission === "granted"
+    ? t("remindersEnabled", "Reminder permission enabled on this device.")
+    : t("remindersNotEnabled", "Reminder permission was not enabled.");
+  localStorage.setItem("madinah-reminders", state.reminderNotice);
+  render();
+}
+
+async function refreshOfflineCache() {
+  if (!("serviceWorker" in navigator) || !("caches" in window)) {
+    state.offlineNotice = t("offlineUnsupported", "Offline cache is not supported in this browser.");
+    render();
+    return;
+  }
+
+  try {
+    const cache = await caches.open("madinah-arabic-user-cache-v1");
+    await cache.addAll(["/", "/index.html", "/app.js", "/learning-core.js", "/styles.css", "/api/bootstrap"]);
+    state.offlineNotice = t("offlineReady", "Offline cache refreshed for core lessons and vocabulary.");
+  } catch {
+    state.offlineNotice = t("offlineRefreshFailed", "Offline cache could not be refreshed right now.");
+  }
+  render();
+}
+
 async function loadAdminContent() {
   if (state.adminLoading) return;
   state.adminLoading = true;
@@ -1688,6 +1749,8 @@ function reportFrontendError(error, source = "window") {
 }
 
 function setRoute(route) {
+  state.motion.view = true;
+
   if (!isPublicRoute(route) && !isAuthenticated()) {
     state.route = "home";
     state.authMode = "login";
@@ -1713,6 +1776,8 @@ function setRoute(route) {
 }
 
 function setLesson(id) {
+  state.motion.view = true;
+
   if (!isAuthenticated()) {
     state.route = "home";
     state.authMode = "login";
@@ -1734,14 +1799,25 @@ function speak(text) {
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "ar-SA";
-  utterance.rate = 0.82;
+  utterance.rate = Math.min(1.1, Math.max(0.55, Number(state.audioRate) || 0.82));
   window.speechSynthesis.speak(utterance);
+}
+
+function markMotionXp(amount) {
+  if (amount > 0) state.motion.xpBurst = amount;
+}
+
+function hapticFeedback(success = true) {
+  if ("vibrate" in navigator) navigator.vibrate(success ? 18 : [16, 24, 16]);
 }
 
 function markLessonComplete(lesson) {
   const lessonVocabulary = lesson.vocabularyIds || [];
   const alreadyComplete = state.progress.completedLessonIds.includes(lesson.id);
-  const xp = state.progress.xp + (alreadyComplete ? 0 : 80);
+  const gainedXp = alreadyComplete ? 0 : 80;
+  markMotionXp(gainedXp);
+  if (!alreadyComplete) state.motion.celebration = `${localizedLessonTitle(lesson)} completed`;
+  const xp = state.progress.xp + gainedXp;
   saveProgress({
     activeBookSlug: lesson.bookSlug,
     currentLessonId: nextLessonId(lesson.id),
@@ -1763,9 +1839,12 @@ function answerExercise(exercise, answer) {
   if (!hasPremiumAccess()) return;
   const correct = answer === exercise.answer;
   state.exerciseFeedback[exercise.id] = correct ? "correct" : "incorrect";
+  hapticFeedback(correct);
 
   const previous = state.progress.exerciseAttempts[exercise.id];
-  const xp = state.progress.xp + (correct && previous !== "correct" ? 40 : 0);
+  const gainedXp = correct && previous !== "correct" ? 40 : 0;
+  markMotionXp(gainedXp);
+  const xp = state.progress.xp + gainedXp;
   saveProgress({
     exerciseAttempts: { [exercise.id]: correct ? "correct" : "incorrect" },
     ...(correct
@@ -1789,7 +1868,9 @@ function answerVocabularyQuiz(lessonId, answer) {
 
   const correct = answer === quiz.answer;
   state.vocabularyQuizFeedback[lessonId] = { status: correct ? "correct" : "incorrect", answer };
+  hapticFeedback(correct);
   const mistakeId = `vocab-${quiz.wordId}`;
+  markMotionXp(correct ? 15 : 0);
   saveProgress({
     learnedVocabularyIds: correct ? [quiz.wordId] : [],
     vocabularyStats: { [quiz.wordId]: reviewStatsFor(quiz.wordId, correct) },
@@ -1815,6 +1896,36 @@ function generateNewVocabularyQuiz(lessonId) {
   const lessonVocabulary = state.data.vocabulary.filter((word) => lesson.vocabularyIds.includes(word.id));
   state.vocabularyQuizByLesson[lessonId] = createVocabularyQuiz(lesson, lessonVocabulary);
   delete state.vocabularyQuizFeedback[lessonId];
+  state.motion.tester = true;
+  render();
+}
+
+function getCumulativeTest(lesson) {
+  if (!state.cumulativeTestByLesson[lesson.id]) {
+    state.cumulativeTestByLesson[lesson.id] = window.MadinahLearningCore.createCumulativeTest({
+      throughLesson: lesson,
+      lessons: state.data.lessons,
+      vocabulary: state.data.vocabulary,
+      exercises: state.data.exercises,
+      size: 5
+    });
+  }
+  return state.cumulativeTestByLesson[lesson.id];
+}
+
+function generateCumulativeTest(lessonId) {
+  if (!hasPremiumAccess()) return;
+  const lesson = byId(state.data.lessons, lessonId);
+  if (!lesson) return;
+  state.cumulativeTestByLesson[lessonId] = window.MadinahLearningCore.createCumulativeTest({
+    throughLesson: lesson,
+    lessons: state.data.lessons,
+    vocabulary: state.data.vocabulary,
+    exercises: state.data.exercises,
+    size: 5
+  });
+  state.cumulativeFeedback[lessonId] = {};
+  state.motion.tester = true;
   render();
 }
 
@@ -1825,6 +1936,7 @@ function generateVocabTester() {
   }
   state.vocabTester = createVocabTester(3);
   state.vocabTesterFeedback = {};
+  state.motion.tester = true;
   render();
 }
 
@@ -1891,7 +2003,10 @@ function answerVocabTester(questionId, answer) {
   const previous = state.vocabTesterFeedback[questionId];
   const correct = answer === question.answer;
   state.vocabTesterFeedback[questionId] = { status: correct ? "correct" : "incorrect", answer };
+  hapticFeedback(correct);
   const mistakeId = `tester-${question.wordId}`;
+  const gainedXp = correct && previous?.status !== "correct" ? 10 : 0;
+  markMotionXp(gainedXp);
 
   saveProgress({
     learnedVocabularyIds: correct ? [question.wordId] : [],
@@ -1907,16 +2022,74 @@ function answerVocabTester(questionId, answer) {
           expected: question.answer,
           given: answer
         })),
-    xp: state.progress.xp + (correct && previous?.status !== "correct" ? 10 : 0)
+    xp: state.progress.xp + gainedXp
+  });
+}
+
+function answerCumulativeQuestion(lessonId, questionId, answer) {
+  if (!hasPremiumAccess()) return;
+  const test = state.cumulativeTestByLesson[lessonId];
+  const question = test?.questions.find((item) => item.id === questionId);
+  if (!question) return;
+  const correct = answer === question.answer;
+  state.cumulativeFeedback[lessonId] = {
+    ...(state.cumulativeFeedback[lessonId] || {}),
+    [questionId]: { status: correct ? "correct" : "incorrect", answer }
+  };
+  hapticFeedback(correct);
+  const mistakeId = question.wordId ? `cumulative-${question.wordId}` : `cumulative-${questionId}`;
+
+  markMotionXp(correct ? 12 : 0);
+  saveProgress({
+    learnedVocabularyIds: correct && question.wordId ? [question.wordId] : [],
+    vocabularyStats: question.wordId ? { [question.wordId]: reviewStatsFor(question.wordId, correct) } : {},
+    exerciseAttempts: { [`cumulative-${questionId}`]: correct ? "correct" : "incorrect" },
+    ...(correct
+      ? resolvedMistakePatch(mistakeId)
+      : mistakePatch(mistakeId, {
+          type: "Cumulative Check",
+          lessonId,
+          prompt: question.prompt,
+          arabic: question.arabic,
+          expected: question.answer,
+          given: answer
+        })),
+    xp: state.progress.xp + (correct ? 12 : 0)
+  });
+}
+
+function answerMorphologyDrill(lessonId, drillId, answer) {
+  if (!hasPremiumAccess()) return;
+  const lesson = byId(state.data.lessons, lessonId);
+  const drill = window.MadinahLearningCore.createMorphologyDrills(lesson).find((item) => item.id === drillId);
+  if (!drill) return;
+  const correct = answer === drill.answer;
+  state.morphologyFeedback[`${lessonId}:${drillId}`] = { status: correct ? "correct" : "incorrect", answer };
+  hapticFeedback(correct);
+  markMotionXp(correct ? 10 : 0);
+  saveProgress({
+    exerciseAttempts: { [`morphology-${drillId}`]: correct ? "correct" : "incorrect" },
+    ...(correct
+      ? resolvedMistakePatch(`morphology-${drillId}`)
+      : mistakePatch(`morphology-${drillId}`, {
+          type: "Morphology",
+          lessonId,
+          prompt: drill.prompt,
+          expected: drill.answer,
+          given: answer
+        })),
+    xp: state.progress.xp + (correct ? 10 : 0)
   });
 }
 
 function markBookExerciseComplete(id) {
   if (!hasPremiumAccess()) return;
   const previous = state.progress.exerciseAttempts[id];
+  const gainedXp = previous === "complete" ? 0 : 20;
+  markMotionXp(gainedXp);
   saveProgress({
     exerciseAttempts: { [id]: "complete" },
-    xp: state.progress.xp + (previous === "complete" ? 0 : 20)
+    xp: state.progress.xp + gainedXp
   });
 }
 
@@ -1930,6 +2103,7 @@ function checkBookExercise(form) {
   const lesson = getSelectedLesson();
   const mistakeId = `write-${cardId}`;
 
+  markMotionXp(correct ? 20 : 0);
   saveProgress({
     exerciseAnswers: { [cardId]: correct ? "correct" : "incorrect" },
     writingAttempts: { [mistakeId]: correct ? "correct" : "incorrect" },
@@ -1947,10 +2121,41 @@ function checkBookExercise(form) {
   });
 }
 
+function checkSentenceBuilder(form) {
+  if (!hasPremiumAccess()) return;
+  const lessonId = form.dataset.sentenceBuilder;
+  const lesson = byId(state.data.lessons, lessonId);
+  const builder = window.MadinahLearningCore.createSentenceBuilder(lesson);
+  if (!builder) return;
+
+  const given = new FormData(form).get("sentenceAnswer") || "";
+  const correct = normalizeAnswer(given) === normalizeAnswer(builder.answer);
+  state.sentenceBuilderFeedback[lessonId] = { status: correct ? "correct" : "incorrect", expected: builder.answer, given };
+  hapticFeedback(correct);
+
+  markMotionXp(correct ? 15 : 0);
+  saveProgress({
+    exerciseAttempts: { [`sentence-${lessonId}`]: correct ? "correct" : "incorrect" },
+    ...(correct
+      ? resolvedMistakePatch(`sentence-${lessonId}`)
+      : mistakePatch(`sentence-${lessonId}`, {
+          type: "Sentence Builder",
+          lessonId,
+          prompt: builder.prompt,
+          arabic: builder.answer,
+          expected: builder.answer,
+          given
+        })),
+    xp: state.progress.xp + (correct ? 15 : 0)
+  });
+}
+
 function render() {
   document.documentElement.dataset.theme = state.theme;
   document.documentElement.lang = isBengali() ? "bn" : "en";
+  document.documentElement.style.setProperty("--arabic-scale", String(Math.min(1.2, Math.max(0.9, state.arabicFontScale))));
   const app = document.getElementById("app");
+  const viewClass = state.motion.view ? "view view-enter" : "view";
   app.className = isAuthenticated() ? "app-shell" : "public-shell";
   app.innerHTML = isAuthenticated()
     ? `
@@ -1958,16 +2163,21 @@ function render() {
       ${renderSidebar()}
       <div class="main-shell">
         ${renderTopbar()}
-        <main class="view">${renderRoute()}</main>
+        <main class="${viewClass}">${renderRoute()}</main>
       </div>
       ${renderMobileBottomNav()}
+      ${renderCelebrationToast()}
       ${renderAuthModal()}
     `
     : `
       ${renderPublicHeader()}
-      <main class="public-view">${renderPublicRoute()}</main>
+      <main class="public-view ${state.motion.view ? "view-enter" : ""}">${renderPublicRoute()}</main>
       ${renderAuthModal()}
     `;
+  state.motion.view = false;
+  state.motion.tester = false;
+  state.motion.xpBurst = null;
+  state.motion.celebration = "";
 }
 
 function renderPublicHeader() {
@@ -1996,6 +2206,16 @@ function renderPublicHeader() {
         <button class="primary-button compact-button" type="button" data-auth-mode="register">${t("createAccount", "Create account")}</button>
       </div>
     </header>
+  `;
+}
+
+function renderCelebrationToast() {
+  if (!state.motion.celebration) return "";
+  return `
+    <div class="celebration-toast" role="status" aria-live="polite">
+      ${icon("check")}
+      <span>${escapeHtml(state.motion.celebration)}</span>
+    </div>
   `;
 }
 
@@ -2128,6 +2348,7 @@ function renderTopbar() {
         <div class="metric">
           ${icon("spark")}
           <div><strong>${state.progress.xp.toLocaleString()} XP</strong><span>${t("totalPoints", "Total points")}</span></div>
+          ${state.motion.xpBurst ? `<span class="xp-burst" aria-hidden="true">+${state.motion.xpBurst} XP</span>` : ""}
         </div>
       ` : `
         <div class="metric">
@@ -2504,10 +2725,14 @@ function renderMembershipTable() {
     [t("lessonExamples", "Lesson examples"), true, true],
     [t("bookExerciseSections", "Book exercise sections"), false, true],
     [t("lessonVocabularyQuizzes", "Lesson vocabulary quizzes"), false, true],
+    [t("sentenceBuilderAccess", "Sentence builder drills"), false, true],
+    [t("morphologyDrillsAccess", "Morphology pattern drills"), false, true],
+    [t("cumulativeChecksAccess", "Cumulative milestone checks"), false, true],
     [t("vocabTesterAccess", "Vocabulary tester"), t("basicTester", "Basic tester"), t("fullTester", "Full tester")],
     [t("mistakeReviewAccess", "Mistake review"), false, true],
     [t("spacedReviewAccess", "Due-word and spaced review"), false, true],
-    [t("progressDashboardAccess", "Progress dashboard"), false, true]
+    [t("progressDashboardAccess", "Progress dashboard"), false, true],
+    [t("offlineStudyAccess", "Offline-ready study cache"), true, true]
   ];
 
   const cell = (value) => {
@@ -2865,9 +3090,100 @@ function renderLessonExamples(lesson) {
   `;
 }
 
+function renderGrammarExplanation(lesson) {
+  const explanation = lesson.grammarExplanation;
+  if (!explanation) return "";
+
+  return `
+    <section class="grammar-explanation-panel">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("whatYouAreLearning", "What You Are Learning")}</p>
+          <h3>${t("grammarExplained", "Grammar Explained")}</h3>
+        </div>
+        <span class="pill">${t("lesson", "Lesson")} ${escapeHtml(lesson.number)}</span>
+      </div>
+      <div class="grammar-explanation-grid">
+        <article class="grammar-explanation-card primary">
+          <span>${t("rule", "Rule")}</span>
+          <p>${escapeHtml(localizedText(explanation.rule))}</p>
+        </article>
+        <article class="grammar-explanation-card example">
+          <span>${t("simpleExample", "Simple Example")}</span>
+          <button class="example-arabic" type="button" data-speak="${escapeHtml(explanation.example)}" lang="ar">${escapeHtml(explanation.example)}</button>
+          ${explanation.exampleTranslation ? `<small>${escapeHtml(localizedText(explanation.exampleTranslation))}</small>` : ""}
+        </article>
+        <article class="grammar-explanation-card">
+          <span>${t("commonMistake", "Common Mistake")}</span>
+          <p>${escapeHtml(localizedText(explanation.commonMistake))}</p>
+        </article>
+        <article class="grammar-explanation-card">
+          <span>${t("miniSummary", "Mini Summary")}</span>
+          <p>${escapeHtml(localizedText(explanation.summary))}</p>
+        </article>
+      </div>
+    </section>
+  `;
+}
+
+function renderMorphologyCards(lesson) {
+  const cards = lesson.morphologyCards || [];
+  if (!cards.length) return "";
+  const formLabels = {
+    past: t("past", "Past"),
+    present: t("present", "Present"),
+    command: t("command", "Command"),
+    verbalNoun: t("verbalNoun", "Verbal Noun"),
+    activeParticiple: t("activeParticiple", "Active Participle"),
+    passiveParticiple: t("passiveParticiple", "Passive Participle")
+  };
+
+  return `
+    <section class="morphology-panel">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("verbsAndPatterns", "Verbs And Patterns")}</p>
+          <h3>${t("morphologyCards", "Morphology Cards")}</h3>
+        </div>
+        <span class="pill">${cards.length} ${t("cards", "cards")}</span>
+      </div>
+      <div class="morphology-grid">
+        ${cards
+          .map((card) => `
+            <article class="morphology-card">
+              <div class="morphology-card-head">
+                <button class="morphology-title" type="button" data-speak="${escapeHtml(card.title)}" lang="ar">${escapeHtml(card.title)}</button>
+                <p>${escapeHtml(localizedText(card.meaning))}</p>
+              </div>
+              <div class="morphology-meta">
+                <span><strong>${t("root", "Root")}</strong> <b lang="ar">${escapeHtml(card.root)}</b></span>
+                <span><strong>${t("pattern", "Pattern")}</strong> <b lang="ar">${escapeHtml(card.pattern)}</b></span>
+              </div>
+              <dl class="morphology-forms">
+                ${Object.entries(formLabels)
+                  .filter(([key]) => card.forms?.[key])
+                  .map(([key, label]) => `
+                    <div>
+                      <dt>${label}</dt>
+                      <dd><button type="button" data-speak="${escapeHtml(card.forms[key])}" lang="ar">${escapeHtml(card.forms[key])}</button></dd>
+                    </div>
+                  `)
+                  .join("")}
+              </dl>
+              ${card.note ? `<p class="morphology-note">${escapeHtml(localizedText(card.note))}</p>` : ""}
+            </article>
+          `)
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderLessonLearn(lesson, lessonVocabulary, lessonGrammar, complete) {
   return `
         ${renderLessonExamples(lesson)}
+        ${renderGrammarExplanation(lesson)}
+        ${renderMorphologyCards(lesson)}
         <div class="lesson-sections">
           <section>
             <h3>${t("vocabulary", "Vocabulary")}</h3>
@@ -3275,6 +3591,9 @@ function renderLessonQuiz(lesson, lessonVocabulary) {
         </section>
       `}
       ${renderVocabularyQuiz(lesson, lessonVocabulary)}
+      ${renderSentenceBuilder(lesson)}
+      ${renderMorphologyDrills(lesson)}
+      ${renderCumulativeTest(lesson)}
     </div>
   `;
 }
@@ -3306,7 +3625,7 @@ function renderVocabularyQuiz(lesson, lessonVocabulary) {
         <p>${escapeHtml(localizedText(quiz.prompt))}</p>
         ${quiz.arabic ? `<button class="arabic-hero vocab-quiz-arabic" type="button" data-speak="${escapeHtml(quiz.arabic)}" lang="ar">${quiz.arabic}</button>` : `<strong>${escapeHtml(localizedOption(quiz.display))}</strong>`}
       </div>
-      <div class="options vocabulary-options">
+        <div class="options vocabulary-options ${state.motion.tester ? "shuffle-in" : ""}">
         ${quiz.options
           .map((option) => {
             const answered = Boolean(feedback);
@@ -3322,6 +3641,144 @@ function renderVocabularyQuiz(lesson, lessonVocabulary) {
       </div>
       ${renderVocabularyQuizFeedback(lesson.id, quiz)}
     </section>
+  `;
+}
+
+function renderSentenceBuilder(lesson) {
+  const builder = window.MadinahLearningCore.createSentenceBuilder(lesson);
+  if (!builder) return "";
+  const feedback = state.sentenceBuilderFeedback[lesson.id];
+  const correct = feedback?.status === "correct";
+
+  return `
+    <section class="lesson-quiz-card practice-tool-card">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("sentenceBuilder", "Sentence Builder")}</p>
+          <h3>${localizedText("Rebuild the model sentence")}</h3>
+        </div>
+        <span class="pill">${t("premiumPractice", "Premium practice")}</span>
+      </div>
+      <div class="scramble-row" dir="rtl" lang="ar">
+        ${builder.tokens.map((token) => `<span>${escapeHtml(token)}</span>`).join("")}
+      </div>
+      <form class="sentence-builder-form" data-sentence-builder="${lesson.id}">
+        <label class="form-field">
+          <span>${t("yourSentence", "Your sentence")}</span>
+          <input name="sentenceAnswer" dir="rtl" lang="ar" placeholder="${escapeHtml(builder.answer)}" autocomplete="off" />
+        </label>
+        <button class="primary-button compact-button" type="submit">${icon("check")} ${t("check", "Check")}</button>
+      </form>
+      ${feedback ? `
+        <div class="feedback ${correct ? "correct" : "incorrect"}">
+          ${icon(correct ? "check" : "x")}
+          <span>${correct ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(feedback.expected)}`}</span>
+        </div>
+      ` : ""}
+    </section>
+  `;
+}
+
+function renderMorphologyDrills(lesson) {
+  const drills = window.MadinahLearningCore.createMorphologyDrills(lesson).slice(0, 2);
+  if (!drills.length) return "";
+
+  return `
+    <section class="lesson-quiz-card practice-tool-card">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("morphology", "Morphology")}</p>
+          <h3>${localizedText("Pattern drills")}</h3>
+        </div>
+        <span class="pill">${drills.length} ${t("drills", "drills")}</span>
+      </div>
+      <div class="mini-drill-grid">
+        ${drills.map((drill) => {
+          const feedback = state.morphologyFeedback[`${lesson.id}:${drill.id}`];
+          return `
+            <article class="mini-drill">
+              <p>${escapeHtml(drill.prompt)}</p>
+              <div class="options">
+                ${drill.options.map((option) => {
+                  const answered = Boolean(feedback);
+                  const isCorrect = answered && option === drill.answer;
+                  const isWrong = answered && option === feedback.answer && option !== drill.answer;
+                  return `
+                    <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-morph-lesson="${lesson.id}" data-morph-drill="${escapeHtml(drill.id)}" data-morph-answer="${escapeHtml(option)}">
+                      <span class="arabic-option" lang="ar">${escapeHtml(option)}</span>
+                    </button>
+                  `;
+                }).join("")}
+              </div>
+              ${feedback ? `<p class="answer-explanation">${escapeHtml(drill.explanation)}</p>` : ""}
+            </article>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function isCumulativeMilestone(lesson) {
+  const bookLessons = lessonsForBook(lesson.bookSlug);
+  const finalLesson = bookLessons[bookLessons.length - 1]?.id === lesson.id;
+  return Number(lesson.number) % 5 === 0 || finalLesson;
+}
+
+function renderCumulativeTest(lesson) {
+  if (!isCumulativeMilestone(lesson)) return "";
+  const test = getCumulativeTest(lesson);
+  const feedback = state.cumulativeFeedback[lesson.id] || {};
+  const answered = Object.keys(feedback).length;
+  const correct = Object.values(feedback).filter((item) => item.status === "correct").length;
+
+  return `
+    <section class="lesson-quiz-card practice-tool-card cumulative-card">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("cumulativeCheck", "Cumulative Check")}</p>
+          <h3>${t("throughLesson", "Through lesson")} ${lesson.number}</h3>
+        </div>
+        <div class="tester-actions">
+          <span class="pill">${correct}/${test.questions.length} ${t("correctCount", "correct")}</span>
+          <button class="ghost-button compact-button" type="button" data-cumulative-new="${lesson.id}">${icon("spark")} ${t("regenerate", "Regenerate")}</button>
+        </div>
+      </div>
+      <div class="cumulative-grid ${state.motion.tester ? "shuffle-in" : ""}">
+        ${test.questions.map((question, index) => renderCumulativeQuestion(lesson.id, question, feedback[question.id], index + 1)).join("") || `<p class="translation">${t("noPracticeReady", "No cumulative practice is ready yet.")}</p>`}
+      </div>
+      <div class="tester-footer">
+        <span>${answered} ${t("answered", "answered")}</span>
+        <div class="bar"><span style="width:${test.questions.length ? Math.round((answered / test.questions.length) * 100) : 0}%"></span></div>
+      </div>
+    </section>
+  `;
+}
+
+function renderCumulativeQuestion(lessonId, question, feedback, number) {
+  return `
+    <article class="vocab-test-question cumulative-question">
+      <div class="vocab-test-prompt">
+        <span>${String(number).padStart(2, "0")}</span>
+        <div>
+          <p>${escapeHtml(localizedText(question.prompt))}</p>
+          ${question.arabic ? `<button class="example-arabic" type="button" data-speak="${escapeHtml(question.arabic)}" lang="ar">${question.arabic}</button>` : question.display ? `<strong>${escapeHtml(localizedOption(question.display))}</strong>` : ""}
+        </div>
+      </div>
+      <div class="vocab-test-options">
+        ${(question.options || []).map((option) => {
+          const answered = Boolean(feedback);
+          const isCorrect = answered && option === question.answer;
+          const isWrong = answered && option === feedback.answer && option !== question.answer;
+          return `
+            <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-cumulative-lesson="${lessonId}" data-cumulative-question="${escapeHtml(question.id)}" data-cumulative-answer="${escapeHtml(option)}">
+              <span ${hasArabic(option) ? 'class="arabic-option" lang="ar"' : ""}>${escapeHtml(localizedOption(option))}</span>
+            </button>
+          `;
+        }).join("")}
+      </div>
+      ${feedback ? `<p class="answer-explanation">${escapeHtml(window.MadinahLearningCore.createQuizExplanation(question, feedback.answer))}</p>` : ""}
+    </article>
   `;
 }
 
@@ -3545,12 +4002,14 @@ function renderVocabTester() {
         </div>
         <div class="tester-actions">
           <span class="pill">${correct}/${questionCount} ${t("correctCount", "correct")}</span>
+          <button class="ghost-button compact-button mobile-filter-button" type="button" data-vocab-tester-filters-toggle>${icon("target")} ${t("filters", "Filters")}</button>
           <button class="primary-button compact-button" type="button" data-vocab-tester-new ${pool.length ? "" : "disabled"}>${icon("spark")} ${t("generateNewTest", "Generate new test")}</button>
         </div>
       </div>
       ${renderVocabTesterControls(pool.length)}
+      ${renderVocabTesterFilterSheet(pool.length)}
       ${hasPremiumAccess() ? "" : renderPremiumInline("premiumUnlocks", paidFeatureText("tester"))}
-      <div class="vocab-test-grid">
+      <div class="vocab-test-grid ${state.motion.tester ? "shuffle-in" : ""}">
         ${questionCount
           ? state.vocabTester.questions.map((question) => renderVocabTesterQuestion(question)).join("")
           : `<div class="empty-test-state">${t("noVocabularyMatches", "No vocabulary matches this selection.")}</div>`}
@@ -3560,6 +4019,25 @@ function renderVocabTester() {
         <div class="bar"><span style="width:${progressPercent}%"></span></div>
       </div>
     </section>
+  `;
+}
+
+function renderVocabTesterFilterSheet(poolCount) {
+  if (!state.mobileFilterSheetOpen) return "";
+  return `
+    <div class="mobile-sheet-backdrop" data-filter-sheet-backdrop>
+      <section class="mobile-filter-sheet" role="dialog" aria-modal="true" aria-label="${t("testerFilters", "Tester filters")}">
+        <div class="mobile-sheet-handle"></div>
+        <div class="subsection-heading">
+          <div>
+            <p class="section-label">${t("vocabTester", "Vocab Tester")}</p>
+            <h3>${t("filters", "Filters")}</h3>
+          </div>
+          <button class="icon-button" type="button" data-filter-sheet-close aria-label="${t("close", "Close")}">${icon("x")}</button>
+        </div>
+        ${renderVocabTesterControls(poolCount)}
+      </section>
+    </div>
   `;
 }
 
@@ -3656,6 +4134,7 @@ function renderVocabTesterQuestion(question) {
           ${icon(feedback.status === "correct" ? "check" : "x")}
           <span>${feedback.status === "correct" ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(localizedOption(question.answer))}`}</span>
         </div>
+        <p class="answer-explanation">${escapeHtml(window.MadinahLearningCore.createQuizExplanation(question, feedback.answer))}</p>
       ` : ""}
     </article>
   `;
@@ -3845,6 +4324,7 @@ function renderExerciseFeedback(exercise) {
       ${icon(correct ? "check" : "x")}
       <span>${correct ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(localizedOption(exercise.answer))}`}</span>
     </div>
+    <p class="answer-explanation">${escapeHtml(exercise.explanation || `Model answer: ${localizedOption(exercise.answer)}.`)}</p>
   `;
 }
 
@@ -3857,12 +4337,14 @@ function renderVocabularyQuizFeedback(lessonId, quiz) {
       ${icon(correct ? "check" : "x")}
       <span>${correct ? t("correctSaved", "Correct. Vocabulary saved to progress.") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(localizedOption(quiz.answer))}`}</span>
     </div>
+    <p class="answer-explanation">${escapeHtml(window.MadinahLearningCore.createQuizExplanation(quiz, feedback.answer))}</p>
   `;
 }
 
 function renderReviewPage() {
   const mistakes = mistakeItems();
   const dueWords = dueVocabularyItems();
+  const weakWords = weakVocabularyItems(18);
   return `
     <section class="page-stack">
       <div class="page-heading">
@@ -3898,6 +4380,23 @@ function renderReviewPage() {
             </div>
           </div>
           ${renderMistakeList(mistakes)}
+        </article>
+        <article class="card review-wide">
+          <div class="subsection-heading">
+            <div>
+              <p class="section-label">${t("weakWords", "Weak Words")}</p>
+              <h3>${t("priorityPractice", "Priority practice")}</h3>
+            </div>
+            <button class="ghost-button compact-button" type="button" data-route="vocabulary">${t("openTester", "Open tester")}</button>
+          </div>
+          <div class="review-word-grid">
+            ${weakWords.map((word) => `
+              <button class="word-chip" type="button" data-speak="${escapeHtml(word.arabic)}">
+                <span lang="ar">${word.arabic}</span>
+                <small>${escapeHtml(localizedText(word.english))} · ${t("lesson", "Lesson")} ${word.lessonNumber}</small>
+              </button>
+            `).join("") || `<p class="translation">${t("noWeakWords", "No weak words detected yet.")}</p>`}
+          </div>
         </article>
       </section>
     </section>
@@ -3967,6 +4466,7 @@ function renderProgressPage() {
         </div>
       </div>
       ${renderProgressPanel(true)}
+      ${renderBookProgressMap()}
       <div class="card milestone-card">
         <h3>${t("completedLessons", "Completed Lessons")}</h3>
         <div class="milestone-grid">
@@ -3982,6 +4482,42 @@ function renderProgressPage() {
             )
             .join("")}
         </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderBookProgressMap() {
+  return `
+    <section class="card progress-map-card">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("roadmap", "Roadmap")}</p>
+          <h3>${t("bookProgressMap", "Book progress map")}</h3>
+        </div>
+        <span class="pill">${state.progress.completedLessonIds.length} ${t("completed", "completed")}</span>
+      </div>
+      <div class="book-progress-map">
+        ${state.data.books.map((book) => {
+          const lessons = lessonsForBook(book.slug);
+          const locked = !canAccessBookSlug(book.slug);
+          const completeCount = lessons.filter((lesson) => state.progress.completedLessonIds.includes(lesson.id)).length;
+          return `
+            <article class="book-map ${locked ? "locked" : ""}">
+              <div>
+                <strong>${escapeHtml(localizedBookTitle(book))}</strong>
+                <span>${locked ? t("lockedPremium", "Premium") : `${completeCount}/${lessons.length} ${t("lessons", "lessons")}`}</span>
+              </div>
+              <div class="lesson-dot-row" aria-label="${escapeHtml(localizedBookTitle(book))}">
+                ${lessons.map((lesson) => `
+                  <button class="lesson-dot ${state.progress.completedLessonIds.includes(lesson.id) ? "done" : ""}" type="button" data-lesson="${lesson.id}" ${locked ? "disabled" : ""} aria-label="${t("lesson", "Lesson")} ${lesson.number}">
+                    ${escapeHtml(String(lesson.number))}
+                  </button>
+                `).join("")}
+              </div>
+            </article>
+          `;
+        }).join("")}
       </div>
     </section>
   `;
@@ -4039,6 +4575,29 @@ function renderAccountPage() {
           `)
           .join("")}
       </section>
+      <section class="card preference-panel">
+        <div class="subsection-heading">
+          <div>
+            <p class="section-label">${t("learningPreferences", "Learning Preferences")}</p>
+            <h3>${t("audioAndDisplay", "Audio and display")}</h3>
+          </div>
+          <span class="pill">${navigator.onLine ? t("online", "Online") : t("offline", "Offline")}</span>
+        </div>
+        <div class="preference-grid">
+          <label class="range-control">
+            <span>${t("audioSpeed", "Arabic audio speed")} <strong>${state.audioRate.toFixed(2)}x</strong></span>
+            <input type="range" min="0.55" max="1.1" step="0.05" value="${state.audioRate}" data-audio-rate />
+          </label>
+          <label class="range-control">
+            <span>${t("arabicTextSize", "Arabic text size")} <strong>${Math.round(state.arabicFontScale * 100)}%</strong></span>
+            <input type="range" min="0.9" max="1.2" step="0.05" value="${state.arabicFontScale}" data-arabic-scale />
+          </label>
+          <button class="ghost-button" type="button" data-request-reminders>${icon("flame")} ${t("enableReminders", "Enable reminders")}</button>
+          <button class="ghost-button" type="button" data-install-offline>${icon("check")} ${t("refreshOffline", "Refresh offline cache")}</button>
+        </div>
+        ${state.reminderNotice ? `<p class="preference-note">${escapeHtml(state.reminderNotice)}</p>` : ""}
+        ${state.offlineNotice ? `<p class="preference-note">${escapeHtml(state.offlineNotice)}</p>` : ""}
+      </section>
       <section class="card account-detail-panel">
         <div>
           <p class="section-label">${t("accountData", "Account data")}</p>
@@ -4084,6 +4643,7 @@ function renderAdminPage() {
     ? items.filter((item) => JSON.stringify(item).toLowerCase().includes(adminQuery))
     : items;
   const visibleItems = filteredItems.slice(0, 12);
+  const reviewItems = (state.adminContent?.lessons || []).filter((item) => item.contentStatus !== "verified").slice(0, 8);
 
   return `
     <section class="page-stack admin-page">
@@ -4109,7 +4669,19 @@ function renderAdminPage() {
           </label>
           <span class="pill muted">${visibleItems.length} ${t("shown", "shown")}</span>
           <button class="ghost-button compact-button" type="button" data-admin-search-clear ${state.adminSearch ? "" : "disabled"}>${t("clear", "Clear")}</button>
+          <a class="ghost-button compact-button admin-export-link" href="/api/admin/export" download>${t("export", "Export")}</a>
         </div>
+        ${state.adminTab === "lessons" && reviewItems.length ? `
+          <section class="admin-review-queue">
+            <div>
+              <p class="section-label">${t("reviewQueue", "Review Queue")}</p>
+              <h3>${reviewItems.length} ${t("lessonsNeedReview", "lessons need review")}</h3>
+            </div>
+            <div class="chip-row">
+              ${reviewItems.map((lesson) => `<button type="button" data-admin-search-fill="${escapeHtml(lesson.id)}">${escapeHtml(lesson.bookSlug)} ${escapeHtml(lesson.number)}</button>`).join("")}
+            </div>
+          </section>
+        ` : ""}
         ${state.adminStatus ? `<div class="feedback correct">${icon("check")}<span>${escapeHtml(state.adminStatus)}</span></div>` : ""}
         ${state.adminError ? `<div class="feedback incorrect">${icon("x")}<span>${escapeHtml(state.adminError)}</span></div>` : ""}
         ${state.adminLoading ? `<p class="translation">${t("loading", "Loading...")}</p>` : ""}
@@ -4154,8 +4726,21 @@ function renderAdminEditor(collection, item) {
         <label class="form-field"><span>${t("title", "Title")}</span><input name="title" value="${escapeHtml(item.title)}" /></label>
         <label class="form-field"><span>${t("focus", "Focus")}</span><textarea name="focus">${escapeHtml(item.focus || "")}</textarea></label>
         <label class="form-field"><span>${t("translation", "Translation")}</span><textarea name="translation">${escapeHtml(item.translation || "")}</textarea></label>
+        <label class="form-field"><span>${t("contentStatus", "Content status")}</span>
+          <select name="contentStatus">
+            ${["generated-review", "needs-review", "verified"].map((status) => `<option value="${status}" ${item.contentStatus === status ? "selected" : ""}>${status}</option>`).join("")}
+          </select>
+        </label>
+        <label class="form-field"><span>${t("sourceRef", "Source reference")}</span><input name="sourceRef" value="${escapeHtml(item.sourceRef || "")}" /></label>
         <label class="form-field"><span>${t("exercisePrompts", "Exercise prompts")}</span><textarea name="exercisePromptsLines">${escapeHtml((item.exercisePrompts || []).join("\n"))}</textarea></label>
         <label class="form-field"><span>${t("examplesJson", "Examples JSON")}</span><textarea name="examplesJson">${escapeHtml(JSON.stringify(item.examples || [], null, 2))}</textarea></label>
+        <label class="form-field"><span>${t("grammarExplanationJson", "Grammar explanation JSON")}</span><textarea name="grammarExplanationJson">${escapeHtml(JSON.stringify(item.grammarExplanation || {}, null, 2))}</textarea></label>
+        <label class="form-field"><span>${t("morphologyCardsJson", "Morphology cards JSON")}</span><textarea name="morphologyCardsJson">${escapeHtml(JSON.stringify(item.morphologyCards || [], null, 2))}</textarea></label>
+        <div class="admin-preview">
+          <span class="section-label">${t("preview", "Preview")}</span>
+          <button class="example-arabic compact-arabic" type="button" data-speak="${escapeHtml(item.arabic || "")}" lang="ar">${escapeHtml(item.arabic || "")}</button>
+          <p>${escapeHtml(localizedText(item.translation || ""))}</p>
+        </div>
         <button class="primary-button compact-button" type="submit">${t("save", "Save")}</button>
       </form>
     `;
@@ -4304,6 +4889,13 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const adminSearchFillButton = event.target.closest("[data-admin-search-fill]");
+  if (adminSearchFillButton) {
+    state.adminSearch = adminSearchFillButton.dataset.adminSearchFill || "";
+    render();
+    return;
+  }
+
   const routeButton = event.target.closest("[data-route]");
   if (routeButton) {
     setRoute(routeButton.dataset.route);
@@ -4319,6 +4911,7 @@ document.addEventListener("click", (event) => {
   const lessonTabButton = event.target.closest("[data-lesson-tab]");
   if (lessonTabButton) {
     state.lessonTab = lessonTabButton.dataset.lessonTab;
+    state.motion.view = true;
     render();
     return;
   }
@@ -4326,6 +4919,7 @@ document.addEventListener("click", (event) => {
   const vocabularyTabButton = event.target.closest("[data-vocabulary-tab]");
   if (vocabularyTabButton) {
     state.vocabularyTab = vocabularyTabButton.dataset.vocabularyTab;
+    state.motion.view = true;
     render();
     return;
   }
@@ -4355,6 +4949,19 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const vocabTesterFiltersToggle = event.target.closest("[data-vocab-tester-filters-toggle]");
+  if (vocabTesterFiltersToggle) {
+    state.mobileFilterSheetOpen = true;
+    render();
+    return;
+  }
+
+  if (event.target.matches("[data-filter-sheet-backdrop]") || event.target.closest("[data-filter-sheet-close]")) {
+    state.mobileFilterSheetOpen = false;
+    render();
+    return;
+  }
+
   const bookExerciseButton = event.target.closest("[data-book-exercise-complete]");
   if (bookExerciseButton) {
     markBookExerciseComplete(bookExerciseButton.dataset.bookExerciseComplete);
@@ -4373,6 +4980,32 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const cumulativeNewButton = event.target.closest("[data-cumulative-new]");
+  if (cumulativeNewButton) {
+    generateCumulativeTest(cumulativeNewButton.dataset.cumulativeNew);
+    return;
+  }
+
+  const cumulativeAnswerButton = event.target.closest("[data-cumulative-answer]");
+  if (cumulativeAnswerButton) {
+    answerCumulativeQuestion(
+      cumulativeAnswerButton.dataset.cumulativeLesson,
+      cumulativeAnswerButton.dataset.cumulativeQuestion,
+      cumulativeAnswerButton.dataset.cumulativeAnswer
+    );
+    return;
+  }
+
+  const morphologyAnswerButton = event.target.closest("[data-morph-answer]");
+  if (morphologyAnswerButton) {
+    answerMorphologyDrill(
+      morphologyAnswerButton.dataset.morphLesson,
+      morphologyAnswerButton.dataset.morphDrill,
+      morphologyAnswerButton.dataset.morphAnswer
+    );
+    return;
+  }
+
   const vocabularyQuizNewButton = event.target.closest("[data-vocab-quiz-new]");
   if (vocabularyQuizNewButton) {
     generateNewVocabularyQuiz(vocabularyQuizNewButton.dataset.vocabQuizNew);
@@ -4387,6 +5020,11 @@ document.addEventListener("click", (event) => {
 
   const speakButton = event.target.closest("[data-speak]");
   if (speakButton) {
+    speakButton.classList.remove("audio-pulse");
+    window.requestAnimationFrame(() => {
+      speakButton.classList.add("audio-pulse");
+      window.setTimeout(() => speakButton.classList.remove("audio-pulse"), 620);
+    });
     speak(speakButton.dataset.speak);
     return;
   }
@@ -4413,9 +5051,23 @@ document.addEventListener("click", (event) => {
 
   const themeButton = event.target.closest("[data-theme-toggle]");
   if (themeButton) {
+    document.documentElement.classList.add("theme-changing");
     state.theme = state.theme === "dark" ? "light" : "dark";
     localStorage.setItem("madinah-theme", state.theme);
     render();
+    window.setTimeout(() => document.documentElement.classList.remove("theme-changing"), 320);
+    return;
+  }
+
+  const reminderButton = event.target.closest("[data-request-reminders]");
+  if (reminderButton) {
+    requestReminderPermission();
+    return;
+  }
+
+  const offlineButton = event.target.closest("[data-install-offline]");
+  if (offlineButton) {
+    refreshOfflineCache();
     return;
   }
 });
@@ -4435,6 +5087,13 @@ document.addEventListener("submit", (event) => {
     return;
   }
 
+  const sentenceBuilderForm = event.target.closest("[data-sentence-builder]");
+  if (sentenceBuilderForm) {
+    event.preventDefault();
+    checkSentenceBuilder(sentenceBuilderForm);
+    return;
+  }
+
   const adminForm = event.target.closest("[data-admin-content-form]");
   if (adminForm) {
     event.preventDefault();
@@ -4450,6 +5109,7 @@ document.addEventListener("change", (event) => {
 
   if (event.target.matches("[data-vocab-tester-lesson]")) {
     setVocabTesterLesson(event.target.value);
+    return;
   }
 });
 
@@ -4474,6 +5134,20 @@ document.addEventListener("input", (event) => {
     }
     state.vocabularyPage = 1;
     state.vocabularyTab = "list";
+    render();
+    return;
+  }
+
+  if (event.target.matches("[data-audio-rate]")) {
+    state.audioRate = Number(event.target.value) || 0.82;
+    localStorage.setItem("madinah-audio-rate", String(state.audioRate));
+    render();
+    return;
+  }
+
+  if (event.target.matches("[data-arabic-scale]")) {
+    state.arabicFontScale = Number(event.target.value) || 1;
+    localStorage.setItem("madinah-arabic-scale", String(state.arabicFontScale));
     render();
   }
 });

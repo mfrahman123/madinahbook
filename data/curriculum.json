@@ -58,6 +58,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "مَا, مَنْ, هٰذَا, yes/no questions, and the indefinite ending.",
+        "example": "هٰذَا قَلَمٌ.",
+        "exampleTranslation": "This is a pen.",
+        "commonMistake": "Do not add a separate Arabic word for \"is\" in simple nominal sentences; let the noun ending carry the grammar.",
+        "summary": "Arabic has no separate word for “is” in simple nominal sentences."
+      },
       "notes": [
         "Arabic has no separate word for “is” in simple nominal sentences.",
         "Tanwin gives many beginner nouns an indefinite sense, like “a” or “an”.",
@@ -98,7 +105,9 @@
         "v-dikun",
         "v-kursiyyun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 1"
     },
     {
       "id": "lesson-2",
@@ -135,6 +144,13 @@
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Using the distant demonstrative and joining clauses with وَ.",
+        "example": "ذٰلِكَ مَسْجِدٌ.",
+        "exampleTranslation": "That is a mosque.",
+        "commonMistake": "Do not mix masculine and feminine demonstratives; match the pointer word to the noun being pointed at.",
+        "summary": "ذٰلِكَ means “that”."
+      },
       "notes": [
         "ذٰلِكَ means “that”.",
         "وَ means “and” and is written attached to the following word."
@@ -153,7 +169,9 @@
         "v-sukkarun",
         "v-labanun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 2"
     },
     {
       "id": "lesson-3",
@@ -190,6 +208,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Using الْـ, recognizing solar and lunar letters, and reading definite nouns.",
+        "example": "الشَّمْسُ حَارَّةٌ.",
+        "exampleTranslation": "The sun is hot.",
+        "commonMistake": "Do not pronounce the ل of الْـ before solar letters; the first letter of the noun carries shaddah instead.",
+        "summary": "The definite article الْـ is like “the”."
+      },
       "notes": [
         "The definite article الْـ is like “the”.",
         "With solar letters the ل sound is assimilated in pronunciation.",
@@ -232,7 +257,9 @@
         "v-hulwun",
         "v-maridun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 3"
     },
     {
       "id": "lesson-4",
@@ -269,6 +296,13 @@
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "فِي, عَلَى, مِنْ, إِلَى, genitive endings, هُوَ, هِيَ, أَنَا, أَنْتَ, and ذَهَبَ.",
+        "example": "هُوَ فِي الْمَسْجِدِ.",
+        "exampleTranslation": "He is in the mosque.",
+        "commonMistake": "Do not leave the noun after a preposition in the default ending; prepositions make the following noun genitive.",
+        "summary": "After a preposition, many nouns change from -u to -i."
+      },
       "notes": [
         "After a preposition, many nouns change from -u to -i.",
         "هُوَ is used for masculine nouns. هِيَ is used for feminine nouns.",
@@ -313,7 +347,9 @@
         "v-al-yaban",
         "v-al-hind"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 4"
     },
     {
       "id": "lesson-5",
@@ -350,6 +386,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "The iḍāfah construction, mudaf and mudaf ilayhi.",
+        "example": "هٰذَا كِتَابُ بِلَالٍ.",
+        "exampleTranslation": "This is Bilal’s book.",
+        "commonMistake": "Do not put tanwin or الْـ on the first word of an iḍāfah phrase.",
+        "summary": "The first word in an iḍāfah is the thing possessed."
+      },
       "notes": [
         "The first word in an iḍāfah is the thing possessed.",
         "The second word is the possessor and takes the genitive case.",
@@ -388,7 +431,9 @@
         "v-amm-un",
         "v-khalun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 5"
     },
     {
       "id": "lesson-6",
@@ -425,6 +470,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Feminine demonstratives, feminine endings, and لِ for possession.",
+        "example": "هٰذِهِ بِنْتٌ.",
+        "exampleTranslation": "This is a girl.",
+        "commonMistake": "Do not mix masculine and feminine demonstratives; match the pointer word to the noun being pointed at.",
+        "summary": "هٰذِهِ is the feminine form of هٰذَا."
+      },
       "notes": [
         "هٰذِهِ is the feminine form of هٰذَا.",
         "Many feminine nouns end in ة.",
@@ -465,7 +517,9 @@
         "v-nafidhatun",
         "v-sariun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 6"
     },
     {
       "id": "lesson-7",
@@ -502,6 +556,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "The distant feminine demonstrative.",
+        "example": "تِلْكَ سَيَّارَةٌ.",
+        "exampleTranslation": "That is a car.",
+        "commonMistake": "Do not mix masculine and feminine demonstratives; match the pointer word to the noun being pointed at.",
+        "summary": "تِلْكَ is the feminine form of ذٰلِكَ."
+      },
       "notes": [
         "تِلْكَ is the feminine form of ذٰلِكَ.",
         "It is used for a distant feminine noun or name."
@@ -522,7 +583,9 @@
         "v-muadhdhinun",
         "v-dajajah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 7"
     },
     {
       "id": "lesson-8",
@@ -559,6 +622,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Using هٰذَا الْكِتَابُ, nouns ending in long alif, and position words.",
+        "example": "ذٰلِكَ الْبَيْتُ قَرِيبٌ.",
+        "exampleTranslation": "That house is near.",
+        "commonMistake": "Do not mix masculine and feminine demonstratives; match the pointer word to the noun being pointed at.",
+        "summary": "هٰذَا كِتَابٌ is a sentence; هٰذَا الْكِتَابُ is a phrase until a predicate is added."
+      },
       "notes": [
         "هٰذَا كِتَابٌ is a sentence; هٰذَا الْكِتَابُ is a phrase until a predicate is added.",
         "Nouns ending in long alif do not show normal case endings.",
@@ -591,7 +661,9 @@
         "v-sikkinun",
         "v-mughlaqun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 8"
     },
     {
       "id": "lesson-9",
@@ -628,6 +700,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Adjective agreement, adjectives ending in ـان, الَّذِي and عِنْدَ.",
+        "example": "بَيْتٌ جَدِيدٌ.",
+        "exampleTranslation": "A new house.",
+        "commonMistake": "Do not let the adjective disagree with the noun in definiteness, gender, number, or case.",
+        "summary": "The adjective follows the noun it describes."
+      },
       "notes": [
         "The adjective follows the noun it describes.",
         "The adjective agrees with the noun in gender, definiteness, and case.",
@@ -676,7 +755,9 @@
         "v-al-kuwait",
         "v-suq"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 9"
     },
     {
       "id": "lesson-10",
@@ -713,6 +794,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "كَ, هُ, هَا, ي, أَبٌ, أَخٌ, and possession with لِ.",
+        "example": "هٰذَا كِتَابُكَ.",
+        "exampleTranslation": "This is your book.",
+        "commonMistake": "Do not put tanwin or الْـ on the first word of an iḍāfah phrase.",
+        "summary": "Possessive pronouns attach to nouns as suffixes."
+      },
       "notes": [
         "Possessive pronouns attach to nouns as suffixes.",
         "أَبٌ and أَخٌ take an extra و in many iḍāfah forms.",
@@ -760,7 +848,9 @@
         "v-tiflun",
         "v-wahidun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 10"
     },
     {
       "id": "lesson-11",
@@ -797,6 +887,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "In it, I love, object endings, and تُحِبُّ.",
+        "example": "هٰذَا الْكِتَابُ أُحِبُّهُ.",
+        "exampleTranslation": "This book, I love it.",
+        "commonMistake": "Do not translate word-for-word from English; use the Arabic ending and structure to identify the role of each word.",
+        "summary": "فِيهِ means “in it” for masculine nouns; فِيهَا is the feminine form."
+      },
       "notes": [
         "فِيهِ means “in it” for masculine nouns; فِيهَا is the feminine form.",
         "أُحِبُّ means “I love” or “I like”.",
@@ -817,7 +914,9 @@
         "v-lugha-arabiyya",
         "v-madha"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 11"
     },
     {
       "id": "lesson-12",
@@ -854,6 +953,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Feminine “you”, feminine possessive suffix, and feminine relative pronoun.",
+        "example": "أَنْتِ طَالِبَةٌ مُجْتَهِدَةٌ.",
+        "exampleTranslation": "You are a hardworking student.",
+        "commonMistake": "Do not put tanwin or الْـ on the first word of an iḍāfah phrase.",
+        "summary": "أَنْتِ means “you” for feminine singular."
+      },
       "notes": [
         "أَنْتِ means “you” for feminine singular.",
         "The feminine possessive suffix is كِ.",
@@ -883,7 +989,9 @@
         "v-maryam",
         "v-mamlakatun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 12"
     },
     {
       "id": "lesson-13",
@@ -920,6 +1028,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Sound plurals, broken plurals, هٰؤُلَاءِ, هُمْ, هُنَّ and أُولٰئِكَ.",
+        "example": "هٰؤُلَاءِ طُلَّابٌ.",
+        "exampleTranslation": "These are students.",
+        "commonMistake": "Do not treat non-human plurals like human plurals; they often take feminine singular agreement.",
+        "summary": "Arabic has sound plurals and broken plurals."
+      },
       "notes": [
         "Arabic has sound plurals and broken plurals.",
         "هٰؤُلَاءِ is used for “these”, especially for people.",
@@ -992,7 +1107,9 @@
         "v-zawjatun",
         "v-ulaika"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 13"
     },
     {
       "id": "lesson-14",
@@ -1029,6 +1146,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Masculine plural “you”, we, our, and “which”.",
+        "example": "أَيْنَ كُتُبُكُمْ؟",
+        "exampleTranslation": "Where are your books?",
+        "commonMistake": "Do not treat non-human plurals like human plurals; they often take feminine singular agreement.",
+        "summary": "أَنْتُمْ is masculine plural “you”."
+      },
       "notes": [
         "أَنْتُمْ is masculine plural “you”.",
         "نَحْنُ means “we” for masculine and feminine groups.",
@@ -1066,7 +1190,9 @@
         "v-shahrun",
         "v-nasara"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 14"
     },
     {
       "id": "lesson-15",
@@ -1103,6 +1229,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Feminine plural “you”, كُنَّ, ذَهَبْتُنَّ, قَبْلَ and بَعْدَ.",
+        "example": "أَيْنَ ذَهَبْتُنَّ يَا أَخَوَاتُ؟",
+        "exampleTranslation": "Where did you go, sisters?",
+        "commonMistake": "Do not use masculine endings with feminine nouns, pronouns, or verb forms.",
+        "summary": "أَنْتُنَّ is feminine plural “you”."
+      },
       "notes": [
         "أَنْتُنَّ is feminine plural “you”.",
         "The possessive suffix for feminine plural “your” is كُنَّ.",
@@ -1133,7 +1266,9 @@
         "v-qahirah",
         "v-adhan"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 15"
     },
     {
       "id": "lesson-16",
@@ -1170,6 +1305,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Human plurals vs non-human plurals and feminine singular agreement.",
+        "example": "الْبُيُوتُ كَبِيرَةٌ.",
+        "exampleTranslation": "The houses are large.",
+        "commonMistake": "Do not use masculine endings with feminine nouns, pronouns, or verb forms.",
+        "summary": "Rational plurals usually refer to human beings."
+      },
       "notes": [
         "Rational plurals usually refer to human beings.",
         "Irrational plurals are often treated as feminine singular.",
@@ -1200,7 +1342,9 @@
         "v-nahrun",
         "v-bahrun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 16"
     },
     {
       "id": "lesson-17",
@@ -1216,16 +1360,16 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "الْبُيُوتُ كَبِيرَةٌ.",
-          "translation": "The houses are large.",
+          "arabic": "الْأَبْوَابُ مَفْتُوحَةٌ.",
+          "translation": "The doors are open.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "أَيْنَ الْأَقْلَامُ الْجَدِيدَةُ؟",
-          "translation": "Where are the new pens?",
+          "arabic": "أَيْنَ الْكُتُبُ الْقَدِيمَةُ؟",
+          "translation": "Where are the old books?",
           "source": "Practice model"
         },
         {
@@ -1237,6 +1381,13 @@
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Continuation of rational and irrational plural agreement.",
+        "example": "الْأَبْوَابُ مَفْتُوحَةٌ.",
+        "exampleTranslation": "The doors are open.",
+        "commonMistake": "Do not treat non-human plurals like human plurals; they often take feminine singular agreement.",
+        "summary": "This lesson continues Lesson 16."
+      },
       "notes": [
         "This lesson continues Lesson 16.",
         "Some nouns have more than one plural form."
@@ -1258,7 +1409,9 @@
         "v-qamisun",
         "v-qumsanun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 17"
     },
     {
       "id": "lesson-18",
@@ -1295,6 +1448,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Two of something, هٰذَانِ, هَاتَانِ, هُمَا, and كَمْ.",
+        "example": "هٰذَانِ كِتَابَانِ.",
+        "exampleTranslation": "These are two books.",
+        "commonMistake": "Do not use plural endings when the meaning is exactly two; use the dual forms.",
+        "summary": "Arabic has singular, dual, and plural."
+      },
       "notes": [
         "Arabic has singular, dual, and plural.",
         "The dual commonly ends in ـانِ.",
@@ -1328,7 +1488,9 @@
         "v-rakaatun",
         "v-sabburatun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 18"
     },
     {
       "id": "lesson-19",
@@ -1365,6 +1527,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Counting masculine maʿdūd nouns from three to ten.",
+        "example": "ثَلَاثَةُ كُتُبٍ.",
+        "exampleTranslation": "Three books.",
+        "commonMistake": "Do not make number agreement automatic from English; Arabic number rules change by range.",
+        "summary": "Numbers from three to ten are used as mudaf."
+      },
       "notes": [
         "Numbers from three to ten are used as mudaf.",
         "The counted noun is plural and genitive.",
@@ -1406,7 +1575,9 @@
         "v-sualun",
         "v-jaybun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 19"
     },
     {
       "id": "lesson-20",
@@ -1443,6 +1614,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Counting feminine maʿdūd nouns and feminine one/two.",
+        "example": "ثَلَاثُ بَنَاتٍ.",
+        "exampleTranslation": "Three girls.",
+        "commonMistake": "Do not use masculine endings with feminine nouns, pronouns, or verb forms.",
+        "summary": "With feminine counted nouns, the tāʾ marbūṭah is omitted from numbers three to ten."
+      },
       "notes": [
         "With feminine counted nouns, the tāʾ marbūṭah is omitted from numbers three to ten.",
         "The feminine of وَاحِدٌ is وَاحِدَةٌ.",
@@ -1476,7 +1654,9 @@
         "v-harfun",
         "v-hurufun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 20"
     },
     {
       "id": "lesson-21",
@@ -1513,6 +1693,13 @@
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Review with ذَاكَ, colors, نُحِبُّ and country names.",
+        "example": "أَحْمَدُ مِنْ بَغْدَادَ.",
+        "exampleTranslation": "Ahmad is from Baghdad.",
+        "commonMistake": "Do not translate word-for-word from English; use the Arabic ending and structure to identify the role of each word.",
+        "summary": "This lesson is a test lesson with no major new construction."
+      },
       "notes": [
         "This lesson is a test lesson with no major new construction.",
         "It introduces a small set of new review words."
@@ -1535,7 +1722,9 @@
         "v-asiya",
         "v-nuhibbuhu"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 21"
     },
     {
       "id": "lesson-22",
@@ -1551,8 +1740,8 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "أَحْمَدُ مِنْ بَغْدَادَ.",
-          "translation": "Ahmad is from Baghdad.",
+          "arabic": "أَحْمَدُ مِنْ مَكَّةَ.",
+          "translation": "Ahmad is from Makkah.",
           "source": "Book model"
         },
         {
@@ -1572,6 +1761,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Nouns and adjectives that do not take tanwin.",
+        "example": "أَحْمَدُ مِنْ مَكَّةَ.",
+        "exampleTranslation": "Ahmad is from Makkah.",
+        "commonMistake": "Do not add tanwin to diptotes, and remember their special genitive ending when indefinite.",
+        "summary": "Diptotes do not take tanwin."
+      },
       "notes": [
         "Diptotes do not take tanwin.",
         "Several proper nouns, color adjectives, and broken plural patterns are diptotes.",
@@ -1609,7 +1805,9 @@
         "v-manadilu",
         "v-mafatihu"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 22"
     },
     {
       "id": "lesson-23",
@@ -1633,19 +1831,26 @@
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "كِتَابُ أَحْمَدَ جَدِيدٌ.",
-          "translation": "Ahmad's book is new.",
+          "arabic": "قَلَمُ إِبْرَاهِيمَ مَكْسُورٌ.",
+          "translation": "Ibrahim's pen is broken.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "ذَهَبْتُ إِلَى مَدَارِسَ كَثِيرَةٍ.",
-          "translation": "I went to many schools.",
+          "arabic": "رَجَعْتُ مِنْ مَسَاجِدَ كَثِيرَةٍ.",
+          "translation": "I returned from many mosques.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Diptotes take fatḥah instead of kasrah in genitive positions.",
+        "example": "كِتَابُ أَحْمَدَ.",
+        "exampleTranslation": "Ahmad’s book.",
+        "commonMistake": "Do not add tanwin to diptotes, and remember their special genitive ending when indefinite.",
+        "summary": "Ordinary genitive nouns often take kasrah."
+      },
       "notes": [
         "Ordinary genitive nouns often take kasrah.",
         "A diptote takes fatḥah in genitive positions unless another rule changes it.",
@@ -1666,7 +1871,9 @@
         "v-washintun",
         "v-fanadiqu"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 1 Lesson 23"
     },
     {
       "id": "book-2-lesson-1",
@@ -1703,6 +1910,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Emphasis with إِنَّ, hope/fear with لَعَلَّ, possession adjectives, أَمْ, and 100/1000.",
+        "example": "إِنَّ الْبَيْتَ جَدِيدٌ.",
+        "exampleTranslation": "Indeed, the house is new.",
+        "commonMistake": "Do not let the adjective disagree with the noun in definiteness, gender, number, or case.",
+        "summary": "إِنَّ emphasizes a nominal sentence and makes its ism accusative."
+      },
       "notes": [
         "إِنَّ emphasizes a nominal sentence and makes its ism accusative.",
         "لَعَلَّ can express hope or fear according to context.",
@@ -1742,7 +1956,9 @@
         "v2-l1-rupiyyah",
         "v2-l1-khuluq"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 1"
     },
     {
       "id": "book-2-lesson-2",
@@ -1779,6 +1995,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "لَيْسَ, لَيْسَتْ, لَسْتُ, the bāʾ of emphasis, and ابن.",
+        "example": "لَسْتُ مَرِيضًا.",
+        "exampleTranslation": "I am not sick.",
+        "commonMistake": "Do not translate لَيْسَ as a simple particle only; it behaves like a verb and changes the predicate ending.",
+        "summary": "لَيْسَ negates a nominal sentence."
+      },
       "notes": [
         "لَيْسَ negates a nominal sentence.",
         "Its khabar is accusative, and it may also appear with بِ for emphasis.",
@@ -1809,7 +2032,9 @@
         "v2-l2-jayb",
         "v2-l2-rasaba"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 2"
     },
     {
       "id": "book-2-lesson-3",
@@ -1846,6 +2071,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "The pattern أَفْعَلُ for comparison, لٰكِنَّ, كَأَنَّ, ordinals, and 11-20 with masculine nouns.",
+        "example": "الْمَسْجِدُ أَقْرَبُ مِنَ السُّوقِ.",
+        "exampleTranslation": "The mosque is nearer than the market.",
+        "commonMistake": "Do not make number agreement automatic from English; Arabic number rules change by range.",
+        "summary": "أَفْعَلُ مِنْ expresses comparison."
+      },
       "notes": [
         "أَفْعَلُ مِنْ expresses comparison.",
         "لٰكِنَّ and كَأَنَّ work like إِنَّ.",
@@ -1882,7 +2114,9 @@
         "v2-l3-thalith",
         "v2-l3-thaman"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 3"
     },
     {
       "id": "book-2-lesson-4",
@@ -1919,6 +2153,44 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "The māḍī verb, مَا for past negation, نَعَمْ vs بَلَى, and لِأَنَّ.",
+        "example": "قَرَأَ الطَّالِبُ الدَّرْسَ.",
+        "exampleTranslation": "The student read the lesson.",
+        "commonMistake": "Do not ignore the attached ending on the past verb; it tells you who performed the action.",
+        "summary": "The māḍī expresses completed action."
+      },
+      "morphologyCards": [
+        {
+          "title": "ذَهَبَ",
+          "meaning": "to go",
+          "root": "ذ ه ب",
+          "pattern": "فَعَلَ",
+          "forms": {
+            "past": "ذَهَبَ",
+            "present": "يَذْهَبُ",
+            "command": "اِذْهَبْ",
+            "verbalNoun": "ذَهَابٌ",
+            "activeParticiple": "ذَاهِبٌ"
+          },
+          "note": "Intransitive verb used for movement."
+        },
+        {
+          "title": "قَرَأَ",
+          "meaning": "to read",
+          "root": "ق ر أ",
+          "pattern": "فَعَلَ",
+          "forms": {
+            "past": "قَرَأَ",
+            "present": "يَقْرَأُ",
+            "command": "اِقْرَأْ",
+            "verbalNoun": "قِرَاءَةٌ",
+            "activeParticiple": "قَارِئٌ",
+            "passiveParticiple": "مَقْرُوءٌ"
+          },
+          "note": "The hamzah stays visible in the root."
+        }
+      ],
       "notes": [
         "The māḍī expresses completed action.",
         "مَا negates past-tense verbs.",
@@ -1950,7 +2222,9 @@
         "v2-l4-suq",
         "v2-l4-jaww"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 4"
     },
     {
       "id": "book-2-lesson-5",
@@ -1974,17 +2248,41 @@
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "قَرَأَ الطَّالِبُ الدَّرْسَ.",
-          "translation": "The student read the lesson.",
+          "arabic": "كَتَبَ الْمُدَرِّسُ الْجَوَابَ.",
+          "translation": "The teacher wrote the answer.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "مَا خَرَجَ الطَّالِبُ مِنَ الْفَصْلِ.",
-          "translation": "The student did not leave the classroom.",
+          "arabic": "مَا فَهِمَ الْوَلَدُ الدَّرْسَ.",
+          "translation": "The boy did not understand the lesson.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "The verbal sentence, فاعل, مفعول به, accusative objects, hamzat al-wasl, and three radicals.",
+        "example": "فَتَحَ الْوَلَدُ الْبَابَ.",
+        "exampleTranslation": "The boy opened the door.",
+        "commonMistake": "Do not translate word-for-word from English; use the Arabic ending and structure to identify the role of each word.",
+        "summary": "The doer of a verb is the فاعل."
+      },
+      "morphologyCards": [
+        {
+          "title": "فَتَحَ",
+          "meaning": "to open",
+          "root": "ف ت ح",
+          "pattern": "فَعَلَ",
+          "forms": {
+            "past": "فَتَحَ",
+            "present": "يَفْتَحُ",
+            "command": "اِفْتَحْ",
+            "verbalNoun": "فَتْحٌ",
+            "activeParticiple": "فَاتِحٌ",
+            "passiveParticiple": "مَفْتُوحٌ"
+          },
+          "note": "Useful for seeing subject and object clearly."
         }
       ],
       "notes": [
@@ -2023,7 +2321,9 @@
         "v2-l5-tin",
         "v2-l5-qahwah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 5"
     },
     {
       "id": "book-2-lesson-6",
@@ -2060,6 +2360,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Second-person feminine māḍī, 11-20 with feminine nouns, أَيُّ, أَظُنُّ أَنَّ, لِمَهْ, and هَاتِ.",
+        "example": "أَيُّ طَالِبَةٍ ذَهَبَتْ؟",
+        "exampleTranslation": "Which female student went?",
+        "commonMistake": "Do not use masculine endings with feminine nouns, pronouns, or verb forms.",
+        "summary": "أَيُّ is usually mudaf, so the following noun is genitive."
+      },
       "notes": [
         "أَيُّ is usually mudaf, so the following noun is genitive.",
         "Numbers 11-20 change form with feminine counted nouns.",
@@ -2099,7 +2406,9 @@
         "v2-l6-rakib",
         "v2-l6-khadimah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 6"
     },
     {
       "id": "book-2-lesson-7",
@@ -2115,27 +2424,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "لَعَلَّ الطَّالِبَ حَاضِرٌ.",
-          "translation": "Perhaps the student is present.",
+          "arabic": "إِنَّكَ طَالِبٌ مُجْتَهِدٌ.",
+          "translation": "Indeed, you are a hardworking student.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "هٰؤُلَاءِ الطُّلَّابُ ذَوُو خُلُقٍ.",
-          "translation": "These students have good character.",
-          "source": "Practice model"
+          "arabic": "كَانَ الْمُدَرِّسُ فِي الْمَكْتَبَةِ.",
+          "translation": "The teacher was in the library.",
+          "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "كَانَ الْمُدَرِّسُ فِي الْمَكْتَبَةِ.",
-          "translation": "The teacher was in the library.",
-          "source": "Book model"
+          "arabic": "كَانَ هٰؤُلَاءِ الطُّلَّابُ حَاضِرِينَ.",
+          "translation": "These students were present.",
+          "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Past-tense plural forms, object pronouns attached to verbs, كَانَ, ذُو with definiteness, and fractions.",
+        "example": "إِنَّكَ طَالِبٌ مُجْتَهِدٌ.",
+        "exampleTranslation": "Indeed, you are a hardworking student.",
+        "commonMistake": "Do not treat non-human plurals like human plurals; they often take feminine singular agreement.",
+        "summary": "Object pronouns attach directly to many verbs."
+      },
       "notes": [
         "Object pronouns attach directly to many verbs.",
         "كَانَ enters nominal sentences and can change the case of the khabar.",
@@ -2173,7 +2489,9 @@
         "v2-l7-sullam",
         "v2-l7-manarah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 7"
     },
     {
       "id": "book-2-lesson-8",
@@ -2189,8 +2507,8 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "قَرَأَ الطَّالِبُ الدَّرْسَ.",
-          "translation": "The student read the lesson.",
+          "arabic": "سَمِعَ الطَّالِبُ السُّؤَالَ.",
+          "translation": "The student heard the question.",
           "source": "Practice model"
         },
         {
@@ -2205,9 +2523,33 @@
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "مَا خَرَجَ الطَّالِبُ مِنَ الْفَصْلِ.",
-          "translation": "The student did not leave the classroom.",
+          "arabic": "مَا رَجَعَ الْمُدَرِّسُ إِلَى الْبَيْتِ.",
+          "translation": "The teacher did not return to the house.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "Revision of the māḍī with all non-dual pronouns.",
+        "example": "سَمِعَ الطَّالِبُ السُّؤَالَ.",
+        "exampleTranslation": "The student heard the question.",
+        "commonMistake": "Do not use plural endings when the meaning is exactly two; use the dual forms.",
+        "summary": "This lesson consolidates māḍī endings."
+      },
+      "morphologyCards": [
+        {
+          "title": "سَمِعَ",
+          "meaning": "to hear",
+          "root": "س م ع",
+          "pattern": "فَعِلَ",
+          "forms": {
+            "past": "سَمِعَ",
+            "present": "يَسْمَعُ",
+            "command": "اِسْمَعْ",
+            "verbalNoun": "سَمَاعٌ",
+            "activeParticiple": "سَامِعٌ",
+            "passiveParticiple": "مَسْمُوعٌ"
+          },
+          "note": "A common sound verb for past-tense review."
         }
       ],
       "notes": [
@@ -2237,7 +2579,9 @@
         "v2-l8-damir",
         "v2-l8-mustatir"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 8"
     },
     {
       "id": "book-2-lesson-9",
@@ -2274,6 +2618,13 @@
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Accusative sound feminine plural, the first-person object pronoun, فِعْلُ التَّعَجُّبِ, vocatives, and plural relative pronouns.",
+        "example": "يَكْتُبُ الطَّالِبُ الدَّرْسَ.",
+        "exampleTranslation": "The student writes the lesson.",
+        "commonMistake": "Do not use masculine endings with feminine nouns, pronouns, or verb forms.",
+        "summary": "The sound feminine plural has kasrah in both accusative and genitive positions."
+      },
       "notes": [
         "The sound feminine plural has kasrah in both accusative and genitive positions.",
         "The pronoun -نِي means “me” when attached to a verb.",
@@ -2320,7 +2671,9 @@
         "v2-l9-lahzah",
         "v2-l9-hadara"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 9"
     },
     {
       "id": "book-2-lesson-10",
@@ -2344,8 +2697,8 @@
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "يَكْتُبُ الطَّالِبُ الدَّرْسَ.",
-          "translation": "The student writes the lesson.",
+          "arabic": "يَقْرَأُ الطَّالِبُ الْكِتَابَ.",
+          "translation": "The student reads the book.",
           "source": "Book model"
         },
         {
@@ -2355,6 +2708,30 @@
           "arabic": "نَذْهَبُ إِلَى الْمَكْتَبَةِ يَوْمَ السَّبْتِ.",
           "translation": "We go to the library on Saturday.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "Introducing the mudāriʿ, four common verb groups, numbers 21-30 with masculine nouns, and بَيْنَ.",
+        "example": "سَأَكْتُبُ لَكَ رِسَالَةً.",
+        "exampleTranslation": "I will write you a letter.",
+        "commonMistake": "Do not make number agreement automatic from English; Arabic number rules change by range.",
+        "summary": "The mudāriʿ can mean present, continuous, or future depending on context."
+      },
+      "morphologyCards": [
+        {
+          "title": "كَتَبَ",
+          "meaning": "to write",
+          "root": "ك ت ب",
+          "pattern": "فَعَلَ",
+          "forms": {
+            "past": "كَتَبَ",
+            "present": "يَكْتُبُ",
+            "command": "اُكْتُبْ",
+            "verbalNoun": "كِتَابَةٌ",
+            "activeParticiple": "كَاتِبٌ",
+            "passiveParticiple": "مَكْتُوبٌ"
+          },
+          "note": "A core model for mudāriʿ and imperative practice."
         }
       ],
       "notes": [
@@ -2394,7 +2771,9 @@
         "v2-l10-mitr",
         "v2-l10-kilumitr"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 10"
     },
     {
       "id": "book-2-lesson-11",
@@ -2410,25 +2789,49 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "فَتَحَ الْوَلَدُ الْبَابَ.",
-          "translation": "The boy opened the door.",
+          "arabic": "يَفْتَحُ الْوَلَدُ الْبَابَ.",
+          "translation": "The boy opens the door.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "سَأَكْتُبُ لَكَ رِسَالَةً.",
-          "translation": "I will write you a letter.",
+          "arabic": "سَأَقْرَأُ الْكِتَابَ غَدًا.",
+          "translation": "I will read the book tomorrow.",
           "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "يَكْتُبُ الطَّالِبُ الدَّرْسَ.",
-          "translation": "The student writes the lesson.",
+          "arabic": "سَيَفْهَمُ الطَّالِبُ الدَّرْسَ.",
+          "translation": "The student will understand the lesson.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "Mudāriʿ isnad, the future particle سَ, negative لَا, masdar pattern فُعُولٌ, and أَمَّا.",
+        "example": "يَفْتَحُ الْوَلَدُ الْبَابَ.",
+        "exampleTranslation": "The boy opens the door.",
+        "commonMistake": "Do not keep the same mudāriʿ ending after every particle; marfūʿ, mansūb and majzūm endings differ.",
+        "summary": "سَ before the mudāriʿ marks future meaning."
+      },
+      "morphologyCards": [
+        {
+          "title": "دَرَسَ",
+          "meaning": "to study",
+          "root": "د ر س",
+          "pattern": "فَعَلَ",
+          "forms": {
+            "past": "دَرَسَ",
+            "present": "يَدْرُسُ",
+            "command": "اُدْرُسْ",
+            "verbalNoun": "دِرَاسَةٌ",
+            "activeParticiple": "دَارِسٌ",
+            "passiveParticiple": "مَدْرُوسٌ"
+          },
+          "note": "Shows the shift from past to present/future forms."
         }
       ],
       "notes": [
@@ -2472,7 +2875,9 @@
         "v2-l11-mahattah",
         "v2-l11-khayl"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 11"
     },
     {
       "id": "book-2-lesson-12",
@@ -2488,27 +2893,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "يَكْتُبُ الطَّالِبُ الدَّرْسَ.",
-          "translation": "The student writes the lesson.",
+          "arabic": "يَدْرُسُ الطَّالِبُ بَعْدَ الْعِشَاءِ.",
+          "translation": "The student studies after isha.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "أُرِيدُ أَنْ أَدْرُسَ الْعَرَبِيَّةَ.",
-          "translation": "I want to study Arabic.",
+          "arabic": "أُرِيدُ أَنْ أَخْرُجَ بَعْدَ الدَّرْسِ.",
+          "translation": "I want to leave after the lesson.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "نَذْهَبُ إِلَى الْمَكْتَبَةِ يَوْمَ السَّبْتِ.",
-          "translation": "We go to the library on Saturday.",
+          "arabic": "نَرْجِعُ مِنَ الْمَدْرَسَةِ بَعْدَ الظُّهْرِ.",
+          "translation": "We return from school after noon.",
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Feminine singular/plural mudāriʿ, نَفْعَلُ, adverbial time, and إنَّ/أنَّ after verbs of saying and thinking.",
+        "example": "يَدْرُسُ الطَّالِبُ بَعْدَ الْعِشَاءِ.",
+        "exampleTranslation": "The student studies after isha.",
+        "commonMistake": "Do not use masculine endings with feminine nouns, pronouns, or verb forms.",
+        "summary": "نَـ marks the first-person plural mudāriʿ."
+      },
       "notes": [
         "نَـ marks the first-person plural mudāriʿ.",
         "Time words can be used as adverbs in the accusative.",
@@ -2542,7 +2954,9 @@
         "v2-l12-jar",
         "v2-l12-wajib"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 12"
     },
     {
       "id": "book-2-lesson-13",
@@ -2566,19 +2980,26 @@
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "سَأَكْتُبُ لَكَ رِسَالَةً.",
-          "translation": "I will write you a letter.",
+          "arabic": "سَنَذْهَبُ إِلَى الْمَسْجِدِ.",
+          "translation": "We will go to the mosque.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "نَذْهَبُ إِلَى الْمَكْتَبَةِ يَوْمَ السَّبْتِ.",
-          "translation": "We go to the library on Saturday.",
+          "arabic": "هَلْ تَذْهَبُونَ إِلَى الْجَامِعَةِ؟",
+          "translation": "Do you go to the university?",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Full review of the mudāriʿ with all non-dual pronouns.",
+        "example": "أَيْنَ تَدْرُسُونَ؟",
+        "exampleTranslation": "Where do you study?",
+        "commonMistake": "Do not use plural endings when the meaning is exactly two; use the dual forms.",
+        "summary": "This lesson consolidates the mudāriʿ forms before the imperative."
+      },
       "notes": [
         "This lesson consolidates the mudāriʿ forms before the imperative.",
         "Students compare prefixes and endings across pronouns.",
@@ -2604,7 +3025,9 @@
         "v2-l13-yadrusna",
         "v2-l13-tadrusna"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 13"
     },
     {
       "id": "book-2-lesson-14",
@@ -2628,17 +3051,40 @@
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "فَتَحَ الْوَلَدُ الْبَابَ.",
-          "translation": "The boy opened the door.",
+          "arabic": "اِفْتَحِ الْبَابَ يَا حَامِدُ.",
+          "translation": "Open the door, Hamid.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "يَكْتُبُ الطَّالِبُ الدَّرْسَ.",
-          "translation": "The student writes the lesson.",
+          "arabic": "اُكْتُبُوا الدَّرْسَ يَا طُلَّابُ.",
+          "translation": "Write the lesson, students.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "Forming the command, hamzat al-wasl, imperative endings, and indefinite mubtada.",
+        "example": "اُكْتُبْ يَا بِلَالُ.",
+        "exampleTranslation": "Write, Bilal.",
+        "commonMistake": "Do not build commands from the past tense; derive them from the mudāriʿ pattern.",
+        "summary": "The imperative is built from the second-person mudāriʿ."
+      },
+      "morphologyCards": [
+        {
+          "title": "خَرَجَ",
+          "meaning": "to leave",
+          "root": "خ ر ج",
+          "pattern": "فَعَلَ",
+          "forms": {
+            "past": "خَرَجَ",
+            "present": "يَخْرُجُ",
+            "command": "اُخْرُجْ",
+            "verbalNoun": "خُرُوجٌ",
+            "activeParticiple": "خَارِجٌ"
+          },
+          "note": "Common command form with hamzat al-wasl."
         }
       ],
       "notes": [
@@ -2674,7 +3120,9 @@
         "v2-l14-mizallah",
         "v2-l14-waraqah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 14"
     },
     {
       "id": "book-2-lesson-15",
@@ -2690,8 +3138,8 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "لَعَلَّ الطَّالِبَ حَاضِرٌ.",
-          "translation": "Perhaps the student is present.",
+          "arabic": "كَادَ الطَّالِبُ يَخْرُجُ.",
+          "translation": "The student almost left.",
           "source": "Practice model"
         },
         {
@@ -2706,11 +3154,18 @@
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "هٰؤُلَاءِ الطُّلَّابُ ذَوُو خُلُقٍ.",
-          "translation": "These students have good character.",
+          "arabic": "لَا تَكْتُبْ عَلَى الْجِدَارِ.",
+          "translation": "Do not write on the wall.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "لا الناهية, prohibitive endings, كَادَ, negative لَا with the present, and إِنَّمَا.",
+        "example": "كَادَ الطَّالِبُ يَخْرُجُ.",
+        "exampleTranslation": "The student almost left.",
+        "commonMistake": "Do not leave the subject after إِنَّ or لَعَلَّ in the nominative; it becomes accusative.",
+        "summary": "لا الناهية turns a second-person mudāriʿ into a prohibition."
+      },
       "notes": [
         "لا الناهية turns a second-person mudāriʿ into a prohibition.",
         "The final vowel is dropped in the basic prohibited form.",
@@ -2748,7 +3203,9 @@
         "v2-l15-ya-abati",
         "v2-l15-tariq"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 15"
     },
     {
       "id": "book-2-lesson-16",
@@ -2783,6 +3240,30 @@
           "arabic": "يُمْكِنُكَ أَنْ تَكْتُبَ الْجَوَابَ.",
           "translation": "You can write the answer.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "The verb يُرِيدُ, مَا الموصولة, ذَا, diptote names, feminine colors, بدل, آخَر/أُخْرَى, المصحف, and غير.",
+        "example": "أُرِيدُ مُصْحَفًا جَدِيدًا.",
+        "exampleTranslation": "I want a new copy of the Qur'an.",
+        "commonMistake": "Do not use masculine endings with feminine nouns, pronouns, or verb forms.",
+        "summary": "يُرِيدُ means “he wants”, and its māḍī is أَرَادَ."
+      },
+      "morphologyCards": [
+        {
+          "title": "أَرَادَ",
+          "meaning": "to want",
+          "root": "ر و د",
+          "pattern": "أَفْعَلَ",
+          "forms": {
+            "past": "أَرَادَ",
+            "present": "يُرِيدُ",
+            "command": "أَرِدْ",
+            "verbalNoun": "إِرَادَةٌ",
+            "activeParticiple": "مُرِيدٌ",
+            "passiveParticiple": "مُرَادٌ"
+          },
+          "note": "A hollow Form IV verb; the middle weak letter changes shape."
         }
       ],
       "notes": [
@@ -2829,7 +3310,9 @@
         "v2-l16-ghayr",
         "v2-l16-dayyiq"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 16"
     },
     {
       "id": "book-2-lesson-17",
@@ -2845,27 +3328,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "سَأَكْتُبُ لَكَ رِسَالَةً.",
-          "translation": "I will write you a letter.",
-          "source": "Practice model"
+          "arabic": "جِئْتُ لِأَدْرُسَ الْعَرَبِيَّةَ.",
+          "translation": "I came to study Arabic.",
+          "source": "Book model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "أُرِيدُ أَنْ أَدْرُسَ الْعَرَبِيَّةَ.",
-          "translation": "I want to study Arabic.",
-          "source": "Book model"
+          "arabic": "نَذْهَبُ إِلَى الْمَكْتَبَةِ لِنَقْرَأَ.",
+          "translation": "We go to the library to read.",
+          "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "نَذْهَبُ إِلَى الْمَكْتَبَةِ يَوْمَ السَّبْتِ.",
-          "translation": "We go to the library on Saturday.",
+          "arabic": "أُرِيدُ أَنْ أَكْتُبَ لَكَ رِسَالَةً.",
+          "translation": "I want to write you a letter.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Mudāriʿ mansūb after أَنْ, لام التعليل, يُمْكِنُ, مُنْذُ, and feminine verb agreement.",
+        "example": "جِئْتُ لِأَدْرُسَ الْعَرَبِيَّةَ.",
+        "exampleTranslation": "I came to study Arabic.",
+        "commonMistake": "Do not use masculine endings with feminine nouns, pronouns, or verb forms.",
+        "summary": "أَنْ makes the following mudāriʿ mansūb."
+      },
       "notes": [
         "أَنْ makes the following mudāriʿ mansūb.",
         "لام التعليل explains purpose.",
@@ -2906,7 +3396,9 @@
         "v2-l17-hawa",
         "v2-l17-sayf"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 17"
     },
     {
       "id": "book-2-lesson-18",
@@ -2922,27 +3414,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "سَأَكْتُبُ لَكَ رِسَالَةً.",
-          "translation": "I will write you a letter.",
+          "arabic": "قَرَأْتُ الدَّرْسَ كُلَّهُ.",
+          "translation": "I read the whole lesson.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "الطُّلَّابُ كُلُّهُمْ حَاضِرُونَ.",
-          "translation": "All the students are present.",
-          "source": "Book model"
+          "arabic": "حَضَرَ الطُّلَّابُ كُلُّهُمْ.",
+          "translation": "All the students attended.",
+          "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "نَذْهَبُ إِلَى الْمَكْتَبَةِ يَوْمَ السَّبْتِ.",
-          "translation": "We go to the library on Saturday.",
-          "source": "Practice model"
+          "arabic": "الطُّلَّابُ كُلُّهُمْ حَاضِرُونَ.",
+          "translation": "All the students are present.",
+          "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Mudāriʿ mansūb endings, كَـ meaning “like”, كُلّ for emphasis, vocative يا أيها, اسم الفعل, and demonstratives with iḍāfah.",
+        "example": "قَرَأْتُ الدَّرْسَ كُلَّهُ.",
+        "exampleTranslation": "I read the whole lesson.",
+        "commonMistake": "Do not mix masculine and feminine demonstratives; match the pointer word to the noun being pointed at.",
+        "summary": "The five mudāriʿ forms ending in nūn drop that nūn in the mansūb."
+      },
       "notes": [
         "The five mudāriʿ forms ending in nūn drop that nūn in the mansūb.",
         "كَـ is a preposition meaning “like”.",
@@ -2977,7 +3476,9 @@
         "v2-l18-malabis",
         "v2-l18-mithl"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 18"
     },
     {
       "id": "book-2-lesson-19",
@@ -3014,6 +3515,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "لَنْ with the mudāriʿ mansūb and أَبَدًا for emphatic future negation.",
+        "example": "لَنْ أَذْهَبَ غَدًا.",
+        "exampleTranslation": "I will not go tomorrow.",
+        "commonMistake": "Do not keep the same mudāriʿ ending after every particle; marfūʿ, mansūb and majzūm endings differ.",
+        "summary": "لَنْ negates the future and makes the mudāriʿ mansūb."
+      },
       "notes": [
         "لَنْ negates the future and makes the mudāriʿ mansūb.",
         "When لَنْ is used, the future سَ is omitted.",
@@ -3041,7 +3549,9 @@
         "v2-l19-ya-bunayy",
         "v2-l19-marratan-ukhra"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 19"
     },
     {
       "id": "book-2-lesson-20",
@@ -3066,7 +3576,7 @@
           "title": "Build",
           "difficulty": 2,
           "arabic": "سَأَلْتُ إِحْدَى الطَّالِبَتَيْنِ.",
-          "translation": "I asked one of the two students.",
+          "translation": "I asked one of the two female students.",
           "source": "Practice model"
         },
         {
@@ -3078,6 +3588,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Dual nouns in accusative/genitive cases and the patterns أَحَدُهُمَا/إِحْدَاهُمَا.",
+        "example": "رَأَيْتُ طَالِبَيْنِ جَدِيدَيْنِ.",
+        "exampleTranslation": "I saw two new students.",
+        "commonMistake": "Do not use plural endings when the meaning is exactly two; use the dual forms.",
+        "summary": "The dual nominative ending is ـَانِ."
+      },
       "notes": [
         "The dual nominative ending is ـَانِ.",
         "The dual accusative and genitive ending is ـَيْنِ.",
@@ -3113,7 +3630,9 @@
         "v2-l20-tafsir",
         "v2-l20-liss"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 20"
     },
     {
       "id": "book-2-lesson-21",
@@ -3150,6 +3669,13 @@
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "لَمْ and لَمَّا with the mudāriʿ majzūm, nouns/verbs/particles, nominal/verbal sentences, مَهْلًا, and neither/nor.",
+        "example": "لَمْ يَكْتُبُوا الْوَاجِبَ.",
+        "exampleTranslation": "They did not write the homework.",
+        "commonMistake": "Do not keep the same mudāriʿ ending after every particle; marfūʿ, mansūb and majzūm endings differ.",
+        "summary": "لَمْ changes the mudāriʿ to past negative meaning and makes it majzūm."
+      },
       "notes": [
         "لَمْ changes the mudāriʿ to past negative meaning and makes it majzūm.",
         "لَمَّا means “not yet” with similar grammatical effect.",
@@ -3184,7 +3710,9 @@
         "v2-l21-farq",
         "v2-l21-mamnu"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 21"
     },
     {
       "id": "book-2-lesson-22",
@@ -3200,27 +3728,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "سَأَكْتُبُ لَكَ رِسَالَةً.",
-          "translation": "I will write you a letter.",
-          "source": "Practice model"
-        },
-        {
-          "label": "B",
-          "title": "Build",
-          "difficulty": 2,
           "arabic": "يُرِيدُونَ أَنْ يَذْهَبُوا.",
           "translation": "They want to go.",
           "source": "Book model"
         },
         {
+          "label": "B",
+          "title": "Build",
+          "difficulty": 2,
+          "arabic": "لَنْ أَكْتُبَ لَكَ رِسَالَةً.",
+          "translation": "I will not write you a letter.",
+          "source": "Practice model"
+        },
+        {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "نَذْهَبُ إِلَى الْمَكْتَبَةِ يَوْمَ السَّبْتِ.",
-          "translation": "We go to the library on Saturday.",
+          "arabic": "لَمْ نَذْهَبْ إِلَى الْمَكْتَبَةِ.",
+          "translation": "We did not go to the library.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Revision of the marfūʿ, mansūb and majzūm mudāriʿ.",
+        "example": "يُرِيدُونَ أَنْ يَذْهَبُوا.",
+        "exampleTranslation": "They want to go.",
+        "commonMistake": "Do not keep the same mudāriʿ ending after every particle; marfūʿ, mansūb and majzūm endings differ.",
+        "summary": "The marfūʿ mudāriʿ is the default form."
+      },
       "notes": [
         "The marfūʿ mudāriʿ is the default form.",
         "The mansūb appears after particles such as أَنْ and لَنْ.",
@@ -3241,7 +3776,9 @@
         "v2-l22-li-adhhaba",
         "v2-l22-la-tadhhab"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 22"
     },
     {
       "id": "book-2-lesson-23",
@@ -3278,6 +3815,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Sound masculine plural iʿrāb, the ʿuqūd numbers, 21-30 with feminine nouns, and لا...ولا.",
+        "example": "جَاءَ عِشْرُونَ طَالِبًا.",
+        "exampleTranslation": "Twenty students came.",
+        "commonMistake": "Do not use masculine endings with feminine nouns, pronouns, or verb forms.",
+        "summary": "The sound masculine plural uses ـُونَ in the nominative."
+      },
       "notes": [
         "The sound masculine plural uses ـُونَ in the nominative.",
         "It uses ـِينَ in both accusative and genitive positions.",
@@ -3313,7 +3857,9 @@
         "v2-l23-nabiyy",
         "v2-l23-thaniyah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 23"
     },
     {
       "id": "book-2-lesson-24",
@@ -3337,19 +3883,26 @@
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "جَاءَ عِشْرُونَ طَالِبًا.",
-          "translation": "Twenty students came.",
+          "arabic": "جَاءَ خَمْسُونَ طَالِبًا.",
+          "translation": "Fifty students came.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "فِي الْمَدْرَسَةِ ثَلَاثُونَ مُدَرِّسًا.",
-          "translation": "There are thirty teachers in the school.",
+          "arabic": "فِي الْقَاعَةِ أَرْبَعُونَ كُرْسِيًّا.",
+          "translation": "There are forty chairs in the hall.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "A full consolidation of number agreement, counted nouns, iʿrāb, hundreds and thousands.",
+        "example": "عِنْدِي خَمْسَةُ كُتُبٍ.",
+        "exampleTranslation": "I have five books.",
+        "commonMistake": "Do not make number agreement automatic from English; Arabic number rules change by range.",
+        "summary": "The counted noun after 3-10 is plural genitive."
+      },
       "notes": [
         "The counted noun after 3-10 is plural genitive.",
         "The counted noun after 11-99 is singular accusative.",
@@ -3378,7 +3931,9 @@
         "v2-l24-thalathumiah",
         "v2-l24-sittun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 24"
     },
     {
       "id": "book-2-lesson-25",
@@ -3415,6 +3970,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "كَانَ with noun khabar, لَا يَزَالُ, case forms of أَب and أَخ, قَبْلُ/بَعْدُ, and selected broken plurals.",
+        "example": "كَانَ الْجَوُّ جَمِيلًا.",
+        "exampleTranslation": "The weather was fine.",
+        "commonMistake": "Do not treat non-human plurals like human plurals; they often take feminine singular agreement.",
+        "summary": "The khabar of كَانَ is mansūb when it is a noun or adjective."
+      },
       "notes": [
         "The khabar of كَانَ is mansūb when it is a noun or adjective.",
         "لَا يَزَالُ means “he/it is still”.",
@@ -3445,7 +4007,9 @@
         "v2-l25-shurti",
         "v2-l25-mutaqaid"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 25"
     },
     {
       "id": "book-2-lesson-26",
@@ -3482,6 +4046,30 @@
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Weak first-radical verbs, diminutives, comparatives, يَجِبُ, and another masdar pattern.",
+        "example": "لَمْ أَحُجَّ قَطُّ.",
+        "exampleTranslation": "I have never performed hajj.",
+        "commonMistake": "Do not expect weak or doubled verbs to keep every letter visible in every form.",
+        "summary": "A mithāl verb has a weak first radical."
+      },
+      "morphologyCards": [
+        {
+          "title": "وَعَدَ",
+          "meaning": "to promise",
+          "root": "و ع د",
+          "pattern": "فَعَلَ",
+          "forms": {
+            "past": "وَعَدَ",
+            "present": "يَعِدُ",
+            "command": "عِدْ",
+            "verbalNoun": "وَعْدٌ",
+            "activeParticiple": "وَاعِدٌ",
+            "passiveParticiple": "مَوْعُودٌ"
+          },
+          "note": "Mithāl verb: the initial و drops in some forms."
+        }
+      ],
       "notes": [
         "A mithāl verb has a weak first radical.",
         "The initial wāw often drops in the mudāriʿ.",
@@ -3516,7 +4104,9 @@
         "v2-l26-naqd",
         "v2-l26-khata"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 26"
     },
     {
       "id": "book-2-lesson-27",
@@ -3532,25 +4122,49 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "يَكْتُبُ الطَّالِبُ الدَّرْسَ.",
-          "translation": "The student writes the lesson.",
+          "arabic": "يَقُولُ الطَّالِبُ الْحَقَّ.",
+          "translation": "The student says the truth.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "أُرِيدُ أَنْ أَدْرُسَ الْعَرَبِيَّةَ.",
-          "translation": "I want to study Arabic.",
-          "source": "Practice model"
+          "arabic": "قَالُوا: لَمْ نَقُلْ هٰذَا.",
+          "translation": "They said: we did not say this.",
+          "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "قَالَ الطَّالِبُ: لَمْ أَقُلْ هٰذَا.",
-          "translation": "The student said: I did not say this.",
-          "source": "Book model"
+          "arabic": "أُرِيدُ أَنْ أَقُولَ الْحَقَّ.",
+          "translation": "I want to say the truth.",
+          "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "Weak middle-radical verbs in the māḍī, mudāriʿ, majzūm and imperative, oaths, ظَنَّ, يَنْبَغِي, and مَاتَ.",
+        "example": "يَقُولُ الطَّالِبُ الْحَقَّ.",
+        "exampleTranslation": "The student says the truth.",
+        "commonMistake": "Do not ignore the attached ending on the past verb; it tells you who performed the action.",
+        "summary": "An ajwaf verb has a weak middle radical."
+      },
+      "morphologyCards": [
+        {
+          "title": "قَالَ",
+          "meaning": "to say",
+          "root": "ق و ل",
+          "pattern": "فَعَلَ",
+          "forms": {
+            "past": "قَالَ",
+            "present": "يَقُولُ",
+            "command": "قُلْ",
+            "verbalNoun": "قَوْلٌ",
+            "activeParticiple": "قَائِلٌ",
+            "passiveParticiple": "مَقُولٌ"
+          },
+          "note": "Ajwaf verb: the middle weak letter changes across forms."
         }
       ],
       "notes": [
@@ -3605,7 +4219,9 @@
         "v2-l27-zayt",
         "v2-l27-mashghul"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 27"
     },
     {
       "id": "book-2-lesson-28",
@@ -3621,8 +4237,8 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "لَمْ أَحُجَّ قَطُّ.",
-          "translation": "I have never performed hajj.",
+          "arabic": "دَعَوْتُ الْمُدَرِّسَ.",
+          "translation": "I called the teacher.",
           "source": "Practice model"
         },
         {
@@ -3637,9 +4253,33 @@
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "قَالَ الطَّالِبُ: لَمْ أَقُلْ هٰذَا.",
-          "translation": "The student said: I did not say this.",
+          "arabic": "بَكَى الطِّفْلُ، وَلَمْ يَبْكِ الْوَلَدُ.",
+          "translation": "The child cried, and the boy did not cry.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "Weak final-radical verbs, رأى/يرى, the command أَرِ, and omitted final radicals in majzūm and command forms.",
+        "example": "دَعَوْتُ الْمُدَرِّسَ.",
+        "exampleTranslation": "I called the teacher.",
+        "commonMistake": "Do not expect weak or doubled verbs to keep every letter visible in every form.",
+        "summary": "A nāqiṣ verb has a weak final radical."
+      },
+      "morphologyCards": [
+        {
+          "title": "دَعَا",
+          "meaning": "to call",
+          "root": "د ع و",
+          "pattern": "فَعَلَ",
+          "forms": {
+            "past": "دَعَا",
+            "present": "يَدْعُو",
+            "command": "اُدْعُ",
+            "verbalNoun": "دُعَاءٌ",
+            "activeParticiple": "دَاعٍ",
+            "passiveParticiple": "مَدْعُوٌّ"
+          },
+          "note": "Nāqiṣ verb: the final weak letter is unstable in some endings."
         }
       ],
       "notes": [
@@ -3685,7 +4325,9 @@
         "v2-l28-yamin",
         "v2-l28-yasar"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 28"
     },
     {
       "id": "book-2-lesson-29",
@@ -3701,25 +4343,49 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "لَمْ أَحُجَّ قَطُّ.",
-          "translation": "I have never performed Hajj.",
+          "arabic": "لَمْ أَرُدَّ عَلَى السُّؤَالِ.",
+          "translation": "I did not reply to the question.",
           "source": "Book model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "لَمْ يَكْتُبُوا الْوَاجِبَ.",
-          "translation": "They did not write the homework.",
+          "arabic": "لَمْ يَرُدُّوا عَلَى السُّؤَالِ.",
+          "translation": "They did not reply to the question.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "لَمَّا يَحْضُرِ الْمُدَرِّسُ.",
-          "translation": "The teacher has not yet arrived.",
+          "arabic": "لَمَّا يَفْهَمِ الطَّالِبُ السُّؤَالَ.",
+          "translation": "The student has not yet understood the question.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "Doubled verbs, their māḍī/mudāriʿ/imperative changes, لَمَّا meaning “when”, قَطُّ, أَبَدًا, and polite thanks.",
+        "example": "لَمْ أَرُدَّ عَلَى السُّؤَالِ.",
+        "exampleTranslation": "I did not reply to the question.",
+        "commonMistake": "Do not ignore the attached ending on the past verb; it tells you who performed the action.",
+        "summary": "A muḍaʿʿaf verb has identical second and third radicals."
+      },
+      "morphologyCards": [
+        {
+          "title": "رَدَّ",
+          "meaning": "to reply / return",
+          "root": "ر د د",
+          "pattern": "فَعَلَ",
+          "forms": {
+            "past": "رَدَّ",
+            "present": "يَرُدُّ",
+            "command": "رُدَّ",
+            "verbalNoun": "رَدٌّ",
+            "activeParticiple": "رَادٌّ",
+            "passiveParticiple": "مَرْدُودٌ"
+          },
+          "note": "Muḍaʿʿaf verb: the second and third root letters are the same."
         }
       ],
       "notes": [
@@ -3763,7 +4429,9 @@
         "v2-l29-nuskhah",
         "v2-l29-baluah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 29"
     },
     {
       "id": "book-2-lesson-30",
@@ -3779,16 +4447,16 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "سَأَلْتُ إِحْدَى الطَّالِبَتَيْنِ.",
-          "translation": "I asked one of the two students.",
+          "arabic": "رَأَيْتُ إِحْدَى السَّيَّارَتَيْنِ.",
+          "translation": "I saw one of the two cars.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "ذَهَبَ الطَّالِبَانِ إِلَى الْمَسْجِدِ.",
-          "translation": "The two students went to the mosque.",
+          "arabic": "الطَّالِبَانِ يَكْتُبَانِ الْوَاجِبَ.",
+          "translation": "The two students write the homework.",
           "source": "Practice model"
         },
         {
@@ -3800,6 +4468,13 @@
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Dual pronouns with māḍī, mudāriʿ and imperative, dual attached pronouns, and الأفعال الخمسة.",
+        "example": "رَأَيْتُ إِحْدَى السَّيَّارَتَيْنِ.",
+        "exampleTranslation": "I saw one of the two cars.",
+        "commonMistake": "Do not use plural endings when the meaning is exactly two; use the dual forms.",
+        "summary": "Dual verb forms are used for two people or things."
+      },
       "notes": [
         "Dual verb forms are used for two people or things.",
         "The five verb forms keep nūn in marfūʿ and drop it in mansūb and majzūm.",
@@ -3832,7 +4507,9 @@
         "v2-l30-tawaman",
         "v2-l30-iyadah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 30"
     },
     {
       "id": "book-2-lesson-31",
@@ -3865,10 +4542,17 @@
           "title": "Challenge",
           "difficulty": 3,
           "arabic": "رَأَيْتُ الطَّالِبَاتِ الْجَدِيدَاتِ.",
-          "translation": "I saw the new students.",
+          "translation": "I saw the new female students.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "The naʿt and manʿūt, and agreement in definiteness, case, number and gender.",
+        "example": "هٰذِهِ طَالِبَةٌ مُجْتَهِدَةٌ.",
+        "exampleTranslation": "This is a hardworking student.",
+        "commonMistake": "Do not let the adjective disagree with the noun in definiteness, gender, number, or case.",
+        "summary": "The adjective follows the noun it describes."
+      },
       "notes": [
         "The adjective follows the noun it describes.",
         "The adjective agrees with the described noun in four areas.",
@@ -3896,7 +4580,9 @@
         "v2-l31-intaha",
         "v2-l31-hayy"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 2 Lesson 31"
     },
     {
       "id": "book-3-lesson-1",
@@ -3933,6 +4619,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Declension of nouns, primary and secondary endings, mabni nouns, and the marfu, mansub and majzum moods of the mudari'.",
+        "example": "رَجَعَ الطُّلَّابُ فَرِحِينَ.",
+        "exampleTranslation": "The students returned happy.",
+        "commonMistake": "Do not keep the same mudāriʿ ending after every particle; marfūʿ, mansūb and majzūm endings differ.",
+        "summary": "Most nouns show their role through case endings: raf', nasb, and jarr."
+      },
       "notes": [
         "Most nouns show their role through case endings: raf', nasb, and jarr.",
         "Some noun groups use secondary endings, such as the dual and sound masculine plural.",
@@ -3995,7 +4688,9 @@
         "v3-l1-thabata",
         "v3-l1-sinn"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 1"
     },
     {
       "id": "book-3-lesson-2",
@@ -4011,8 +4706,8 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "كُتِبَ الدَّرْسُ عَلَى السَّبُّورَةِ.",
-          "translation": "The lesson was written on the board.",
+          "arabic": "مَا جَاءَ مِنْ أَحَدٍ.",
+          "translation": "No one came.",
           "source": "Practice model"
         },
         {
@@ -4032,6 +4727,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Uses of waw, لَعَلَّ for hope or fear, the extra مِنْ, لَدَى, and selected plural patterns.",
+        "example": "مَا جَاءَ مِنْ أَحَدٍ.",
+        "exampleTranslation": "No one came.",
+        "commonMistake": "Do not treat non-human plurals like human plurals; they often take feminine singular agreement.",
+        "summary": "وَ can join words, function as a preposition, or introduce a circumstantial clause."
+      },
       "notes": [
         "وَ can join words, function as a preposition, or introduce a circumstantial clause.",
         "لَعَلَّ can express hope or fear according to context.",
@@ -4083,7 +4785,9 @@
         "v3-l2-mana",
         "v3-l2-hal"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 2"
     },
     {
       "id": "book-3-lesson-3",
@@ -4115,9 +4819,33 @@
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "كُتِبَ الدَّرْسُ عَلَى السَّبُّورَةِ.",
-          "translation": "The lesson was written on the board.",
+          "arabic": "سُئِلَ الطَّالِبُ عَنِ الدَّرْسِ.",
+          "translation": "The student was asked about the lesson.",
           "source": "Book model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "Passive voice in the madi and mudari', the نائب الفاعل, time adverbs, nisbah adjectives, and collective nouns.",
+        "example": "فُتِحَ الْبَابُ صَبَاحًا.",
+        "exampleTranslation": "The door was opened in the morning.",
+        "commonMistake": "Do not let the adjective disagree with the noun in definiteness, gender, number, or case.",
+        "summary": "In the passive voice, the doer is omitted."
+      },
+      "morphologyCards": [
+        {
+          "title": "كَتَبَ",
+          "meaning": "to write",
+          "root": "ك ت ب",
+          "pattern": "فَعَلَ",
+          "forms": {
+            "past": "كَتَبَ",
+            "present": "يَكْتُبُ",
+            "command": "اُكْتُبْ",
+            "verbalNoun": "كِتَابَةٌ",
+            "activeParticiple": "كَاتِبٌ",
+            "passiveParticiple": "مَكْتُوبٌ"
+          },
+          "note": "Passive model: كُتِبَ changes the object into نائب الفاعل."
         }
       ],
       "notes": [
@@ -4168,7 +4896,9 @@
         "v3-l3-wadih",
         "v3-l3-muhimm"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 3"
     },
     {
       "id": "book-3-lesson-4",
@@ -4184,27 +4914,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "فُتِحَ الْبَابُ صَبَاحًا.",
-          "translation": "The door was opened in the morning.",
+          "arabic": "الْبَابُ مَفْتُوحٌ صَبَاحًا.",
+          "translation": "The door is open in the morning.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "قِيلَ إِنَّ الْبَابَ مُغْلَقٌ.",
-          "translation": "It was said that the door is closed.",
-          "source": "Practice model"
+          "arabic": "الطَّالِبُ كَاتِبٌ، وَالدَّرْسُ مَكْتُوبٌ.",
+          "translation": "The student is writing, and the lesson is written.",
+          "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "الطَّالِبُ كَاتِبٌ، وَالدَّرْسُ مَكْتُوبٌ.",
-          "translation": "The student is writing, and the lesson is written.",
-          "source": "Book model"
+          "arabic": "الْبَابُ مُغْلَقٌ، وَالْمِفْتَاحُ مَفْقُودٌ.",
+          "translation": "The door is closed, and the key is lost.",
+          "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Forming اسم الفاعل and اسم المفعول from sound verbs and reading them as descriptive nouns.",
+        "example": "الْبَابُ مَفْتُوحٌ صَبَاحًا.",
+        "exampleTranslation": "The door is open in the morning.",
+        "commonMistake": "Do not keep the original subject as فاعل in a passive sentence; the deputy subject becomes nominative.",
+        "summary": "اسم الفاعل names the doer of an action."
+      },
       "notes": [
         "اسم الفاعل names the doer of an action.",
         "اسم المفعول names the one or thing affected by an action.",
@@ -4245,7 +4982,9 @@
         "v3-l4-sariqah",
         "v3-l4-kafala"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 4"
     },
     {
       "id": "book-3-lesson-5",
@@ -4261,27 +5000,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "رَجَعَ الطُّلَّابُ فَرِحِينَ.",
-          "translation": "The students returned happy.",
+          "arabic": "بِيعَ الْكِتَابُ.",
+          "translation": "The book was sold.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "قِيلَ إِنَّ الْبَابَ مُغْلَقٌ.",
-          "translation": "It was said that the door is closed.",
+          "arabic": "زِيدَ فِي الدَّرْسِ مِثَالٌ.",
+          "translation": "An example was added to the lesson.",
           "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "كُتِبَ الدَّرْسُ عَلَى السَّبُّورَةِ.",
-          "translation": "The lesson was written on the board.",
+          "arabic": "بِيعَتِ السَّيَّارَةُ فِي السُّوقِ.",
+          "translation": "The car was sold in the market.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Passive forms of hollow verbs such as قَالَ and بَاعَ, and their mudari' forms.",
+        "example": "بِيعَ الْكِتَابُ.",
+        "exampleTranslation": "The book was sold.",
+        "commonMistake": "Do not keep the same mudāriʿ ending after every particle; marfūʿ, mansūb and majzūm endings differ.",
+        "summary": "Ajwaf verbs have a weak middle radical."
+      },
       "notes": [
         "Ajwaf verbs have a weak middle radical.",
         "Their passive forms often show a long vowel change.",
@@ -4334,7 +5080,9 @@
         "v3-l5-bitaqah",
         "v3-l5-majjanan"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 5"
     },
     {
       "id": "book-3-lesson-6",
@@ -4371,6 +5119,13 @@
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Forming اسم المكان and اسم الزمان on مَفْعَل and مَفْعِل patterns.",
+        "example": "هٰذَا مِفْتَاحٌ لِلْبَابِ.",
+        "exampleTranslation": "This is a key for the door.",
+        "commonMistake": "Do not translate word-for-word from English; use the Arabic ending and structure to identify the role of each word.",
+        "summary": "The noun of place and time can share the same form."
+      },
       "notes": [
         "The noun of place and time can share the same form.",
         "The pattern depends on the verb type and mudari' vowel.",
@@ -4407,7 +5162,9 @@
         "v3-l6-arada",
         "v3-l6-maqarr"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 6"
     },
     {
       "id": "book-3-lesson-7",
@@ -4423,27 +5180,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "هٰذَا مِفْتَاحٌ لِلْبَابِ.",
-          "translation": "This is a key for the door.",
-          "source": "Book model"
+          "arabic": "الْمِفْتَاحُ آلَةٌ لِلْفَتْحِ.",
+          "translation": "The key is an instrument for opening.",
+          "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "رَجَعَ الطُّلَّابُ فَرِحِينَ.",
-          "translation": "The students returned happy.",
+          "arabic": "هٰذِهِ مِكْنَسَةٌ لِلتَّنْظِيفِ.",
+          "translation": "This is a broom for cleaning.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "الْمِصْعَدُ آلَةٌ لِلصُّعُودِ.",
-          "translation": "The lift is an instrument for going up.",
-          "source": "Practice model"
+          "arabic": "اِسْتَعْمَلْتُ الْمِفْتَاحَ لِلْبَابِ.",
+          "translation": "I used the key for the door.",
+          "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Forming اسم الآلة on patterns such as مِفْعَال, مِفْعَل and مِفْعَلَة.",
+        "example": "الْمِفْتَاحُ آلَةٌ لِلْفَتْحِ.",
+        "exampleTranslation": "The key is an instrument for opening.",
+        "commonMistake": "Do not translate word-for-word from English; use the Arabic ending and structure to identify the role of each word.",
+        "summary": "اسم الآلة names the instrument used for an action."
+      },
       "notes": [
         "اسم الآلة names the instrument used for an action.",
         "Common patterns include مِفْعَالٌ, مِفْعَلٌ and مِفْعَلَةٌ.",
@@ -4485,7 +5249,9 @@
         "v3-l7-miqyas",
         "v3-l7-wasitah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 7"
     },
     {
       "id": "book-3-lesson-8",
@@ -4522,6 +5288,13 @@
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Definite and indefinite nouns, categories of definite nouns, and how definiteness affects meaning.",
+        "example": "هٰذَانِ طَالِبَا الْمَدْرَسَةِ.",
+        "exampleTranslation": "These two are the school's students.",
+        "commonMistake": "Do not translate word-for-word from English; use the Arabic ending and structure to identify the role of each word.",
+        "summary": "A nakirah noun is indefinite."
+      },
       "notes": [
         "A nakirah noun is indefinite.",
         "A ma'rifah noun is definite, often through الْـ, a pronoun, a proper noun, or idafah.",
@@ -4574,7 +5347,9 @@
         "v3-l8-muayyan",
         "v3-l8-didd"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 8"
     },
     {
       "id": "book-3-lesson-9",
@@ -4590,27 +5365,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "رَجَعَ الطُّلَّابُ فَرِحِينَ.",
-          "translation": "The students returned happy.",
+          "arabic": "مُدَرِّسَا الْفَصْلِ حَاضِرَانِ.",
+          "translation": "The two teachers of the class are present.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "هٰذَانِ طَالِبَا الْمَدْرَسَةِ.",
-          "translation": "These are the two students of the school.",
+          "arabic": "هٰذَانِ مُدَرِّسَا الْمَدْرَسَةِ.",
+          "translation": "These are the school's two teachers.",
           "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "كِتَابُ الطَّالِبِ عَلَى الْمَكْتَبِ.",
-          "translation": "The student's book is on the desk.",
+          "arabic": "قَلَمَا الطَّالِبِ عَلَى الْمَكْتَبِ.",
+          "translation": "The student's two pens are on the desk.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "The dual and sound masculine plural omit their nun when they become mudaf.",
+        "example": "مُدَرِّسَا الْفَصْلِ حَاضِرَانِ.",
+        "exampleTranslation": "The two teachers of the class are present.",
+        "commonMistake": "Do not put tanwin or الْـ on the first word of an iḍāfah phrase.",
+        "summary": "The dual ending loses its nun in idafah."
+      },
       "notes": [
         "The dual ending loses its nun in idafah.",
         "The sound masculine plural also loses its nun when it is mudaf.",
@@ -4657,7 +5439,9 @@
         "v3-l9-sahaba",
         "v3-l9-daa"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 9"
     },
     {
       "id": "book-3-lesson-10",
@@ -4681,19 +5465,26 @@
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "سَمِعْتُ أَنَّ الطَّالِبَ نَجَحَ.",
-          "translation": "I heard that the student succeeded.",
-          "source": "Practice model"
+          "arabic": "أَنْ تَفْهَمَ النَّحْوَ مُهِمٌّ.",
+          "translation": "Understanding grammar is important.",
+          "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "أَنْ تَدْرُسَ الْعَرَبِيَّةَ نَافِعٌ لَكَ.",
-          "translation": "Studying Arabic is useful for you.",
-          "source": "Book model"
+          "arabic": "سَمِعْتُ أَنَّ الطَّالِبَ نَجَحَ.",
+          "translation": "I heard that the student succeeded.",
+          "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Nominal and verbal sentences, sentence beginnings, and clauses functioning as masdars.",
+        "example": "الْقِرَاءَةُ مُفِيدَةٌ.",
+        "exampleTranslation": "Reading is beneficial.",
+        "commonMistake": "Do not translate word-for-word from English; use the Arabic ending and structure to identify the role of each word.",
+        "summary": "Arabic sentences are broadly nominal or verbal."
+      },
       "notes": [
         "Arabic sentences are broadly nominal or verbal.",
         "A masdar mu'awwal can act like a noun in a sentence.",
@@ -4738,7 +5529,9 @@
         "v3-l10-ada-al-marid",
         "v3-l10-khatal"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 10"
     },
     {
       "id": "book-3-lesson-11",
@@ -4754,27 +5547,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "الْقِرَاءَةُ مُفِيدَةٌ.",
-          "translation": "Reading is useful.",
-          "source": "Book model"
+          "arabic": "الطُّلَّابُ فَرِحُونَ.",
+          "translation": "The students are happy.",
+          "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "رَجَعَ الطُّلَّابُ فَرِحِينَ.",
-          "translation": "The students returned happy.",
-          "source": "Practice model"
+          "arabic": "الْكِتَابَةُ نَافِعَةٌ.",
+          "translation": "Writing is beneficial.",
+          "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "سَمِعْتُ أَنَّ الطَّالِبَ نَجَحَ.",
-          "translation": "I heard that the student succeeded.",
+          "arabic": "عَلِمْتُ أَنَّ الْمُدَرِّسَ حَضَرَ.",
+          "translation": "I knew that the teacher had arrived.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Types of mubtada' and khabar, when the mubtada' can be indefinite, and khabar structures.",
+        "example": "الطُّلَّابُ فَرِحُونَ.",
+        "exampleTranslation": "The students are happy.",
+        "commonMistake": "Do not translate word-for-word from English; use the Arabic ending and structure to identify the role of each word.",
+        "summary": "The mubtada' is the topic of a nominal sentence."
+      },
       "notes": [
         "The mubtada' is the topic of a nominal sentence.",
         "The khabar gives information about the mubtada'.",
@@ -4815,7 +5615,9 @@
         "v3-l11-faidah",
         "v3-l11-shart"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 11"
     },
     {
       "id": "book-3-lesson-12",
@@ -4852,6 +5654,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Adverbs of time and place, mabni zuruf, and words functioning as ظرف.",
+        "example": "سَافَرْتُ لَيْلًا.",
+        "exampleTranslation": "I travelled at night.",
+        "commonMistake": "Do not treat every time or place word as an ordinary noun; many work as adverbial ظرف expressions.",
+        "summary": "A zarf gives the time or place of an action."
+      },
       "notes": [
         "A zarf gives the time or place of an action.",
         "The zarf is usually mansub.",
@@ -4909,7 +5718,9 @@
         "v3-l12-wasala",
         "v3-l12-waqafa"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 12"
     },
     {
       "id": "book-3-lesson-13",
@@ -4925,27 +5736,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "رَجَعَ الطُّلَّابُ فَرِحِينَ.",
-          "translation": "The students returned happy.",
+          "arabic": "لِيَجْلِسِ الطُّلَّابُ.",
+          "translation": "Let the students sit.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "لِيَكْتُبْ كُلُّ طَالِبٍ اسْمَهُ.",
-          "translation": "Let every student write his name.",
+          "arabic": "لِيَقْرَأِ الطَّالِبُ الْجَوَابَ.",
+          "translation": "Let the student read the answer.",
           "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "كُتِبَ الدَّرْسُ عَلَى السَّبُّورَةِ.",
-          "translation": "The lesson was written on the board.",
+          "arabic": "لِيُكْتَبِ الدَّرْسُ فِي الدَّفْتَرِ.",
+          "translation": "Let the lesson be written in the notebook.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "The jussive command for third person and first person plural using لام الأمر.",
+        "example": "لِيَجْلِسِ الطُّلَّابُ.",
+        "exampleTranslation": "Let the students sit.",
+        "commonMistake": "Do not treat non-human plurals like human plurals; they often take feminine singular agreement.",
+        "summary": "لام الأمر is used with the mudari' majzum."
+      },
       "notes": [
         "لام الأمر is used with the mudari' majzum.",
         "It can command or request from the third person.",
@@ -5004,7 +5822,9 @@
         "v3-l13-waja",
         "v3-l13-wafd"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 13"
     },
     {
       "id": "book-3-lesson-14",
@@ -5020,16 +5840,16 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "إِنْ تَجْتَهِدْ تَنْجَحْ.",
-          "translation": "If you work hard, you will succeed.",
+          "arabic": "إِذَا اجْتَهَدْتَ نَجَحْتَ.",
+          "translation": "When you work hard, you succeed.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "لِيَكْتُبْ كُلُّ طَالِبٍ اسْمَهُ.",
-          "translation": "Let every student write his name.",
+          "arabic": "إِذَا دَخَلْتَ فَاكْتُبِ اسْمَكَ.",
+          "translation": "When you enter, write your name.",
           "source": "Practice model"
         },
         {
@@ -5041,6 +5861,13 @@
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Using إِذَا with conditional meaning and recognizing the jawab al-shart.",
+        "example": "إِذَا اجْتَهَدْتَ نَجَحْتَ.",
+        "exampleTranslation": "When you work hard, you succeed.",
+        "commonMistake": "Do not leave the mudāriʿ marfūʿ after jussive particles; watch for sukūn or dropped endings.",
+        "summary": "إِذَا often introduces a future condition even when the verb is madi."
+      },
       "notes": [
         "إِذَا often introduces a future condition even when the verb is madi.",
         "The condition has two parts: shart and jawab al-shart.",
@@ -5076,7 +5903,9 @@
         "v3-l14-raghiba-an",
         "v3-l14-radda"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 14"
     },
     {
       "id": "book-3-lesson-15",
@@ -5092,27 +5921,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "إِنْ تَجْتَهِدْ تَنْجَحْ.",
-          "translation": "If you work hard, you will succeed.",
-          "source": "Book model"
+          "arabic": "مَنْ يَدْرُسْ يَنْجَحْ.",
+          "translation": "Whoever studies succeeds.",
+          "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "رَجَعَ الطُّلَّابُ فَرِحِينَ.",
-          "translation": "The students returned happy.",
-          "source": "Practice model"
+          "arabic": "مَنْ يَفْهَمِ الدَّرْسَ يَفْرَحْ.",
+          "translation": "Whoever understands the lesson rejoices.",
+          "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "لِيَكْتُبْ كُلُّ طَالِبٍ اسْمَهُ.",
-          "translation": "Let every student write his name.",
+          "arabic": "أَيُّ طَالِبٍ يَجْتَهِدْ يَنْجَحْ.",
+          "translation": "Whichever student works hard succeeds.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "إِنْ and its sisters, two jussive verbs in conditional constructions, and related diminutive review.",
+        "example": "مَنْ يَدْرُسْ يَنْجَحْ.",
+        "exampleTranslation": "Whoever studies succeeds.",
+        "commonMistake": "Do not leave the mudāriʿ marfūʿ after jussive particles; watch for sukūn or dropped endings.",
+        "summary": "Some conditional particles make both the shart and jawab verbs majzum."
+      },
       "notes": [
         "Some conditional particles make both the shart and jawab verbs majzum.",
         "إِنْ means 'if' and is a common jazim particle.",
@@ -5157,7 +5993,9 @@
         "v3-l15-majzum",
         "v3-l15-diminutive"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 15"
     },
     {
       "id": "book-3-lesson-16",
@@ -5192,6 +6030,30 @@
           "arabic": "دَرَّسَ الْمُدَرِّسُ الدَّرْسَ.",
           "translation": "The teacher taught the lesson.",
           "source": "Book model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "Root length, mujarrad and mazid verbs, and the doubled second-radical form فَعَّلَ.",
+        "example": "أَنْزَلَ الْوَلَدُ الْكِتَابَ.",
+        "exampleTranslation": "The boy brought the book down.",
+        "commonMistake": "Do not expect weak or doubled verbs to keep every letter visible in every form.",
+        "summary": "A thulathi verb has three radicals."
+      },
+      "morphologyCards": [
+        {
+          "title": "دَرَّسَ",
+          "meaning": "to teach",
+          "root": "د ر س",
+          "pattern": "فَعَّلَ",
+          "forms": {
+            "past": "دَرَّسَ",
+            "present": "يُدَرِّسُ",
+            "command": "دَرِّسْ",
+            "verbalNoun": "تَدْرِيسٌ",
+            "activeParticiple": "مُدَرِّسٌ",
+            "passiveParticiple": "مُدَرَّسٌ"
+          },
+          "note": "Form II often makes the action intensive or causative."
         }
       ],
       "notes": [
@@ -5234,7 +6096,9 @@
         "v3-l16-hawwala",
         "v3-l16-masdar"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 16"
     },
     {
       "id": "book-3-lesson-17",
@@ -5250,25 +6114,64 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "رَجَعَ الطُّلَّابُ فَرِحِينَ.",
-          "translation": "The students returned happy.",
-          "source": "Practice model"
+          "arabic": "أَجْلَسَ الْمُدَرِّسُ الطِّفْلَ.",
+          "translation": "The teacher seated the child.",
+          "source": "Book model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "أَنْزَلَ الْوَلَدُ الْكِتَابَ.",
-          "translation": "The boy brought the book down.",
-          "source": "Book model"
+          "arabic": "أَخْرَجَ الْمُدَرِّسُ الطَّالِبَ.",
+          "translation": "The teacher sent the student out.",
+          "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "تَعَلَّمَ الطَّالِبُ النَّحْوَ.",
-          "translation": "The student learned grammar.",
+          "arabic": "أَفْهَمَ الْمُدَرِّسُ الطُّلَّابَ الدَّرْسَ.",
+          "translation": "The teacher made the students understand the lesson.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "The form أَفْعَلَ, its mudari', masdar, active/passive participles, and related non-salim forms.",
+        "example": "أَجْلَسَ الْمُدَرِّسُ الطِّفْلَ.",
+        "exampleTranslation": "The teacher seated the child.",
+        "commonMistake": "Do not keep the same mudāriʿ ending after every particle; marfūʿ, mansūb and majzūm endings differ.",
+        "summary": "Bab أَفْعَلَ prefixes hamzah to the first radical."
+      },
+      "morphologyCards": [
+        {
+          "title": "أَنْزَلَ",
+          "meaning": "to send down / bring down",
+          "root": "ن ز ل",
+          "pattern": "أَفْعَلَ",
+          "forms": {
+            "past": "أَنْزَلَ",
+            "present": "يُنْزِلُ",
+            "command": "أَنْزِلْ",
+            "verbalNoun": "إِنْزَالٌ",
+            "activeParticiple": "مُنْزِلٌ",
+            "passiveParticiple": "مُنْزَلٌ"
+          },
+          "note": "Form IV often makes an intransitive root transitive."
+        },
+        {
+          "title": "أَجْلَسَ",
+          "meaning": "to seat someone",
+          "root": "ج ل س",
+          "pattern": "أَفْعَلَ",
+          "forms": {
+            "past": "أَجْلَسَ",
+            "present": "يُجْلِسُ",
+            "command": "أَجْلِسْ",
+            "verbalNoun": "إِجْلَاسٌ",
+            "activeParticiple": "مُجْلِسٌ",
+            "passiveParticiple": "مُجْلَسٌ"
+          },
+          "note": "Compare جَلَسَ “he sat” with أَجْلَسَ “he seated”."
         }
       ],
       "notes": [
@@ -5312,7 +6215,9 @@
         "v3-l17-mumkin",
         "v3-l17-muthaf"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 17"
     },
     {
       "id": "book-3-lesson-18",
@@ -5328,16 +6233,16 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "أَنْزَلَ الْوَلَدُ الْكِتَابَ.",
-          "translation": "The boy brought the book down.",
+          "arabic": "فَهِمَ الطَّالِبُ النَّحْوَ.",
+          "translation": "The student understood grammar.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "تَعَلَّمَ الطَّالِبُ النَّحْوَ.",
-          "translation": "The student learned grammar.",
+          "arabic": "خَرَجَ الطَّالِبُ مِنَ الْفَصْلِ.",
+          "translation": "The student left the classroom.",
           "source": "Practice model"
         },
         {
@@ -5347,6 +6252,29 @@
           "arabic": "جَلَسَ الطَّالِبُ، وَأَجْلَسَ الْمُدَرِّسُ الطِّفْلَ.",
           "translation": "The student sat, and the teacher seated the child.",
           "source": "Book model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "الفعل المتعدي واللازم, indirect objects, and making verbs transitive through فَعَّلَ or أَفْعَلَ.",
+        "example": "فَهِمَ الطَّالِبُ النَّحْوَ.",
+        "exampleTranslation": "The student understood grammar.",
+        "commonMistake": "Do not count extra pattern letters as root letters; separate the root from the verb form.",
+        "summary": "A transitive verb takes a direct object."
+      },
+      "morphologyCards": [
+        {
+          "title": "جَلَسَ",
+          "meaning": "to sit",
+          "root": "ج ل س",
+          "pattern": "فَعَلَ",
+          "forms": {
+            "past": "جَلَسَ",
+            "present": "يَجْلِسُ",
+            "command": "اِجْلِسْ",
+            "verbalNoun": "جُلُوسٌ",
+            "activeParticiple": "جَالِسٌ"
+          },
+          "note": "Intransitive model: the action does not take a direct object here."
         }
       ],
       "notes": [
@@ -5384,7 +6312,9 @@
         "v3-l18-ghadiba-ala",
         "v3-l18-raghiba-fi"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 18"
     },
     {
       "id": "book-3-lesson-19",
@@ -5400,25 +6330,49 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "سَاعَدَ الطَّالِبُ زَمِيلَهُ.",
-          "translation": "The student helped his classmate.",
-          "source": "Book model"
+          "arabic": "سَافَرَ الْمُدَرِّسُ أَمْسِ.",
+          "translation": "The teacher travelled yesterday.",
+          "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "أَنْزَلَ الْوَلَدُ الْكِتَابَ.",
-          "translation": "The boy brought the book down.",
-          "source": "Practice model"
+          "arabic": "سَاعَدَ الطَّالِبُ زَمِيلَهُ.",
+          "translation": "The student helped his classmate.",
+          "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "تَعَلَّمَ الطَّالِبُ النَّحْوَ.",
-          "translation": "The student learned grammar.",
+          "arabic": "قَابَلَ الطَّالِبُ مُدَرِّسَهُ.",
+          "translation": "The student met his teacher.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "The form فَاعَلَ, its masdar, participles, place/time noun, the shifted lam, قَدْ, and ذَوُو.",
+        "example": "سَافَرَ الْمُدَرِّسُ أَمْسِ.",
+        "exampleTranslation": "The teacher travelled yesterday.",
+        "commonMistake": "Do not confuse active and passive participles; the vowel pattern changes the meaning.",
+        "summary": "Bab فَاعَلَ adds an alif after the first radical."
+      },
+      "morphologyCards": [
+        {
+          "title": "سَاعَدَ",
+          "meaning": "to help",
+          "root": "س ع د",
+          "pattern": "فَاعَلَ",
+          "forms": {
+            "past": "سَاعَدَ",
+            "present": "يُسَاعِدُ",
+            "command": "سَاعِدْ",
+            "verbalNoun": "مُسَاعَدَةٌ",
+            "activeParticiple": "مُسَاعِدٌ",
+            "passiveParticiple": "مُسَاعَدٌ"
+          },
+          "note": "Form III often carries participation or directed action."
         }
       ],
       "notes": [
@@ -5460,7 +6414,9 @@
         "v3-l19-qad",
         "v3-l19-dhawu"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 19"
     },
     {
       "id": "book-3-lesson-20",
@@ -5476,25 +6432,62 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "أَنْزَلَ الْوَلَدُ الْكِتَابَ.",
-          "translation": "The boy brought the book down.",
-          "source": "Practice model"
+          "arabic": "تَذَكَّرَ الْوَلَدُ الْجَوَابَ.",
+          "translation": "The boy remembered the answer.",
+          "source": "Book model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "تَعَلَّمَ الطَّالِبُ النَّحْوَ.",
-          "translation": "The student learned grammar.",
-          "source": "Book model"
+          "arabic": "تَذَكَّرَ الطَّالِبُ الدَّرْسَ.",
+          "translation": "The student remembered the lesson.",
+          "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "كُتِبَ الدَّرْسُ عَلَى السَّبُّورَةِ.",
-          "translation": "The lesson was written on the board.",
+          "arabic": "تَكَلَّمَ الطَّالِبُ بِالْعَرَبِيَّةِ.",
+          "translation": "The student spoke in Arabic.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "The form تَفَعَّلَ, its masdar, participles, mutawa'ah, لَمَّا as 'when', and الاختصاص.",
+        "example": "تَذَكَّرَ الْوَلَدُ الْجَوَابَ.",
+        "exampleTranslation": "The boy remembered the answer.",
+        "commonMistake": "Do not leave the mudāriʿ marfūʿ after jussive particles; watch for sukūn or dropped endings.",
+        "summary": "Bab تَفَعَّلَ begins with تَ and doubles the second radical."
+      },
+      "morphologyCards": [
+        {
+          "title": "تَعَلَّمَ",
+          "meaning": "to learn",
+          "root": "ع ل م",
+          "pattern": "تَفَعَّلَ",
+          "forms": {
+            "past": "تَعَلَّمَ",
+            "present": "يَتَعَلَّمُ",
+            "command": "تَعَلَّمْ",
+            "verbalNoun": "تَعَلُّمٌ",
+            "activeParticiple": "مُتَعَلِّمٌ"
+          },
+          "note": "Form V is connected to Form II and often has a reflexive sense."
+        },
+        {
+          "title": "تَذَكَّرَ",
+          "meaning": "to remember",
+          "root": "ذ ك ر",
+          "pattern": "تَفَعَّلَ",
+          "forms": {
+            "past": "تَذَكَّرَ",
+            "present": "يَتَذَكَّرُ",
+            "command": "تَذَكَّرْ",
+            "verbalNoun": "تَذَكُّرٌ",
+            "activeParticiple": "مُتَذَكِّرٌ"
+          },
+          "note": "The doubled middle radical carries shaddah in this form."
         }
       ],
       "notes": [
@@ -5532,7 +6525,9 @@
         "v3-l20-lamma",
         "v3-l20-ikhtisas"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 20"
     },
     {
       "id": "book-3-lesson-21",
@@ -5548,25 +6543,48 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "أَنْزَلَ الْوَلَدُ الْكِتَابَ.",
-          "translation": "The boy brought the book down.",
-          "source": "Practice model"
+          "arabic": "تَعَاوَنَ الطُّلَّابُ فِي الدَّرْسِ.",
+          "translation": "The students cooperated in the lesson.",
+          "source": "Book model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "تَعَلَّمَ الطَّالِبُ النَّحْوَ.",
-          "translation": "The student learned grammar.",
+          "arabic": "تَعَاوَنَ الْوَلَدَانِ فِي الْعَمَلِ.",
+          "translation": "The two boys cooperated in the work.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "تَعَاوَنَ الطُّلَّابُ فِي الدَّرْسِ.",
-          "translation": "The students cooperated in the lesson.",
-          "source": "Book model"
+          "arabic": "تَشَاوَرَ الطُّلَّابُ فِي الْمَسْأَلَةِ.",
+          "translation": "The students consulted one another about the issue.",
+          "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "The form تَفَاعَلَ, reciprocal meanings, لَيْتَ, and لا النافية للجنس.",
+        "example": "تَعَاوَنَ الطُّلَّابُ فِي الدَّرْسِ.",
+        "exampleTranslation": "The students cooperated in the lesson.",
+        "commonMistake": "Do not count extra pattern letters as root letters; separate the root from the verb form.",
+        "summary": "Bab تَفَاعَلَ often expresses reciprocal action."
+      },
+      "morphologyCards": [
+        {
+          "title": "تَعَاوَنَ",
+          "meaning": "to cooperate",
+          "root": "ع و ن",
+          "pattern": "تَفَاعَلَ",
+          "forms": {
+            "past": "تَعَاوَنَ",
+            "present": "يَتَعَاوَنُ",
+            "command": "تَعَاوَنْ",
+            "verbalNoun": "تَعَاوُنٌ",
+            "activeParticiple": "مُتَعَاوِنٌ"
+          },
+          "note": "Form VI often gives a reciprocal meaning."
         }
       ],
       "notes": [
@@ -5606,7 +6624,9 @@
         "v3-l21-jins",
         "v3-l21-la-nafiyah-liljins"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 21"
     },
     {
       "id": "book-3-lesson-22",
@@ -5622,25 +6642,48 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "اِنْكَسَرَ الْقَلَمُ.",
-          "translation": "The pen broke.",
-          "source": "Book model"
+          "arabic": "اِنْفَتَحَ الْبَابُ.",
+          "translation": "The door opened.",
+          "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "أَنْزَلَ الْوَلَدُ الْكِتَابَ.",
-          "translation": "The boy brought the book down.",
-          "source": "Practice model"
+          "arabic": "اِنْكَسَرَ الْقَلَمُ.",
+          "translation": "The pen broke.",
+          "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "تَعَلَّمَ الطَّالِبُ النَّحْوَ.",
-          "translation": "The student learned grammar.",
+          "arabic": "اِنْكَسَرَ الْكُرْسِيُّ.",
+          "translation": "The chair broke.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "The form اِنْفَعَلَ, mutawa'ah, hamzat al-wasl, and لَوْلَا conditional meaning.",
+        "example": "اِنْفَتَحَ الْبَابُ.",
+        "exampleTranslation": "The door opened.",
+        "commonMistake": "Do not leave the mudāriʿ marfūʿ after jussive particles; watch for sukūn or dropped endings.",
+        "summary": "Bab اِنْفَعَلَ is usually intransitive."
+      },
+      "morphologyCards": [
+        {
+          "title": "اِنْكَسَرَ",
+          "meaning": "to break",
+          "root": "ك س ر",
+          "pattern": "اِنْفَعَلَ",
+          "forms": {
+            "past": "اِنْكَسَرَ",
+            "present": "يَنْكَسِرُ",
+            "command": "اِنْكَسِرْ",
+            "verbalNoun": "اِنْكِسَارٌ",
+            "activeParticiple": "مُنْكَسِرٌ"
+          },
+          "note": "Form VII often gives the result of an action happening to the subject."
         }
       ],
       "notes": [
@@ -5674,7 +6717,9 @@
         "v3-l22-shams",
         "v3-l22-natayij"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 22"
     },
     {
       "id": "book-3-lesson-23",
@@ -5690,25 +6735,63 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "إِنْ تَجْتَهِدْ تَنْجَحْ.",
-          "translation": "If you work hard, you will succeed.",
-          "source": "Practice model"
-        },
-        {
-          "label": "B",
-          "title": "Build",
-          "difficulty": 2,
           "arabic": "اِنْتَظَرَ الطَّالِبُ الْمُدَرِّسَ.",
           "translation": "The student waited for the teacher.",
           "source": "Book model"
         },
         {
+          "label": "B",
+          "title": "Build",
+          "difficulty": 2,
+          "arabic": "اِجْتَمَعَ الطُّلَّابُ فِي الْفَصْلِ.",
+          "translation": "The students gathered in the classroom.",
+          "source": "Practice model"
+        },
+        {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "لِيَكْتُبْ كُلُّ طَالِبٍ اسْمَهُ.",
-          "translation": "Let every student write his name.",
+          "arabic": "اِبْتَسَمَ الطِّفْلُ إِذَا رَأَى أُمَّهُ.",
+          "translation": "The child smiled when he saw his mother.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "The form اِفْتَعَلَ, assimilation of the extra ت, إِذَا الفجائية, and ظَنَّ with two objects.",
+        "example": "اِنْتَظَرَ الطَّالِبُ الْمُدَرِّسَ.",
+        "exampleTranslation": "The student waited for the teacher.",
+        "commonMistake": "Do not count extra pattern letters as root letters; separate the root from the verb form.",
+        "summary": "Bab اِفْتَعَلَ adds an extra ت after the first radical."
+      },
+      "morphologyCards": [
+        {
+          "title": "اِنْتَظَرَ",
+          "meaning": "to wait for",
+          "root": "ن ظ ر",
+          "pattern": "اِفْتَعَلَ",
+          "forms": {
+            "past": "اِنْتَظَرَ",
+            "present": "يَنْتَظِرُ",
+            "command": "اِنْتَظِرْ",
+            "verbalNoun": "اِنْتِظَارٌ",
+            "activeParticiple": "مُنْتَظِرٌ",
+            "passiveParticiple": "مُنْتَظَرٌ"
+          },
+          "note": "Form VIII places an extra ت after the first root letter."
+        },
+        {
+          "title": "اِبْتَسَمَ",
+          "meaning": "to smile",
+          "root": "ب س م",
+          "pattern": "اِفْتَعَلَ",
+          "forms": {
+            "past": "اِبْتَسَمَ",
+            "present": "يَبْتَسِمُ",
+            "command": "اِبْتَسِمْ",
+            "verbalNoun": "اِبْتِسَامٌ",
+            "activeParticiple": "مُبْتَسِمٌ"
+          },
+          "note": "The extra ت remains clear in the pattern."
         }
       ],
       "notes": [
@@ -5749,7 +6832,9 @@
         "v3-l23-idha-fujaiyyah",
         "v3-l23-zanna"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 23"
     },
     {
       "id": "book-3-lesson-24",
@@ -5773,17 +6858,39 @@
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "أَنْزَلَ الْوَلَدُ الْكِتَابَ.",
-          "translation": "The boy brought the book down.",
+          "arabic": "اِحْمَرَّ وَجْهُ الْوَلَدِ.",
+          "translation": "The boy's face became red.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "تَعَلَّمَ الطَّالِبُ النَّحْوَ.",
-          "translation": "The student learned grammar.",
+          "arabic": "اِصْفَرَّتِ الشَّمْسُ عِنْدَ الْغُرُوبِ.",
+          "translation": "The sun became yellow at sunset.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "The colour/defect form اِفْعَلَّ, رَأَى meaning see or think, عَسَى, and infinitive ما.",
+        "example": "اِحْمَرَّ الْوَجْهُ.",
+        "exampleTranslation": "The face became red.",
+        "commonMistake": "Do not count extra pattern letters as root letters; separate the root from the verb form.",
+        "summary": "Bab اِفْعَلَّ is used mainly for colours and defects."
+      },
+      "morphologyCards": [
+        {
+          "title": "اِحْمَرَّ",
+          "meaning": "to become red",
+          "root": "ح م ر",
+          "pattern": "اِفْعَلَّ",
+          "forms": {
+            "past": "اِحْمَرَّ",
+            "present": "يَحْمَرُّ",
+            "verbalNoun": "اِحْمِرَارٌ",
+            "activeParticiple": "مُحْمَرٌّ"
+          },
+          "note": "Form IX is commonly used for colours and defects."
         }
       ],
       "notes": [
@@ -5819,7 +6926,9 @@
         "v3-l24-amma",
         "v3-l24-badama"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 24"
     },
     {
       "id": "book-3-lesson-25",
@@ -5843,17 +6952,55 @@
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "إِنْ تَجْتَهِدْ تَنْجَحْ.",
-          "translation": "If you work hard, you will succeed.",
+          "arabic": "اِسْتَأْذَنْتُ كَيْ أَخْرُجَ.",
+          "translation": "I asked permission so that I may leave.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "لِيَكْتُبْ كُلُّ طَالِبٍ اسْمَهُ.",
-          "translation": "Let every student write his name.",
+          "arabic": "اِسْتَعَنْتُ بِالْمُدَرِّسِ لِأَفْهَمَ الدَّرْسَ.",
+          "translation": "I sought help from the teacher to understand the lesson.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "The form اِسْتَفْعَلَ, seeking meanings, كَيْ, لِكَيْلَا, إِذَنْ, and negating the madi.",
+        "example": "اِسْتَأْذَنَ الطَّالِبُ.",
+        "exampleTranslation": "The student asked permission.",
+        "commonMistake": "Do not ignore the attached ending on the past verb; it tells you who performed the action.",
+        "summary": "Bab اِسْتَفْعَلَ often means seeking or asking for something."
+      },
+      "morphologyCards": [
+        {
+          "title": "اِسْتَأْذَنَ",
+          "meaning": "to ask permission",
+          "root": "أ ذ ن",
+          "pattern": "اِسْتَفْعَلَ",
+          "forms": {
+            "past": "اِسْتَأْذَنَ",
+            "present": "يَسْتَأْذِنُ",
+            "command": "اِسْتَأْذِنْ",
+            "verbalNoun": "اِسْتِئْذَانٌ",
+            "activeParticiple": "مُسْتَأْذِنٌ"
+          },
+          "note": "Form X often indicates seeking or asking for something."
+        },
+        {
+          "title": "اِسْتَغْفَرَ",
+          "meaning": "to seek forgiveness",
+          "root": "غ ف ر",
+          "pattern": "اِسْتَفْعَلَ",
+          "forms": {
+            "past": "اِسْتَغْفَرَ",
+            "present": "يَسْتَغْفِرُ",
+            "command": "اِسْتَغْفِرْ",
+            "verbalNoun": "اِسْتِغْفَارٌ",
+            "activeParticiple": "مُسْتَغْفِرٌ",
+            "passiveParticiple": "مُسْتَغْفَرٌ"
+          },
+          "note": "The prefix اِسْتَـ carries the meaning of seeking."
         }
       ],
       "notes": [
@@ -5895,7 +7042,9 @@
         "v3-l25-likayla",
         "v3-l25-idhan"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 25"
     },
     {
       "id": "book-3-lesson-26",
@@ -5919,17 +7068,56 @@
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "أَنْزَلَ الْوَلَدُ الْكِتَابَ.",
-          "translation": "The boy brought the book down.",
+          "arabic": "تَرْجَمَ الطَّالِبُ النَّصَّ.",
+          "translation": "The student translated the text.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "تَعَلَّمَ الطَّالِبُ النَّحْوَ.",
-          "translation": "The student learned grammar.",
+          "arabic": "هَرْوَلَ الطِّفْلُ إِلَى الْبَابِ.",
+          "translation": "The child trotted to the door.",
           "source": "Practice model"
+        }
+      ],
+      "grammarExplanation": {
+        "rule": "Quadriliteral mujarrad/mazid verbs, ضمير الفصل, and the partitive مِنْ.",
+        "example": "هٰذَا هُوَ الرَّجُلُ.",
+        "exampleTranslation": "This is the man.",
+        "commonMistake": "Do not count extra pattern letters as root letters; separate the root from the verb form.",
+        "summary": "Ruba'i verbs have four radicals."
+      },
+      "morphologyCards": [
+        {
+          "title": "تَرْجَمَ",
+          "meaning": "to translate",
+          "root": "ت ر ج م",
+          "pattern": "فَعْلَلَ",
+          "forms": {
+            "past": "تَرْجَمَ",
+            "present": "يُتَرْجِمُ",
+            "command": "تَرْجِمْ",
+            "verbalNoun": "تَرْجَمَةٌ",
+            "activeParticiple": "مُتَرْجِمٌ",
+            "passiveParticiple": "مُتَرْجَمٌ"
+          },
+          "note": "Quadriliteral verbs use four root letters."
+        },
+        {
+          "title": "زَلْزَلَ",
+          "meaning": "to shake violently",
+          "root": "ز ل ز ل",
+          "pattern": "فَعْلَلَ",
+          "forms": {
+            "past": "زَلْزَلَ",
+            "present": "يُزَلْزِلُ",
+            "command": "زَلْزِلْ",
+            "verbalNoun": "زَلْزَلَةٌ",
+            "activeParticiple": "مُزَلْزِلٌ",
+            "passiveParticiple": "مُزَلْزَلٌ"
+          },
+          "note": "Repeated root letters are normal in many quadriliteral forms."
         }
       ],
       "notes": [
@@ -5969,7 +7157,9 @@
         "v3-l26-damir-fasl",
         "v3-l26-min-tabidiyyah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 26"
     },
     {
       "id": "book-3-lesson-27",
@@ -5993,8 +7183,8 @@
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "رَجَعَ الطُّلَّابُ فَرِحِينَ.",
-          "translation": "The students returned happy.",
+          "arabic": "سَأَلْتُكَ عَنِ الدَّرْسِ.",
+          "translation": "I asked you about the lesson.",
           "source": "Practice model"
         },
         {
@@ -6006,6 +7196,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Pronouns of raf', nasb and jarr, separate forms such as إِيَّاكَ, and attached pronoun use.",
+        "example": "إِيَّاكَ أَسْأَلُ.",
+        "exampleTranslation": "It is you that I ask.",
+        "commonMistake": "Do not translate word-for-word from English; use the Arabic ending and structure to identify the role of each word.",
+        "summary": "Pronouns can be separate or attached."
+      },
       "notes": [
         "Pronouns can be separate or attached.",
         "Separate nasb pronouns are built with إِيَّا plus attached endings.",
@@ -6048,7 +7245,9 @@
         "v3-l27-kitabuka",
         "v3-l27-saalahu"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 27"
     },
     {
       "id": "book-3-lesson-28",
@@ -6085,6 +7284,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "The absolute object, masdar emphasis, number, kind, substitutes for the masdar, and cognate masdars.",
+        "example": "فَهِمْتُ الدَّرْسَ فَهْمًا.",
+        "exampleTranslation": "I understood the lesson with clear understanding.",
+        "commonMistake": "Do not translate the absolute object as a new action; it usually strengthens or specifies the same verb.",
+        "summary": "The maf'ul mutlaq is usually a masdar from the same verb."
+      },
       "notes": [
         "The maf'ul mutlaq is usually a masdar from the same verb.",
         "It can emphasize, count, or describe the action.",
@@ -6126,7 +7332,9 @@
         "v3-l28-qabul",
         "v3-l28-hayah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 28"
     },
     {
       "id": "book-3-lesson-29",
@@ -6142,27 +7350,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "اِشْتَرَيْتُ لِتْرًا حَلِيبًا.",
-          "translation": "I bought a litre of milk.",
+          "arabic": "سَافَرْتُ طَلَبًا لِلْعِلْمِ.",
+          "translation": "I travelled seeking knowledge.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "حَضَرْتُ رَغْبَةً فِي الْعِلْمِ.",
-          "translation": "I attended out of desire for knowledge.",
+          "arabic": "سَافَرْتُ رَغْبَةً فِي الْعِلْمِ.",
+          "translation": "I travelled out of desire for knowledge.",
           "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "كُتِبَ الدَّرْسُ عَلَى السَّبُّورَةِ.",
-          "translation": "The lesson was written on the board.",
+          "arabic": "حَضَرْتُ خَوْفًا مِنَ التَّأَخُّرِ.",
+          "translation": "I attended out of fear of being late.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "The object of reason, masdars of motive, هَلَّا for urging/rebuke, and لا as a conjunction.",
+        "example": "سَافَرْتُ طَلَبًا لِلْعِلْمِ.",
+        "exampleTranslation": "I travelled seeking knowledge.",
+        "commonMistake": "Do not confuse the reason phrase with the direct object; it explains why the action happened.",
+        "summary": "The maf'ul lahu gives the reason for an action."
+      },
       "notes": [
         "The maf'ul lahu gives the reason for an action.",
         "It is usually a masdar denoting an inner motive.",
@@ -6195,7 +7410,9 @@
         "v3-l29-tahdid",
         "v3-l29-la-atifah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 29"
     },
     {
       "id": "book-3-lesson-30",
@@ -6211,27 +7428,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "رَجَعَ الطُّلَّابُ فَرِحِينَ.",
-          "translation": "The students returned happy.",
+          "arabic": "عِنْدِي عِشْرُونَ كِتَابًا.",
+          "translation": "I have twenty books.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "اِشْتَرَيْتُ لِتْرًا حَلِيبًا.",
-          "translation": "I bought a litre of milk.",
-          "source": "Book model"
+          "arabic": "عِنْدِي ثَلَاثُونَ رِيَالًا.",
+          "translation": "I have thirty riyals.",
+          "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "حَضَرْتُ رَغْبَةً فِي الْعِلْمِ.",
-          "translation": "I attended out of desire for knowledge.",
-          "source": "Practice model"
+          "arabic": "اِشْتَرَيْتُ كِيلُوغْرَامًا بُرْتُقَالًا.",
+          "translation": "I bought a kilogram of oranges.",
+          "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Tamyiz of quantity and sentence, number review, masdar pattern فُعْل, and the second wonder form.",
+        "example": "عِنْدِي عِشْرُونَ كِتَابًا.",
+        "exampleTranslation": "I have twenty books.",
+        "commonMistake": "Do not leave the clarifying noun in the default ending; tamyiz is usually accusative.",
+        "summary": "Tamyiz clarifies a vague quantity or sentence meaning."
+      },
       "notes": [
         "Tamyiz clarifies a vague quantity or sentence meaning.",
         "It is usually mansub.",
@@ -6266,7 +7490,9 @@
         "v3-l30-akthar",
         "v3-l30-afil-bihi"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 30"
     },
     {
       "id": "book-3-lesson-31",
@@ -6282,8 +7508,8 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "رَجَعَ الطُّلَّابُ فَرِحِينَ.",
-          "translation": "The students returned happy.",
+          "arabic": "دَخَلَ الطَّالِبُ مُبْتَسِمًا.",
+          "translation": "The student entered smiling.",
           "source": "Book model"
         },
         {
@@ -6303,6 +7529,13 @@
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "The circumstantial accusative, صاحب الحال, sentence hal, connectors, and agreement.",
+        "example": "دَخَلَ الطَّالِبُ مُبْتَسِمًا.",
+        "exampleTranslation": "The student entered smiling.",
+        "commonMistake": "Do not confuse حال with an adjective; it describes the state during the action.",
+        "summary": "The hal describes the state of the sahib al-hal during the action."
+      },
       "notes": [
         "The hal describes the state of the sahib al-hal during the action.",
         "The hal is mansub.",
@@ -6336,7 +7569,9 @@
         "v3-l31-waw-al-hal",
         "v3-l31-mutabun"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 31"
     },
     {
       "id": "book-3-lesson-32",
@@ -6352,27 +7587,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "لَا تَخْرُجَنَّ قَبْلَ السَّاعَةِ.",
-          "translation": "Do not leave before the hour.",
+          "arabic": "حَضَرَ الطُّلَّابُ إِلَّا طَالِبًا.",
+          "translation": "The students attended except one student.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "نَجَحَ الطُّلَّابُ إِلَّا حَامِدًا.",
-          "translation": "The students succeeded except Hamid.",
+          "arabic": "قَرَأْتُ الْكِتَابَ إِلَّا صَفْحَةً.",
+          "translation": "I read the book except one page.",
           "source": "Book model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "كُتِبَ الدَّرْسُ عَلَى السَّبُّورَةِ.",
-          "translation": "The lesson was written on the board.",
+          "arabic": "مَا حَضَرَ أَحَدٌ إِلَّا حَامِدٌ.",
+          "translation": "No one attended except Hamid.",
           "source": "Practice model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "Exception with إِلَّا and related tools, connected/disconnected exception, and i'rab of the mustathna.",
+        "example": "حَضَرَ الطُّلَّابُ إِلَّا طَالِبًا.",
+        "exampleTranslation": "The students attended except one student.",
+        "commonMistake": "Do not ignore the type of exception; connected, disconnected and negative exceptions can affect the case.",
+        "summary": "Istithna' has a mustathna, mustathna minhu, and a tool of exception."
+      },
       "notes": [
         "Istithna' has a mustathna, mustathna minhu, and a tool of exception.",
         "إِلَّا is the most common exception tool.",
@@ -6414,7 +7656,9 @@
         "v3-l32-muttasil",
         "v3-l32-munqati"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 32"
     },
     {
       "id": "book-3-lesson-33",
@@ -6430,27 +7674,34 @@
           "label": "A",
           "title": "Foundation",
           "difficulty": 1,
-          "arabic": "رَجَعَ الطُّلَّابُ فَرِحِينَ.",
-          "translation": "The students returned happy.",
+          "arabic": "اُكْتُبَنَّ الدَّرْسَ.",
+          "translation": "You must surely write the lesson.",
           "source": "Practice model"
         },
         {
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "لَا تَخْرُجَنَّ قَبْلَ السَّاعَةِ.",
-          "translation": "Do not leave before the hour.",
-          "source": "Book model"
+          "arabic": "لَتَحْفَظَنَّ الْمُفْرَدَاتِ.",
+          "translation": "You must surely memorise the vocabulary.",
+          "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "نَجَحَ الطُّلَّابُ إِلَّا حَامِدًا.",
-          "translation": "The students succeeded except Hamid.",
-          "source": "Practice model"
+          "arabic": "لَا تَكْتُبَنَّ عَلَى الْجِدَارِ.",
+          "translation": "Do not write on the wall.",
+          "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "نُون التوكيد الثقيلة والخفيفة with the mudari' and imperative.",
+        "example": "اُكْتُبَنَّ الدَّرْسَ.",
+        "exampleTranslation": "You must surely write the lesson.",
+        "commonMistake": "Do not keep the same mudāriʿ ending after every particle; marfūʿ, mansūb and majzūm endings differ.",
+        "summary": "Nun of emphasis is used with the mudari' and imperative."
+      },
       "notes": [
         "Nun of emphasis is used with the mudari' and imperative.",
         "The heavy form has a doubled nun.",
@@ -6480,7 +7731,9 @@
         "v3-l33-mudari",
         "v3-l33-amr"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 33"
     },
     {
       "id": "book-3-lesson-34",
@@ -6504,19 +7757,26 @@
           "label": "B",
           "title": "Build",
           "difficulty": 2,
-          "arabic": "أَحْمَدُ مِنْ بَغْدَادَ.",
-          "translation": "Ahmad is from Baghdad.",
+          "arabic": "عُمَرُ مِنْ دِمَشْقَ.",
+          "translation": "Umar is from Damascus.",
           "source": "Practice model"
         },
         {
           "label": "C",
           "title": "Challenge",
           "difficulty": 3,
-          "arabic": "ذَهَبْتُ إِلَى مَدَارِسَ كَثِيرَةٍ.",
-          "translation": "I went to many schools.",
+          "arabic": "مَرَرْتُ بِمَسَاجِدَ قَدِيمَةٍ.",
+          "translation": "I passed by old mosques.",
           "source": "Book model"
         }
       ],
+      "grammarExplanation": {
+        "rule": "ممنوع من الصرف, one-reason and two-reason diptotes, proper nouns, adjectives, and ultimate plural patterns.",
+        "example": "مَرَرْتُ بِأَحْمَدَ.",
+        "exampleTranslation": "I passed by Ahmad.",
+        "commonMistake": "Do not let the adjective disagree with the noun in definiteness, gender, number, or case.",
+        "summary": "A diptote does not take tanwin."
+      },
       "notes": [
         "A diptote does not take tanwin.",
         "Many diptotes take fathah in the genitive when they are indefinite and without الْـ.",
@@ -6578,7 +7838,9 @@
         "v3-l34-ahmad",
         "v3-l34-fatimah"
       ],
-      "completed": false
+      "completed": false,
+      "contentStatus": "generated-review",
+      "sourceRef": "Book 3 Lesson 34"
     }
   ],
   "vocabulary": [
@@ -6588,7 +7850,7 @@
       "lessonNumber": "1",
       "sequence": 1,
       "arabic": "هٰذَا",
-      "transliteration": "hdhaa",
+      "transliteration": "haadhaa",
       "english": "this",
       "audioKey": "book-1/lesson-1/hadha"
     },
@@ -6818,7 +8080,7 @@
       "lessonNumber": "2",
       "sequence": 2,
       "arabic": "ذٰلِكَ",
-      "transliteration": "dhlika",
+      "transliteration": "dhaalika",
       "english": "that",
       "audioKey": "book-1/lesson-2/dhalika"
     },
@@ -7228,7 +8490,7 @@
       "lessonNumber": "4",
       "sequence": 4,
       "arabic": "إِلَى",
-      "transliteration": "al-",
+      "transliteration": "ilaa",
       "english": "to",
       "audioKey": "book-1/lesson-4/ila"
     },
@@ -7748,7 +9010,7 @@
       "lessonNumber": "8",
       "sequence": 8,
       "arabic": "مُسْتَشْفًى",
-      "transliteration": "mustashfanaa",
+      "transliteration": "mustashfan",
       "english": "hospital",
       "audioKey": "book-1/lesson-8/mustashfa"
     },
@@ -7828,7 +9090,7 @@
       "lessonNumber": "9",
       "sequence": 9,
       "arabic": "مَلآنُ",
-      "transliteration": "malnu",
+      "transliteration": "mal'aanu",
       "english": "full",
       "audioKey": "book-1/lesson-9/malan"
     },
@@ -7958,7 +9220,7 @@
       "lessonNumber": "9",
       "sequence": 9,
       "arabic": "الآنَ",
-      "transliteration": "al-na",
+      "transliteration": "al-aana",
       "english": "now",
       "audioKey": "book-1/lesson-9/al-ana"
     },
@@ -8428,7 +9690,7 @@
       "lessonNumber": "13",
       "sequence": 13,
       "arabic": "هٰؤُلَاءِ",
-      "transliteration": "h'ulaa'i",
+      "transliteration": "haa'ulaa'i",
       "english": "these",
       "audioKey": "book-1/lesson-13/haulai"
     },
@@ -8448,7 +9710,7 @@
       "lessonNumber": "13",
       "sequence": 13,
       "arabic": "ذَهَبُوا",
-      "transliteration": "dhahabuu'",
+      "transliteration": "dhahabuu",
       "english": "they went",
       "audioKey": "book-1/lesson-13/dhahabu"
     },
@@ -8708,7 +9970,7 @@
       "lessonNumber": "13",
       "sequence": 13,
       "arabic": "أُولٰئِكَ",
-      "transliteration": "ul'ika",
+      "transliteration": "ulaa'ika",
       "english": "those",
       "audioKey": "book-1/lesson-13/ulaika"
     },
@@ -8988,7 +10250,7 @@
       "lessonNumber": "16",
       "sequence": 16,
       "arabic": "خَرَجُوا",
-      "transliteration": "kharajuu'",
+      "transliteration": "kharajuu",
       "english": "they went out",
       "audioKey": "book-1/lesson-16/kharaju"
     },
@@ -10908,7 +12170,7 @@
       "lessonNumber": "1",
       "sequence": 1,
       "arabic": "أَلْفٌ",
-      "transliteration": "al-fun",
+      "transliteration": "alfun",
       "english": "thousand",
       "audioKey": "book-2/lesson-1/l1-alf"
     },
@@ -11078,7 +12340,7 @@
       "lessonNumber": "3",
       "sequence": 3,
       "arabic": "لٰكِنَّ",
-      "transliteration": "lkinna",
+      "transliteration": "laakinna",
       "english": "but",
       "audioKey": "book-2/lesson-3/l3-lakin"
     },
@@ -11418,7 +12680,7 @@
       "lessonNumber": "6",
       "sequence": 6,
       "arabic": "هَاتُوا",
-      "transliteration": "haatuu'",
+      "transliteration": "haatuu",
       "english": "bring (mp)",
       "audioKey": "book-2/lesson-6/l6-hatu"
     },
@@ -11628,7 +12890,7 @@
       "lessonNumber": "8",
       "sequence": 8,
       "arabic": "ذَهَبُوا",
-      "transliteration": "dhahabuu'",
+      "transliteration": "dhahabuu",
       "english": "they went",
       "audioKey": "book-2/lesson-8/l8-dhahabu"
     },
@@ -11778,7 +13040,7 @@
       "lessonNumber": "9",
       "sequence": 9,
       "arabic": "مَعْنًى",
-      "transliteration": "ma'nanaa",
+      "transliteration": "ma'nan",
       "english": "meaning",
       "audioKey": "book-2/lesson-9/l9-mana"
     },
@@ -12747,8 +14009,8 @@
       "bookSlug": "book-2",
       "lessonNumber": "18",
       "sequence": 18,
-      "arabic": "مُتْحَفٌ",
-      "transliteration": "muthafun",
+      "arabic": "مَتْحَفٌ",
+      "transliteration": "mathafun",
       "english": "museum",
       "audioKey": "book-2/lesson-18/l18-mathaf"
     },
@@ -12978,7 +14240,7 @@
       "lessonNumber": "20",
       "sequence": 20,
       "arabic": "مِرْآةٌ",
-      "transliteration": "mirtun",
+      "transliteration": "mir'aatun",
       "english": "mirror",
       "audioKey": "book-2/lesson-20/l20-mirah"
     },
@@ -13688,7 +14950,7 @@
       "lessonNumber": "27",
       "sequence": 27,
       "arabic": "وَاللَّهِ",
-      "transliteration": "waalllahi",
+      "transliteration": "wallahi",
       "english": "by Allah",
       "audioKey": "book-2/lesson-27/l27-wallah"
     },
@@ -14269,7 +15531,7 @@
       "sequence": 1,
       "arabic": "أَقْرَبُ",
       "transliteration": "aqrabu",
-      "english": "relative / closer",
+      "english": "closer / nearest",
       "audioKey": "book-3/lesson-1/l1-aqrab"
     },
     {
@@ -14528,7 +15790,7 @@
       "lessonNumber": "2",
       "sequence": 2,
       "arabic": "مَعْنًى",
-      "transliteration": "ma'nanaa",
+      "transliteration": "ma'nan",
       "english": "meaning",
       "audioKey": "book-3/lesson-2/l2-mana"
     },
@@ -16018,7 +17280,7 @@
       "lessonNumber": "10",
       "sequence": 10,
       "arabic": "مَبْنًى",
-      "transliteration": "mabnanaa",
+      "transliteration": "mabnan",
       "english": "building",
       "audioKey": "book-3/lesson-10/l10-mabna"
     },
@@ -16358,7 +17620,7 @@
       "lessonNumber": "12",
       "sequence": 12,
       "arabic": "اِلْتَزَمَ",
-      "transliteration": "al-tazama",
+      "transliteration": "iltazama",
       "english": "to embrace / commit",
       "audioKey": "book-3/lesson-12/l12-iltazama"
     },
@@ -16968,7 +18230,7 @@
       "lessonNumber": "14",
       "sequence": 14,
       "arabic": "هُدًى",
-      "transliteration": "hudanaa",
+      "transliteration": "hudan",
       "english": "guidance",
       "audioKey": "book-3/lesson-14/l14-hudan"
     },
@@ -17418,7 +18680,7 @@
       "lessonNumber": "17",
       "sequence": 17,
       "arabic": "أَلْقَى",
-      "transliteration": "al-qaa",
+      "transliteration": "alqaa",
       "english": "he threw / delivered",
       "audioKey": "book-3/lesson-17/l17-alqa"
     },
@@ -17477,8 +18739,8 @@
       "bookSlug": "book-3",
       "lessonNumber": "17",
       "sequence": 17,
-      "arabic": "مُتْحَفٌ",
-      "transliteration": "muthafun",
+      "arabic": "مَتْحَفٌ",
+      "transliteration": "mathafun",
       "english": "museum",
       "audioKey": "book-3/lesson-17/l17-muthaf"
     },
@@ -18368,7 +19630,7 @@
       "lessonNumber": "25",
       "sequence": 25,
       "arabic": "مُسْتَشْفًى",
-      "transliteration": "mustashfanaa",
+      "transliteration": "mustashfan",
       "english": "hospital",
       "audioKey": "book-3/lesson-25/l25-mustashfa"
     },
@@ -19148,7 +20410,7 @@
       "lessonNumber": "32",
       "sequence": 32,
       "arabic": "مُسْتَثْنًى",
-      "transliteration": "mustathnanaa",
+      "transliteration": "mustathnan",
       "english": "excepted item",
       "audioKey": "book-3/lesson-32/l32-mustathna"
     },
@@ -19158,7 +20420,7 @@
       "lessonNumber": "32",
       "sequence": 32,
       "arabic": "مُسْتَثْنًى مِنْهُ",
-      "transliteration": "mustathnanaa minhu",
+      "transliteration": "mustathnan minhu",
       "english": "item excepted from",
       "audioKey": "book-3/lesson-32/l32-mustathna-minhu"
     },
@@ -19168,7 +20430,7 @@
       "lessonNumber": "32",
       "sequence": 32,
       "arabic": "أَدَاةُ الِاسْتِثْنَاءِ",
-      "transliteration": "adaatu al-'stithnaa'i",
+      "transliteration": "adaatu al-istithnaa'i",
       "english": "tool of exception",
       "audioKey": "book-3/lesson-32/l32-adat-istithna"
     },
@@ -19178,7 +20440,7 @@
       "lessonNumber": "32",
       "sequence": 32,
       "arabic": "إِلَّا",
-      "transliteration": "al-",
+      "transliteration": "illaa",
       "english": "except",
       "audioKey": "book-3/lesson-32/l32-illa"
     },

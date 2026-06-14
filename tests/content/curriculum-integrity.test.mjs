@@ -32,6 +32,72 @@ describe("curriculum content integrity", () => {
     }
   });
 
+  it("keeps every rendered lesson example unique", () => {
+    const seen = new Map();
+    for (const lesson of curriculum.lessons) {
+      for (const example of lesson.examples) {
+        const arabic = example.arabic.trim();
+        const location = `${lesson.bookSlug} lesson ${lesson.number} example ${example.label}`;
+        assert.ok(!seen.has(arabic), `${location} duplicates ${seen.get(arabic)}: ${arabic}`);
+        seen.set(arabic, location);
+      }
+    }
+  });
+
+  it("provides a grammar explanation for every lesson", () => {
+    for (const lesson of curriculum.lessons) {
+      assert.ok(lesson.grammarExplanation, `${lesson.id} missing grammar explanation`);
+      for (const field of ["rule", "example", "exampleTranslation", "commonMistake", "summary"]) {
+        assert.ok(lesson.grammarExplanation[field], `${lesson.id} missing grammar explanation ${field}`);
+      }
+    }
+  });
+
+  it("tracks source references and review status for every lesson", () => {
+    const allowedStatuses = new Set(["generated-review", "needs-review", "verified"]);
+    for (const lesson of curriculum.lessons) {
+      assert.ok(lesson.sourceRef, `${lesson.id} missing sourceRef`);
+      assert.ok(allowedStatuses.has(lesson.contentStatus), `${lesson.id} has invalid contentStatus`);
+    }
+  });
+
+  it("provides structured morphology cards for core verb lessons", () => {
+    const requiredLessonKeys = [
+      "book-2:4",
+      "book-2:10",
+      "book-2:14",
+      "book-2:26",
+      "book-2:27",
+      "book-2:28",
+      "book-2:29",
+      "book-3:16",
+      "book-3:17",
+      "book-3:20",
+      "book-3:22",
+      "book-3:23",
+      "book-3:25",
+      "book-3:26"
+    ];
+
+    for (const key of requiredLessonKeys) {
+      const lesson = curriculum.lessons.find((item) => `${item.bookSlug}:${item.number}` === key);
+      assert.ok(lesson?.morphologyCards?.length, `${key} should include morphology cards`);
+    }
+
+    for (const lesson of curriculum.lessons) {
+      for (const card of lesson.morphologyCards || []) {
+        assert.ok(card.title, `${lesson.id} morphology card missing title`);
+        assert.ok(card.meaning, `${lesson.id} morphology card missing meaning`);
+        assert.ok(card.root, `${lesson.id} morphology card missing root`);
+        assert.ok(card.pattern, `${lesson.id} morphology card missing pattern`);
+        assert.ok(card.forms?.past, `${lesson.id} ${card.title} missing past form`);
+        assert.ok(card.forms?.present, `${lesson.id} ${card.title} missing present form`);
+        assert.ok(card.forms?.verbalNoun, `${lesson.id} ${card.title} missing verbal noun`);
+        assert.ok(card.forms?.activeParticiple, `${lesson.id} ${card.title} missing active participle`);
+      }
+    }
+  });
+
   it("links every lesson vocabulary id to a vocabulary record in the same book", () => {
     const wordsById = new Map(curriculum.vocabulary.map((word) => [word.id, word]));
     for (const lesson of curriculum.lessons) {
