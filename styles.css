@@ -899,6 +899,8 @@ h3 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
+  padding: 0 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--surface-soft) 70%, transparent);
@@ -915,6 +917,17 @@ h3 {
   border-color: var(--selected-border);
   background: var(--selected-surface);
   transform: translateY(-1px);
+}
+
+.oauth-icon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+}
+
+.microsoft-icon {
+  width: 17px;
+  height: 17px;
 }
 
 .form-field,

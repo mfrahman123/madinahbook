@@ -647,6 +647,9 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(page, /manifest\.webmanifest/);
     assert.match(app, /renderAccountPage/);
     assert.match(app, /renderOAuthButtons/);
+    assert.match(app, /renderOAuthIcon/);
+    assert.match(app, /google-icon/);
+    assert.match(app, /microsoft-icon/);
     assert.match(app, /renderAdminPage/);
     assert.match(app, /forgot-password/);
     assert.match(app, /send-verification/);
