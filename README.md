@@ -75,6 +75,8 @@ MONGODB_DB="madinah_arabic"
 
 Do not commit `.env`. It is ignored by Git.
 
+When MongoDB is configured, user sessions, auth rate limits, and OAuth sign-in state are stored in shared MongoDB collections with TTL indexes. Local JSON mode keeps those auth records in memory for development only.
+
 ## Transactional Email
 
 Password reset and email verification can be delivered through SendGrid, Resend, or a webhook-compatible mail queue. Set `AUTH_BASE_URL` so generated links point at the correct site.
@@ -249,6 +251,6 @@ The following are ignored:
 
 The free/premium split is enforced server-side for bootstrap data as well as in the UI. Free and anonymous users receive Book 1 content plus locked Book 2/3 metadata; premium users receive the full Book 1-3 curriculum.
 
-Security controls currently include HttpOnly same-site session cookies, in-memory session expiry, login/register throttling, progress update validation, static asset allowlisting, transactional reset/verification email support, and baseline browser security headers.
+Security controls currently include HttpOnly same-site session cookies, shared MongoDB-backed session/rate-limit/OAuth state in deployed MongoDB mode, login/register throttling, progress update validation, static asset allowlisting, transactional reset/verification email support, and baseline browser security headers.
 
-Before production launch, rotate any MongoDB/OAuth credentials that were shared outside `.env`, set `COOKIE_SECURE=true` behind HTTPS, configure a transactional email provider, restrict admin accounts carefully, forward structured JSON logs to a log platform, and consider moving sessions/rate limits to a shared store if the app runs on more than one server process.
+Before production launch, rotate any MongoDB/OAuth credentials that were shared outside `.env`, set `COOKIE_SECURE=true` behind HTTPS, configure a transactional email provider, restrict admin accounts carefully, forward structured JSON logs to a log platform, and ensure Heroku production is using MongoDB mode rather than local JSON fallback.

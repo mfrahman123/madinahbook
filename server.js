@@ -14,9 +14,7 @@ const progressUsersPath = path.join(dataRoot, "progress-users.json");
 loadLocalEnv(path.join(root, ".env"));
 
 const port = Number(process.env.PORT || 4173);
-const sessions = new Map();
-const authAttempts = new Map();
-const oauthStates = new Map();
+let authStateStore = createMemoryAuthStateStore();
 const jwksCache = new Map();
 const sessionCookieName = "madinah_session";
 const sessionTtlMs = Number(process.env.SESSION_TTL_MS || 7 * 24 * 60 * 60 * 1000);
@@ -136,9 +134,10 @@ function verifyPassword(password, storedHash) {
   return crypto.timingSafeEqual(Buffer.from(actual, "hex"), Buffer.from(expected, "hex"));
 }
 
-function createSession(user) {
+async function createSession(user) {
   const token = crypto.randomBytes(32).toString("hex");
-  sessions.set(token, {
+  await authStateStore.createSession({
+    token,
     userId: user.userId,
     createdAt: Date.now(),
     expiresAt: Date.now() + sessionTtlMs
@@ -166,12 +165,12 @@ function sessionTokenFromRequest(request) {
   return parseCookies(request.headers.cookie)[sessionCookieName] || "";
 }
 
-function sessionFromToken(token) {
+async function sessionFromToken(token) {
   if (!token) return null;
-  const session = sessions.get(token);
+  const session = await authStateStore.getSession(token);
   if (!session) return null;
   if (Number(session.expiresAt || 0) <= Date.now()) {
-    sessions.delete(token);
+    await authStateStore.deleteSession(token);
     return null;
   }
   return session;
@@ -205,12 +204,12 @@ function clearSessionCookie(request) {
   return attributes.join("; ");
 }
 
-function userFromRequest(request) {
-  return sessionFromToken(sessionTokenFromRequest(request))?.userId || "demo-user";
+async function userFromRequest(request) {
+  return (await sessionFromToken(sessionTokenFromRequest(request)))?.userId || "demo-user";
 }
 
-function authenticatedUserFromRequest(request) {
-  return sessionFromToken(sessionTokenFromRequest(request))?.userId || "";
+async function authenticatedUserFromRequest(request) {
+  return (await sessionFromToken(sessionTokenFromRequest(request)))?.userId || "";
 }
 
 function clientIp(request) {
@@ -218,28 +217,174 @@ function clientIp(request) {
   return forwarded || request.socket.remoteAddress || "unknown";
 }
 
-function touchRateLimit(key, maxAttempts) {
-  const now = Date.now();
-  const recent = (authAttempts.get(key) || []).filter((time) => now - time < authWindowMs);
-  if (recent.length >= maxAttempts) {
-    authAttempts.set(key, recent);
-    throw requestError("Too many attempts. Please wait before trying again.", 429);
+async function enforceAuthRateLimit(request, purpose, email) {
+  const ip = clientIp(request);
+  const normalizedEmail = normalizeEmail(email) || "unknown";
+  await authStateStore.touchRateLimit(`${purpose}:ip:${ip}`, authWindowMs, authMaxByIp);
+  await authStateStore.touchRateLimit(`${purpose}:identity:${ip}:${normalizedEmail}`, authWindowMs, authMaxByIdentity);
+}
+
+async function clearAuthRateLimit(request, purpose, email) {
+  const ip = clientIp(request);
+  const normalizedEmail = normalizeEmail(email) || "unknown";
+  await authStateStore.clearRateLimit(`${purpose}:identity:${ip}:${normalizedEmail}`);
+}
+
+function createMemoryAuthStateStore() {
+  const sessions = new Map();
+  const authAttempts = new Map();
+  const oauthStates = new Map();
+
+  function cleanupOAuthStates() {
+    const now = Date.now();
+    for (const [state, record] of oauthStates.entries()) {
+      if (!record || Number(record.expiresAt || 0) <= now) oauthStates.delete(state);
+    }
   }
-  recent.push(now);
-  authAttempts.set(key, recent);
+
+  return {
+    mode: "memory",
+    async createSession(session) {
+      sessions.set(session.token, session);
+    },
+    async getSession(token) {
+      return sessions.get(token) || null;
+    },
+    async deleteSession(token) {
+      sessions.delete(token);
+    },
+    async touchRateLimit(key, windowMs, maxAttempts) {
+      const now = Date.now();
+      const recent = (authAttempts.get(key) || []).filter((time) => now - time < windowMs);
+      if (recent.length >= maxAttempts) {
+        authAttempts.set(key, recent);
+        throw requestError("Too many attempts. Please wait before trying again.", 429);
+      }
+      recent.push(now);
+      authAttempts.set(key, recent);
+    },
+    async clearRateLimit(key) {
+      authAttempts.delete(key);
+    },
+    async createOAuthState(record) {
+      cleanupOAuthStates();
+      oauthStates.set(record.state, record);
+    },
+    async consumeOAuthState(state) {
+      cleanupOAuthStates();
+      const record = oauthStates.get(state) || null;
+      oauthStates.delete(state);
+      return record;
+    }
+  };
 }
 
-function enforceAuthRateLimit(request, purpose, email) {
-  const ip = clientIp(request);
-  const normalizedEmail = normalizeEmail(email) || "unknown";
-  touchRateLimit(`${purpose}:ip:${ip}`, authMaxByIp);
-  touchRateLimit(`${purpose}:identity:${ip}:${normalizedEmail}`, authMaxByIdentity);
-}
+async function createMongoAuthStateStore(database) {
+  const sessionsCollection = database.collection("authSessions");
+  const rateLimitsCollection = database.collection("authRateLimits");
+  const oauthStatesCollection = database.collection("oauthStates");
 
-function clearAuthRateLimit(request, purpose, email) {
-  const ip = clientIp(request);
-  const normalizedEmail = normalizeEmail(email) || "unknown";
-  authAttempts.delete(`${purpose}:identity:${ip}:${normalizedEmail}`);
+  await Promise.all([
+    sessionsCollection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    rateLimitsCollection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    oauthStatesCollection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 })
+  ]);
+
+  function resultDocument(result) {
+    return result?.value || result || null;
+  }
+
+  return {
+    mode: "mongodb",
+    async createSession(session) {
+      await sessionsCollection.replaceOne(
+        { _id: session.token },
+        {
+          _id: session.token,
+          userId: session.userId,
+          createdAt: new Date(session.createdAt),
+          expiresAt: new Date(session.expiresAt)
+        },
+        { upsert: true }
+      );
+    },
+    async getSession(token) {
+      const session = await sessionsCollection.findOne({ _id: token });
+      if (!session) return null;
+      return {
+        userId: session.userId,
+        createdAt: Date.parse(session.createdAt),
+        expiresAt: Date.parse(session.expiresAt)
+      };
+    },
+    async deleteSession(token) {
+      await sessionsCollection.deleteOne({ _id: token });
+    },
+    async touchRateLimit(key, windowMs, maxAttempts) {
+      const now = Date.now();
+      const cutoff = now - windowMs;
+      const result = await rateLimitsCollection.findOneAndUpdate(
+        { _id: key },
+        [
+          {
+            $set: {
+              attempts: {
+                $filter: {
+                  input: { $ifNull: ["$attempts", []] },
+                  as: "time",
+                  cond: { $gte: ["$$time", cutoff] }
+                }
+              }
+            }
+          },
+          { $set: { limited: { $gte: [{ $size: "$attempts" }, maxAttempts] } } },
+          {
+            $set: {
+              attempts: {
+                $cond: [
+                  "$limited",
+                  "$attempts",
+                  { $concatArrays: ["$attempts", [now]] }
+                ]
+              },
+              expiresAt: new Date(now + windowMs),
+              updatedAt: new Date(now)
+            }
+          }
+        ],
+        { upsert: true, returnDocument: "after" }
+      );
+      const record = resultDocument(result);
+      if (record?.limited) throw requestError("Too many attempts. Please wait before trying again.", 429);
+    },
+    async clearRateLimit(key) {
+      await rateLimitsCollection.deleteOne({ _id: key });
+    },
+    async createOAuthState(record) {
+      await oauthStatesCollection.replaceOne(
+        { _id: record.state },
+        {
+          _id: record.state,
+          provider: record.provider,
+          nonce: record.nonce,
+          codeVerifier: record.codeVerifier,
+          expiresAt: new Date(record.expiresAt)
+        },
+        { upsert: true }
+      );
+    },
+    async consumeOAuthState(state) {
+      const result = await oauthStatesCollection.findOneAndDelete({ _id: state });
+      const record = resultDocument(result);
+      if (!record) return null;
+      return {
+        provider: record.provider,
+        nonce: record.nonce,
+        codeVerifier: record.codeVerifier,
+        expiresAt: Date.parse(record.expiresAt)
+      };
+    }
+  };
 }
 
 function createOneTimeToken() {
@@ -710,12 +855,12 @@ function createPkceChallenge(verifier) {
   return base64UrlEncode(crypto.createHash("sha256").update(verifier).digest());
 }
 
-function createOAuthState(provider) {
-  cleanupOAuthStates();
+async function createOAuthState(provider) {
   const state = crypto.randomBytes(24).toString("hex");
   const nonce = crypto.randomBytes(24).toString("hex");
   const codeVerifier = base64UrlEncode(crypto.randomBytes(48));
-  oauthStates.set(state, {
+  await authStateStore.createOAuthState({
+    state,
     provider,
     nonce,
     codeVerifier,
@@ -724,21 +869,12 @@ function createOAuthState(provider) {
   return { state, nonce, codeVerifier };
 }
 
-function consumeOAuthState(provider, state) {
-  cleanupOAuthStates();
-  const record = oauthStates.get(state);
-  oauthStates.delete(state);
+async function consumeOAuthState(provider, state) {
+  const record = await authStateStore.consumeOAuthState(state);
   if (!record || record.provider !== provider || record.expiresAt <= Date.now()) {
     throw requestError("Sign-in state is invalid or expired. Please try again.", 400);
   }
   return record;
-}
-
-function cleanupOAuthStates() {
-  const now = Date.now();
-  for (const [state, record] of oauthStates.entries()) {
-    if (!record || record.expiresAt <= now) oauthStates.delete(state);
-  }
 }
 
 function appleClientSecret(config) {
@@ -762,10 +898,10 @@ function appleClientSecret(config) {
   return `${signingInput}.${base64UrlEncode(signature)}`;
 }
 
-function oauthAuthorizationUrl(request, provider) {
+async function oauthAuthorizationUrl(request, provider) {
   const config = oauthProviderConfig(provider);
   if (!config || !isOAuthProviderConfigured(provider)) throw requestError(`${providerDisplayName(provider)} sign-in is not configured.`, 503);
-  const state = createOAuthState(provider);
+  const state = await createOAuthState(provider);
   const url = new URL(config.authorizationUrl);
   url.searchParams.set("client_id", config.clientId);
   url.searchParams.set("redirect_uri", oauthRedirectUri(request, provider));
@@ -818,7 +954,7 @@ async function completeOAuthCallback(request, response, store, provider, params)
   const state = params.get("state");
   if (!code || !state) throw requestError("OAuth callback is missing required parameters.", 400);
 
-  const stateRecord = consumeOAuthState(provider, state);
+  const stateRecord = await consumeOAuthState(provider, state);
   const tokenSet = await exchangeOAuthCode(request, provider, code, stateRecord);
   const claims = await verifyOidcToken(provider, tokenSet.id_token, stateRecord.nonce);
   let appleName = null;
@@ -831,7 +967,7 @@ async function completeOAuthCallback(request, response, store, provider, params)
   }
   const profile = oauthProfileFromClaims(provider, claims, appleName);
   const user = await store.loginWithOAuth(profile);
-  const sessionToken = createSession(user);
+  const sessionToken = await createSession(user);
   structuredLog("info", "oauth.login_completed", { provider, userId: user.userId });
   redirect(response, "/", 302, { "set-cookie": sessionCookie(sessionToken, request) });
 }
@@ -1201,12 +1337,16 @@ async function createStore() {
       const database = client.db(process.env.MONGODB_DB || "madinah_arabic");
       await syncMongoCurriculum(database, curriculum);
       await seedMongoUsersFromLocalFiles(database, curriculum);
+      authStateStore = await createMongoAuthStateStore(database);
+      structuredLog("info", "auth_state_store.ready", { mode: authStateStore.mode });
       return createMongoStore(database, curriculum);
     } catch (error) {
       console.warn(`MongoDB unavailable, using local JSON persistence: ${error.message}`);
     }
   }
 
+  authStateStore = createMemoryAuthStateStore();
+  structuredLog("info", "auth_state_store.ready", { mode: authStateStore.mode });
   return createJsonStore(curriculum);
 }
 
@@ -1858,12 +1998,12 @@ async function start() {
 
     try {
       if (request.method === "GET" && parsedUrl.pathname === "/api/bootstrap") {
-        sendJson(response, 200, await store.bootstrap(userFromRequest(request)));
+        sendJson(response, 200, await store.bootstrap(await userFromRequest(request)));
         return;
       }
 
       if (request.method === "PATCH" && parsedUrl.pathname === "/api/progress") {
-        const userId = authenticatedUserFromRequest(request);
+        const userId = await authenticatedUserFromRequest(request);
         if (!userId) {
           sendJson(response, 401, { error: "Sign in required to save progress." });
           return;
@@ -1879,7 +2019,7 @@ async function start() {
           message: boundedString(body.message, 300),
           source: boundedString(body.source, 120),
           route: boundedString(body.route, 80),
-          userId: authenticatedUserFromRequest(request) || "anonymous"
+          userId: await authenticatedUserFromRequest(request) || "anonymous"
         });
         sendJson(response, 200, { ok: true });
         return;
@@ -1887,7 +2027,7 @@ async function start() {
 
       const oauthStart = parsedUrl.pathname.match(/^\/api\/auth\/(google|microsoft|apple)$/);
       if (request.method === "GET" && oauthStart) {
-        redirect(response, oauthAuthorizationUrl(request, oauthStart[1]));
+        redirect(response, await oauthAuthorizationUrl(request, oauthStart[1]));
         return;
       }
 
@@ -1903,13 +2043,13 @@ async function start() {
 
       if (request.method === "POST" && parsedUrl.pathname === "/api/auth/register") {
         const body = await readBody(request);
-        enforceAuthRateLimit(request, "register", body.email);
+        await enforceAuthRateLimit(request, "register", body.email);
         if (isProduction) requireEmailDeliveryConfigured("verify");
         const user = await store.register(body);
         const verification = await store.requestEmailVerification(user.userId);
         await sendAuthEmail(request, "verify", verification);
-        const sessionToken = createSession(user);
-        clearAuthRateLimit(request, "register", body.email);
+        const sessionToken = await createSession(user);
+        await clearAuthRateLimit(request, "register", body.email);
         sendJson(
           response,
           200,
@@ -1926,10 +2066,10 @@ async function start() {
 
       if (request.method === "POST" && parsedUrl.pathname === "/api/auth/login") {
         const body = await readBody(request);
-        enforceAuthRateLimit(request, "login", body.email);
+        await enforceAuthRateLimit(request, "login", body.email);
         const user = await store.login(body);
-        const sessionToken = createSession(user);
-        clearAuthRateLimit(request, "login", body.email);
+        const sessionToken = await createSession(user);
+        await clearAuthRateLimit(request, "login", body.email);
         sendJson(
           response,
           200,
@@ -1941,11 +2081,11 @@ async function start() {
 
       if (request.method === "POST" && parsedUrl.pathname === "/api/auth/forgot-password") {
         const body = await readBody(request);
-        enforceAuthRateLimit(request, "forgot-password", body.email);
+        await enforceAuthRateLimit(request, "forgot-password", body.email);
         if (isProduction) requireEmailDeliveryConfigured("reset");
         const reset = await store.requestPasswordReset(body.email);
         await sendAuthEmail(request, "reset", reset);
-        clearAuthRateLimit(request, "forgot-password", body.email);
+        await clearAuthRateLimit(request, "forgot-password", body.email);
         sendJson(response, 200, {
           ok: true,
           message: "If an account exists for that email, a reset link has been prepared.",
@@ -1962,7 +2102,7 @@ async function start() {
       }
 
       if (request.method === "POST" && parsedUrl.pathname === "/api/auth/send-verification") {
-        const userId = authenticatedUserFromRequest(request);
+        const userId = await authenticatedUserFromRequest(request);
         if (!userId) {
           sendJson(response, 401, { error: "Sign in required to verify email." });
           return;
@@ -1987,13 +2127,13 @@ async function start() {
 
       if (request.method === "POST" && parsedUrl.pathname === "/api/auth/logout") {
         const token = sessionTokenFromRequest(request);
-        if (token) sessions.delete(token);
+        if (token) await authStateStore.deleteSession(token);
         sendJson(response, 200, { ok: true }, { "set-cookie": clearSessionCookie(request) });
         return;
       }
 
       if (request.method === "GET" && parsedUrl.pathname === "/api/admin/content") {
-        const userId = authenticatedUserFromRequest(request);
+        const userId = await authenticatedUserFromRequest(request);
         if (!userId) {
           sendJson(response, 401, { error: "Sign in required." });
           return;
@@ -2003,7 +2143,7 @@ async function start() {
       }
 
       if (request.method === "GET" && parsedUrl.pathname === "/api/admin/export") {
-        const userId = authenticatedUserFromRequest(request);
+        const userId = await authenticatedUserFromRequest(request);
         if (!userId) {
           sendJson(response, 401, { error: "Sign in required." });
           return;
@@ -2019,7 +2159,7 @@ async function start() {
       }
 
       if (request.method === "PATCH" && parsedUrl.pathname === "/api/admin/content") {
-        const userId = authenticatedUserFromRequest(request);
+        const userId = await authenticatedUserFromRequest(request);
         if (!userId) {
           sendJson(response, 401, { error: "Sign in required." });
           return;
@@ -2052,6 +2192,7 @@ async function start() {
       url: `http://localhost:${port}`,
       host,
       databaseMode: store.mode,
+      authStateMode: authStateStore.mode,
       workspace: pathToFileURL(root).href
     });
   });
