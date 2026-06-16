@@ -24,7 +24,7 @@
     "mobile:android": "npx cap open android"
   },
   "dependencies": {
-    "mongodb": "^6.16.0",
+    "mongodb": "^7.3.0",
     "stripe": "^22.2.1"
   },
   "devDependencies": {
