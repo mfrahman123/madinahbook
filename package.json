@@ -18,6 +18,7 @@
     "test:visual": "node scripts/visual-regression.mjs",
     "test:load": "node scripts/load-test-vocabulary.mjs",
     "test:all": "npm run test && npm run test:selenium && npm run test:visual && npm run test:load",
+    "audit:security": "npm audit --audit-level=high",
     "mobile:sync": "npx cap sync",
     "mobile:ios": "npx cap open ios",
     "mobile:android": "npx cap open android"

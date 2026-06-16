@@ -69,7 +69,7 @@ PORT=4175 npm run dev
 Local development can run without MongoDB by falling back to local JSON persistence. Production requires MongoDB and refuses to start without `MONGODB_URI`. For MongoDB, copy `.env.example` to `.env` and set:
 
 ```sh
-MONGODB_URI="mongodb+srv://USER:PASSWORD@cluster0.example.mongodb.net/?appName=Cluster0"
+MONGODB_URI="replace-with-your-mongodb-uri"
 MONGODB_DB="madinah_arabic"
 ```
 

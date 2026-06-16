@@ -11,7 +11,9 @@ async function main() {
   let browser;
 
   try {
-    browser = await chromium.launch({ channel: "chrome", headless: true });
+    const launchOptions = { headless: true };
+    if (process.env.PLAYWRIGHT_CHANNEL) launchOptions.channel = process.env.PLAYWRIGHT_CHANNEL;
+    browser = await chromium.launch(launchOptions);
     const desktop = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
     await capture(desktop, server.baseUrl, "public-home-desktop");
 
