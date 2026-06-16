@@ -5,6 +5,7 @@ A modern Arabic learning platform for the Madinah Arabic book series. The app cu
 ## Features
 
 - Public landing page with sign-in gating for course content
+- Mobile-app coming-soon section with phone-shaped study previews
 - Dark and light dashboard themes
 - Book 1, Book 2, and Book 3 lesson paths
 - Per-lesson Learn, Book Exercises, and Vocabulary Quiz tabs
@@ -151,19 +152,33 @@ Google and Microsoft require a client ID and client secret. Apple requires a Ser
 
 ## Stripe Billing
 
-Premium subscriptions use Stripe Checkout and Stripe Billing. The app never handles card details directly. Stripe webhooks update `subscriptionPlan`, `subscriptionStatus`, and `subscriptionEndsAt`, and the existing server-side entitlement filtering then unlocks or locks premium content.
+Premium access uses Stripe Checkout and Stripe Billing. The app never handles card details directly. Stripe webhooks update `subscriptionPlan`, `subscriptionStatus`, and `subscriptionEndsAt`, and the existing server-side entitlement filtering then unlocks or locks premium content.
+
+The early-bird offer shown in the app is:
+
+- Monthly: `GBP 5` recurring monthly
+- 6 months: `GBP 25` recurring every 6 months
+- Yearly: `GBP 50` recurring yearly
+- Lifetime: `GBP 110` one-time payment, including free access and early access to the mobile app
+
+The offer is presented as launch pricing for the first two months.
 
 Set these locally or in Heroku config vars:
 
 ```sh
 STRIPE_SECRET_KEY=""
 STRIPE_PREMIUM_PRICE_ID=""
-STRIPE_PREMIUM_PRICE_LABEL="Premium subscription"
+STRIPE_PRICE_MONTHLY=""
+STRIPE_PRICE_SIX_MONTHS=""
+STRIPE_PRICE_YEARLY=""
+STRIPE_PRICE_LIFETIME=""
+STRIPE_DEFAULT_PLAN_ID="monthly"
+STRIPE_PREMIUM_PRICE_LABEL="Early-bird Premium"
 STRIPE_WEBHOOK_SECRET=""
 AUTH_BASE_URL="https://madinahbook-71ce82c26733.herokuapp.com"
 ```
 
-Create a recurring Price in Stripe for the Premium plan, then use that Price ID as `STRIPE_PREMIUM_PRICE_ID`.
+Create four Stripe Prices for the Premium plan, then set the matching `price_...` IDs. `STRIPE_PREMIUM_PRICE_ID` is still accepted as a backwards-compatible monthly price, but prefer `STRIPE_PRICE_MONTHLY`.
 
 Stripe webhook endpoint:
 

@@ -1063,6 +1063,143 @@ h3 {
   line-height: 1.55;
 }
 
+.mobile-coming-soon {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(340px, 1.1fr);
+  gap: 28px;
+  align-items: center;
+  overflow: hidden;
+}
+
+.mobile-coming-copy {
+  display: grid;
+  gap: 14px;
+}
+
+.mobile-coming-copy h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: clamp(28px, 3.5vw, 46px);
+  line-height: 1.05;
+  font-weight: 650;
+}
+
+.mobile-coming-copy p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.mobile-coming-pills,
+.early-bird-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mobile-preview-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 14px;
+  min-height: 330px;
+}
+
+.mobile-preview-phone {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  width: min(31%, 168px);
+  min-width: 128px;
+  padding: 18px 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 74%, var(--accent));
+  border-radius: 28px;
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--accent) 13%, transparent), transparent 42%),
+    var(--surface-soft);
+  box-shadow: 0 22px 60px color-mix(in srgb, #000 26%, transparent);
+}
+
+.mobile-preview-phone.lesson {
+  transform: translateY(22px) rotate(-4deg);
+}
+
+.mobile-preview-phone.vocabulary {
+  transform: translateY(-10px);
+}
+
+.mobile-preview-phone.tester {
+  transform: translateY(28px) rotate(4deg);
+}
+
+.phone-speaker {
+  justify-self: center;
+  width: 42px;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
+}
+
+.phone-appbar,
+.phone-nav-mini {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.phone-appbar {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.phone-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 75%, var(--gold));
+}
+
+.phone-card-mini {
+  display: grid;
+  gap: 10px;
+  min-height: 178px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.phone-card-mini small,
+.phone-card-mini span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.phone-card-mini strong {
+  color: var(--text-strong);
+  font-size: 24px;
+  line-height: 1.35;
+}
+
+.phone-card-mini strong[lang="ar"] {
+  direction: rtl;
+  font-family: "Noto Naskh Arabic", "Geeza Pro", "Times New Roman", serif;
+  font-size: 32px;
+}
+
+.phone-nav-mini {
+  gap: 6px;
+}
+
+.phone-nav-mini i {
+  display: block;
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 25%, var(--line));
+}
+
 .public-page {
   max-width: 1180px;
   margin: 0 auto;
@@ -1139,6 +1276,23 @@ h3 {
 .billing-message.error {
   border-color: color-mix(in srgb, #ef4444 32%, transparent);
   background: color-mix(in srgb, #ef4444 10%, transparent);
+}
+
+.early-bird-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--gold) 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gold) 9%, transparent);
+  color: var(--text-strong);
+  font-weight: 800;
+}
+
+.early-bird-row svg {
+  color: var(--premium-accent);
 }
 
 .public-info-grid,
@@ -2843,6 +2997,137 @@ tbody tr:hover td {
   gap: 18px;
 }
 
+.pricing-section {
+  display: grid;
+  gap: 18px;
+}
+
+.pricing-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pricing-heading h2 {
+  margin: 6px 0 0;
+  color: var(--text-strong);
+  font-size: clamp(28px, 3.4vw, 44px);
+  line-height: 1.05;
+  font-weight: 650;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.pricing-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  min-height: 390px;
+  overflow: hidden;
+}
+
+.pricing-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 42%);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.pricing-card:hover::before,
+.pricing-card.recommended::before,
+.pricing-card.lifetime::before {
+  opacity: 1;
+}
+
+.pricing-card.recommended {
+  border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+  box-shadow: 0 22px 56px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.pricing-card.lifetime {
+  border-color: color-mix(in srgb, var(--gold) 46%, transparent);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--gold) 12%, transparent), transparent 48%),
+    var(--surface);
+}
+
+.pricing-card-top,
+.pricing-price {
+  position: relative;
+  z-index: 1;
+}
+
+.pricing-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pricing-price {
+  display: grid;
+  gap: 4px;
+}
+
+.pricing-price strong {
+  color: var(--text-strong);
+  font-size: clamp(38px, 4.5vw, 56px);
+  line-height: 0.95;
+  font-weight: 650;
+}
+
+.pricing-price span,
+.pricing-card p {
+  color: var(--muted);
+}
+
+.pricing-card p {
+  position: relative;
+  z-index: 1;
+  line-height: 1.55;
+}
+
+.pricing-feature-list {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pricing-feature-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.pricing-feature-list svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.pricing-card button {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  margin-top: auto;
+}
+
 .membership-table-wrap {
   overflow-x: auto;
 }
@@ -3414,6 +3699,7 @@ textarea:focus-visible {
   .topbar,
   .public-header,
   .landing-hero,
+  .mobile-coming-soon,
   .public-hero,
   .subscription-hero,
   .subscription-next,
@@ -3453,10 +3739,15 @@ textarea:focus-visible {
 
   .preview-grid,
   .landing-feature-grid,
+  .pricing-grid,
   .public-info-grid,
   .curriculum-grid,
   .upgrade-benefit-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mobile-preview-row {
+    justify-content: start;
   }
 
   .public-actions {
@@ -3694,6 +3985,51 @@ textarea:focus-visible {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .pricing-heading,
+  .pricing-card-top {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .public-hero h2,
+  .subscription-hero h2 {
+    font-size: clamp(34px, 9vw, 44px);
+  }
+
+  .early-bird-row span {
+    min-height: 44px;
+  }
+
+  .pricing-grid,
+  .mobile-coming-soon {
+    grid-template-columns: 1fr;
+  }
+
+  .pricing-card {
+    min-height: 0;
+  }
+
+  .mobile-preview-row {
+    min-height: 270px;
+    overflow-x: auto;
+    justify-content: start;
+    padding: 8px 4px 18px;
+    scroll-snap-type: x mandatory;
+  }
+
+  .mobile-preview-phone {
+    flex: 0 0 150px;
+    width: 150px;
+    min-width: 150px;
+    scroll-snap-align: start;
+  }
+
+  .mobile-preview-phone.lesson,
+  .mobile-preview-phone.vocabulary,
+  .mobile-preview-phone.tester {
+    transform: none;
   }
 
   .learning-dashboard {

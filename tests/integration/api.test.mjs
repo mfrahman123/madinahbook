@@ -34,6 +34,10 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(body.vocabulary.some((word) => word.bookSlug === "book-2" || word.bookSlug === "book-3"), false);
     assert.equal(body.exercises.some((exercise) => exercise.bookSlug === "book-2" || exercise.bookSlug === "book-3"), false);
     assert.deepEqual(body.authProviders, []);
+    assert.equal(body.billing.provider, "stripe");
+    assert.deepEqual(body.billing.plans.map((plan) => plan.id), ["monthly", "six_months", "yearly", "lifetime"]);
+    assert.equal(body.billing.plans.find((plan) => plan.id === "monthly").price, "£5");
+    assert.equal(body.billing.plans.find((plan) => plan.id === "lifetime").price, "£110");
   });
 
   it("fails safely when OAuth providers are not configured", async () => {
@@ -411,7 +415,10 @@ describe("Madinah Arabic API and static app", () => {
     const webhookSecret = "whsec_test_secret";
     const billingServer = await startTestServer({
       STRIPE_SECRET_KEY: "sk_test_fake",
-      STRIPE_PREMIUM_PRICE_ID: "price_premium_test",
+      STRIPE_PRICE_MONTHLY: "price_premium_monthly_test",
+      STRIPE_PRICE_SIX_MONTHS: "price_premium_six_months_test",
+      STRIPE_PRICE_YEARLY: "price_premium_yearly_test",
+      STRIPE_PRICE_LIFETIME: "price_premium_lifetime_test",
       STRIPE_WEBHOOK_SECRET: webhookSecret
     });
 
@@ -431,7 +438,7 @@ describe("Madinah Arabic API and static app", () => {
         current_period_end: 1893456000,
         cancel_at_period_end: false,
         metadata: { userId },
-        items: { data: [{ price: { id: "price_premium_test" } }] }
+        items: { data: [{ price: { id: "price_premium_monthly_test" } }] }
       });
       const upgraded = await postStripeWebhook(billingServer, webhookSecret, activeEvent);
       const premiumLogin = await api(billingServer.baseUrl, "/api/auth/login", {
@@ -458,7 +465,7 @@ describe("Madinah Arabic API and static app", () => {
         current_period_end: 1893456000,
         cancel_at_period_end: false,
         metadata: { userId },
-        items: { data: [{ price: { id: "price_premium_test" } }] }
+        items: { data: [{ price: { id: "price_premium_monthly_test" } }] }
       });
       const downgraded = await postStripeWebhook(billingServer, webhookSecret, cancelledEvent);
       const freeLogin = await api(billingServer.baseUrl, "/api/auth/login", {
@@ -481,6 +488,36 @@ describe("Madinah Arabic API and static app", () => {
       assert.equal(freeBootstrap.body.books.find((book) => book.slug === "book-2").status, "locked");
       assert.equal(badSignature.response.status, 400);
       assert.match(badSignature.body.error, /signature verification failed/i);
+
+      const lifetimeEmail = uniqueEmail("stripe-lifetime");
+      const lifetimeCreated = await api(billingServer.baseUrl, "/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Lifetime Learner", email: lifetimeEmail, password })
+      });
+      const lifetimeEvent = stripeEventPayload("checkout.session.completed", {
+        id: "cs_test_lifetime",
+        object: "checkout.session",
+        mode: "payment",
+        payment_status: "paid",
+        customer: "cus_test_lifetime",
+        subscription: null,
+        client_reference_id: lifetimeCreated.body.user.userId,
+        metadata: {
+          userId: lifetimeCreated.body.user.userId,
+          planId: "lifetime",
+          stripePriceId: "price_premium_lifetime_test"
+        }
+      });
+      const lifetimeSynced = await postStripeWebhook(billingServer, webhookSecret, lifetimeEvent);
+      const lifetimeLogin = await api(billingServer.baseUrl, "/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: lifetimeEmail, password })
+      });
+
+      assert.equal(lifetimeSynced.response.status, 200);
+      assert.equal(lifetimeLogin.body.user.subscriptionPlan, "paid");
+      assert.equal(lifetimeLogin.body.user.subscriptionStatus, "active");
+      assert.equal(lifetimeLogin.body.user.subscriptionEndsAt, null);
     } finally {
       await billingServer.stop();
     }

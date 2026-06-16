@@ -1648,12 +1648,16 @@ async function sendEmailVerification() {
   render();
 }
 
-async function startBillingCheckout() {
+async function startBillingCheckout(planId = "monthly") {
   state.billingError = "";
   state.billingNotice = "";
   render();
 
-  const response = await fetch("/api/billing/checkout", authFetchOptions({ method: "POST" }));
+  const response = await fetch("/api/billing/checkout", authFetchOptions({
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ planId })
+  }));
   const data = await response.json();
   if (!response.ok || !data.url) {
     state.billingError = data.error || t("billingCheckoutError", "Unable to start Stripe checkout.");
@@ -2620,7 +2624,72 @@ function renderHome() {
           </article>
         `).join("")}
       </div>
+      ${renderMobileComingSoonSection()}
     </section>
+  `;
+}
+
+function renderMobileComingSoonSection() {
+  return `
+    <section class="card mobile-coming-soon">
+      <div class="mobile-coming-copy">
+        <p class="section-label">${t("mobileAppComingSoon", "Mobile app coming soon")}</p>
+        <h2>${t("mobileSoonTitle", "The same study workspace, shaped for your phone.")}</h2>
+        <p>${t("mobileSoonText", "Premium lifetime members will receive free access and early access to the mobile app as it rolls out.")}</p>
+        <div class="mobile-coming-pills">
+          <span class="pill">${t("earlyAccess", "Early access")}</span>
+          <span class="pill">${t("offlineReady", "Offline-ready study")}</span>
+          <span class="pill">${t("phoneFirstReview", "Phone-first review")}</span>
+        </div>
+      </div>
+      <div class="mobile-preview-row" aria-label="${t("mobilePreviewSnippets", "Mobile app preview snippets")}">
+        ${renderMobilePreviewPhone("lesson")}
+        ${renderMobilePreviewPhone("vocabulary")}
+        ${renderMobilePreviewPhone("tester")}
+      </div>
+    </section>
+  `;
+}
+
+function renderMobilePreviewPhone(kind) {
+  const previews = {
+    lesson: {
+      label: t("lesson", "Lesson"),
+      title: "Book 1 · Lesson 4",
+      body: "هُوَ فِي الْمَسْجِدِ.",
+      meta: t("tapToReveal", "Tap to reveal")
+    },
+    vocabulary: {
+      label: t("vocabulary", "Vocabulary"),
+      title: "مَسْجِدٌ",
+      body: "mosque",
+      meta: "423 words"
+    },
+    tester: {
+      label: t("vocabTester", "Vocab Tester"),
+      title: "3 questions",
+      body: "مَا هٰذَا؟",
+      meta: t("regenerate", "Regenerate")
+    }
+  };
+  const item = previews[kind];
+
+  return `
+    <article class="mobile-preview-phone ${kind}">
+      <span class="phone-speaker"></span>
+      <div class="phone-appbar">
+        <span>${escapeHtml(item.label)}</span>
+        <span class="phone-dot"></span>
+      </div>
+      <div class="phone-card-mini">
+        <small>${escapeHtml(item.title)}</small>
+        <strong lang="${/[\u0600-\u06ff]/.test(item.body) || /[\u0600-\u06ff]/.test(item.title) ? "ar" : "en"}">${escapeHtml(item.body)}</strong>
+        <span>${escapeHtml(item.meta)}</span>
+      </div>
+      <div class="phone-nav-mini">
+        <i></i><i></i><i></i>
+      </div>
+    </article>
   `;
 }
 
@@ -2789,9 +2858,14 @@ function renderSubscriptionPage() {
     <section class="page-stack subscription-page">
       <section class="subscription-hero card">
         <div>
-          <p class="section-label">${t("subscription", "Subscription")}</p>
-          <h2>${t("subscriptionTitle", "Choose the access level that fits your study.")}</h2>
-          <p>${t("subscriptionText", "Start with Book 1 for free, then unlock the full Books 1-3 workspace when you are ready for exercises, review, and complete vocabulary testing.")}</p>
+          <p class="section-label">${t("earlyBirdOffer", "Early-bird offer")}</p>
+          <h2>${t("subscriptionTitle", "Premium access for every stage of study.")}</h2>
+          <p>${t("subscriptionText", "Unlock Books 1-3, lesson exercises, vocabulary testing, mistake review, progress tools, and mobile-app early access options. These launch prices are planned for the first two months only.")}</p>
+          <div class="early-bird-row">
+            <span>${icon("spark")} ${t("twoMonthOffer", "Launch pricing for 2 months")}</span>
+            <span>${icon("check")} ${t("cancelAnytime", "Cancel recurring plans anytime")}</span>
+            <span>${icon("flame")} ${t("lifetimeMobileIncluded", "Lifetime includes mobile early access")}</span>
+          </div>
         </div>
         <div class="subscription-status">
           <span class="pill">${signedIn ? t("currentPlan", "Current plan") : t("accountLabel", "Account")}</span>
@@ -2800,6 +2874,7 @@ function renderSubscriptionPage() {
         </div>
       </section>
       ${billingMessage ? `<p class="billing-message ${state.billingError ? "error" : ""}">${escapeHtml(billingMessage)}</p>` : ""}
+      ${renderPricingCards(billing)}
       ${renderMembershipTable()}
       <section class="card subscription-next">
         <div>
@@ -2811,14 +2886,79 @@ function renderSubscriptionPage() {
         <div class="landing-actions">
           ${signedIn
             ? hasPremiumAccess()
-              ? `${portalReady ? `<button class="primary-button" type="button" data-billing-portal>${t("manageBilling", "Manage billing")} ${icon("arrow")}</button>` : `<button class="primary-button" type="button" data-route="account">${t("account", "Account")} ${icon("arrow")}</button>`}
-                 <button class="ghost-button" type="button" data-route="account">${t("account", "Account")}</button>`
+              ? portalReady
+                ? `<button class="primary-button" type="button" data-billing-portal>${t("manageBilling", "Manage billing")} ${icon("arrow")}</button>
+                   <button class="ghost-button" type="button" data-route="account">${t("account", "Account")}</button>`
+                : `<button class="primary-button" type="button" data-route="account">${t("account", "Account")} ${icon("arrow")}</button>`
               : `<button class="primary-button" type="button" data-billing-checkout ${checkoutReady ? "" : "disabled"}>${t("upgradeWithStripe", "Upgrade with Stripe")} ${icon("arrow")}</button>
                  <button class="ghost-button" type="button" data-route="book-1">${t("continueBookOne", "Continue Book 1")}</button>`
             : `<button class="primary-button" type="button" data-auth-mode="register">${t("createAccount", "Create account")} ${icon("arrow")}</button>
                <button class="ghost-button" type="button" data-auth-mode="login">${t("signIn", "Sign in")}</button>`}
         </div>
       </section>
+    </section>
+  `;
+}
+
+function renderPricingCards(billing = {}) {
+  const signedIn = isAuthenticated();
+  const fallbackPlans = [
+    { id: "monthly", label: "Monthly", price: "£5", term: "per month", description: "Flexible premium access.", checkoutConfigured: false },
+    { id: "six_months", label: "6 months", price: "£25", term: "every 6 months", description: "One focused study block.", checkoutConfigured: false },
+    { id: "yearly", label: "Yearly", price: "£50", term: "per year", description: "Best recurring value.", checkoutConfigured: false },
+    { id: "lifetime", label: "Lifetime", price: "£110", term: "one-time", description: "Lifetime access plus mobile early access.", checkoutConfigured: false }
+  ];
+  const plans = billing.plans?.length ? billing.plans : fallbackPlans;
+  const features = {
+    monthly: [t("allBooks", "Books 1-3"), t("quizzesExercises", "Quizzes and exercises"), t("cancelAnytimeShort", "Cancel anytime")],
+    six_months: [t("allBooks", "Books 1-3"), t("sixMonthValue", "Save £5 vs monthly"), t("focusedRevision", "Focused revision block")],
+    yearly: [t("allBooks", "Books 1-3"), t("yearlyValue", "Save £10 vs monthly"), t("fullYearProgress", "Full-year progress tracking")],
+    lifetime: [t("allBooks", "Books 1-3"), t("lifetimeAccess", "Lifetime web access"), t("mobileEarlyAccess", "Free mobile + early access")]
+  };
+
+  return `
+    <section class="pricing-section">
+      <div class="pricing-heading">
+        <div>
+          <p class="section-label">${t("earlyBirdMembership", "Early-bird membership")}</p>
+          <h2>${t("chooseYourPlan", "Choose your Premium plan")}</h2>
+        </div>
+        <span class="pill">${t("limitedTwoMonths", "Limited to 2 months")}</span>
+      </div>
+      <div class="pricing-grid">
+        ${plans.map((plan) => {
+          const highlighted = plan.id === "yearly";
+          const lifetime = plan.id === "lifetime";
+          const disabled = signedIn && (!plan.checkoutConfigured || hasPremiumAccess());
+          const buttonLabel = !signedIn
+            ? t("signInToUpgrade", "Sign in to upgrade")
+            : hasPremiumAccess()
+              ? t("premiumActiveShort", "Premium active")
+              : plan.checkoutConfigured
+                ? t("choosePlan", "Choose plan")
+                : t("stripeSetupNeeded", "Stripe setup needed");
+
+          return `
+            <article class="pricing-card card ${highlighted ? "recommended" : ""} ${lifetime ? "lifetime" : ""}">
+              <div class="pricing-card-top">
+                <p class="section-label">${highlighted ? t("bestValue", "Best value") : lifetime ? t("oneTime", "One-time") : t("earlyBird", "Early bird")}</p>
+                <span class="pill">${escapeHtml(plan.label)}</span>
+              </div>
+              <div class="pricing-price">
+                <strong>${escapeHtml(plan.price)}</strong>
+                <span>${escapeHtml(plan.term)}</span>
+              </div>
+              <p>${escapeHtml(plan.description)}</p>
+              <ul class="pricing-feature-list">
+                ${(features[plan.id] || features.monthly).map((feature) => `<li>${icon("check")} ${escapeHtml(feature)}</li>`).join("")}
+              </ul>
+              <button class="${highlighted || lifetime ? "primary-button" : "ghost-button"}" type="button" ${signedIn ? `data-billing-checkout data-billing-plan="${escapeHtml(plan.id)}"` : `data-auth-mode="login"`} ${disabled ? "disabled" : ""}>
+                ${buttonLabel} ${!disabled ? icon("arrow") : ""}
+              </button>
+            </article>
+          `;
+        }).join("")}
+      </div>
     </section>
   `;
 }
@@ -5179,7 +5319,7 @@ document.addEventListener("click", (event) => {
 
   const billingCheckoutButton = event.target.closest("[data-billing-checkout]");
   if (billingCheckoutButton) {
-    startBillingCheckout();
+    startBillingCheckout(billingCheckoutButton.dataset.billingPlan || "monthly");
     return;
   }
 

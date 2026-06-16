@@ -43,7 +43,46 @@ const logForwarder = createLogForwarder();
 const stripeApiVersion = "2026-02-25.clover";
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
 const stripePremiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID || "";
-const stripePremiumPriceLabel = process.env.STRIPE_PREMIUM_PRICE_LABEL || "Premium subscription";
+const stripePricePlans = [
+  {
+    id: "monthly",
+    label: "Monthly",
+    price: "£5",
+    term: "per month",
+    description: "Flexible access to Books 1-3, quizzes, exercises, review, and progress tools.",
+    mode: "subscription",
+    stripePriceId: process.env.STRIPE_PRICE_MONTHLY || stripePremiumPriceId
+  },
+  {
+    id: "six_months",
+    label: "6 months",
+    price: "£25",
+    term: "every 6 months",
+    description: "Best for a focused study block with one month effectively free.",
+    mode: "subscription",
+    stripePriceId: process.env.STRIPE_PRICE_SIX_MONTHS || process.env.STRIPE_PRICE_6_MONTHS || ""
+  },
+  {
+    id: "yearly",
+    label: "Yearly",
+    price: "£50",
+    term: "per year",
+    description: "A full year of premium study access at the strongest recurring value.",
+    mode: "subscription",
+    stripePriceId: process.env.STRIPE_PRICE_YEARLY || ""
+  },
+  {
+    id: "lifetime",
+    label: "Lifetime",
+    price: "£110",
+    term: "one-time",
+    description: "Lifetime web access, plus free access and early access to the mobile app.",
+    mode: "payment",
+    stripePriceId: process.env.STRIPE_PRICE_LIFETIME || ""
+  }
+];
+const defaultStripePlanId = process.env.STRIPE_DEFAULT_PLAN_ID || "monthly";
+const stripePremiumPriceLabel = process.env.STRIPE_PREMIUM_PRICE_LABEL || "Early-bird Premium";
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
 const stripeClient = createStripeClient();
 
@@ -268,15 +307,33 @@ function createStripeClient() {
 function publicBillingConfig() {
   return {
     provider: "stripe",
-    checkoutConfigured: Boolean(stripeClient && stripePremiumPriceId),
+    checkoutConfigured: Boolean(stripeClient && stripePricePlans.some((plan) => plan.stripePriceId)),
     portalConfigured: Boolean(stripeClient),
-    priceLabel: stripePremiumPriceLabel
+    priceLabel: stripePremiumPriceLabel,
+    earlyBirdEndsInMonths: 2,
+    plans: stripePricePlans.map((plan) => ({
+      id: plan.id,
+      label: plan.label,
+      price: plan.price,
+      term: plan.term,
+      description: plan.description,
+      mode: plan.mode,
+      checkoutConfigured: Boolean(stripeClient && plan.stripePriceId)
+    }))
   };
 }
 
-function requireStripeCheckoutConfigured() {
+function stripeCheckoutPlan(planId = defaultStripePlanId) {
+  const selected = stripePricePlans.find((plan) => plan.id === planId) ||
+    stripePricePlans.find((plan) => plan.id === defaultStripePlanId) ||
+    stripePricePlans[0];
+  if (!selected) throw requestError("Stripe checkout plan is not configured.", 503);
+  return selected;
+}
+
+function requireStripeCheckoutConfigured(plan) {
   if (!StripeSdk) throw requestError("Stripe SDK is not installed.", 503);
-  if (!stripeClient || !stripePremiumPriceId) {
+  if (!stripeClient || !plan?.stripePriceId) {
     throw requestError("Stripe checkout is not configured.", 503);
   }
 }
@@ -319,7 +376,7 @@ function mapStripeSubscriptionStatus(status) {
 
 function billingPatchFromStripeSubscription(subscription) {
   const subscriptionStatus = mapStripeSubscriptionStatus(subscription.status);
-  const priceId = subscription.items?.data?.[0]?.price?.id || stripePremiumPriceId || "";
+  const priceId = subscription.items?.data?.[0]?.price?.id || "";
   return sanitizeBillingPatch({
     billingProvider: "stripe",
     stripeCustomerId: stripeStringId(subscription.customer),
@@ -334,12 +391,21 @@ function billingPatchFromStripeSubscription(subscription) {
 }
 
 function billingPatchFromCheckoutSession(session) {
-  return sanitizeBillingPatch({
+  const patch = {
     billingProvider: "stripe",
     stripeCustomerId: stripeStringId(session.customer),
     stripeSubscriptionId: stripeStringId(session.subscription),
-    stripePriceId: stripePremiumPriceId
-  });
+    stripePriceId: session.metadata?.stripePriceId || ""
+  };
+
+  if (session.mode === "payment" && session.payment_status === "paid") {
+    patch.subscriptionPlan = "paid";
+    patch.subscriptionStatus = "active";
+    patch.subscriptionEndsAt = null;
+    patch.stripeSubscriptionStatus = "lifetime";
+  }
+
+  return sanitizeBillingPatch(patch);
 }
 
 function sanitizeBillingPatch(patch = {}) {
@@ -357,7 +423,7 @@ function sanitizeBillingPatch(patch = {}) {
 }
 
 async function ensureStripeCustomerForUser(store, request, userId) {
-  requireStripeCheckoutConfigured();
+  requireStripeClientConfigured();
   const user = await store.billingUser(userId);
   if (!user || user.isDemo) throw requestError("Sign in required.", 401);
   if (user.stripeCustomerId) return user.stripeCustomerId;
@@ -387,36 +453,58 @@ async function ensureStripeCustomerForUser(store, request, userId) {
   }
 }
 
-async function createStripeCheckoutSession(request, store, userId) {
+async function createStripeCheckoutSession(request, store, userId, planId = defaultStripePlanId) {
+  const plan = stripeCheckoutPlan(planId);
+  requireStripeCheckoutConfigured(plan);
   const user = await store.billingUser(userId);
   if (!user || user.isDemo) throw requestError("Sign in required.", 401);
   const customerId = await ensureStripeCustomerForUser(store, request, userId);
 
   try {
-    const session = await stripeClient.checkout.sessions.create({
-      mode: "subscription",
+    const sessionPayload = {
+      mode: plan.mode,
       customer: customerId,
       client_reference_id: userId,
-      line_items: [{ price: stripePremiumPriceId, quantity: 1 }],
+      line_items: [{ price: plan.stripePriceId, quantity: 1 }],
       allow_promotion_codes: true,
       success_url: billingReturnUrl(request, "success"),
       cancel_url: billingReturnUrl(request, "cancelled"),
       metadata: {
         userId,
+        planId: plan.id,
+        stripePriceId: plan.stripePriceId,
         app: "madinah-arabic"
-      },
-      subscription_data: {
+      }
+    };
+
+    if (plan.mode === "subscription") {
+      sessionPayload.subscription_data = {
         metadata: {
           userId,
+          planId: plan.id,
+          stripePriceId: plan.stripePriceId,
           app: "madinah-arabic"
         }
-      }
-    });
+      };
+    } else {
+      sessionPayload.payment_intent_data = {
+        metadata: {
+          userId,
+          planId: plan.id,
+          stripePriceId: plan.stripePriceId,
+          app: "madinah-arabic"
+        }
+      };
+    }
+
+    const session = await stripeClient.checkout.sessions.create(sessionPayload);
     structuredLog("info", "stripe.checkout_session_created", {
       requestId: request.requestId,
       userId,
       stripeCustomerId: customerId,
-      checkoutSessionId: session.id
+      checkoutSessionId: session.id,
+      stripePlanId: plan.id,
+      stripeCheckoutMode: plan.mode
     });
     return session;
   } catch (error) {
@@ -2550,7 +2638,8 @@ async function start() {
           return;
         }
 
-        const session = await createStripeCheckoutSession(request, store, userId);
+        const body = await readBody(request);
+        const session = await createStripeCheckoutSession(request, store, userId, body.planId);
         sendJson(response, 200, { url: session.url });
         return;
       }
