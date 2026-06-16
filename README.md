@@ -20,7 +20,7 @@ A modern Arabic learning platform for the Madinah Arabic book series. The app cu
 - Account details page, local sign-up/sign-in, progress saving, and sign out
 - Forgotten password, reset password, and email-verification flows
 - Admin-only content management for vocabulary, lessons, examples, exercise prompts, and exercises
-- Structured server logs and frontend error telemetry
+- Structured server logs, request IDs, health checks, frontend error telemetry, and optional log forwarding
 - Installable mobile PWA metadata with offline shell caching
 - Capacitor iOS and Android mobile app shells that load the same platform
 - English interface active; Bengali localization data is preserved but hidden for now
@@ -148,6 +148,38 @@ http://localhost:4173/api/auth/apple/callback
 
 Google and Microsoft require a client ID and client secret. Apple requires a Services ID as `APPLE_CLIENT_ID`, Team ID, Key ID, and the private key contents. `MICROSOFT_TENANT=common` allows personal Microsoft accounts plus work/school accounts; use `consumers` for Outlook/Hotmail/Live accounts only.
 
+## Observability
+
+The server writes JSON logs to stdout, which Heroku captures automatically and can forward through log drains. Every request receives an `x-request-id` header; send your own `x-request-id` from monitoring tools to correlate a response with its log line.
+
+Liveness check:
+
+```text
+GET /api/health
+```
+
+The health response includes safe runtime metadata: service name, environment, release, database mode, auth-state mode, content counts, uptime, and request ID. It does not expose secrets or user content.
+
+Frontend runtime errors are reported to:
+
+```text
+POST /api/client-error
+```
+
+Those events are logged as `frontend.error` with route/path/stack context. Server failures, rejected auth requests, startup failures, unhandled rejections, and uncaught exceptions are also logged as structured events.
+
+Optional webhook log forwarding can mirror the same JSON logs to a small collector, queue, or monitoring service:
+
+```sh
+OBSERVABILITY_SERVICE_NAME="madinah-arabic"
+OBSERVABILITY_WEBHOOK_URL="https://logs.example.com/madinah"
+OBSERVABILITY_WEBHOOK_SECRET=""
+OBSERVABILITY_SAMPLE_RATE="1"
+OBSERVABILITY_TIMEOUT_MS="2500"
+```
+
+For Heroku, stdout logging is usually the base layer. Add a log drain from the Heroku dashboard or CLI when you choose a provider such as Papertrail, Datadog, Logtail/Better Stack, Axiom, or a custom HTTPS collector. Keep `OBSERVABILITY_WEBHOOK_SECRET` private if your collector validates inbound requests.
+
 ## Tests
 
 Run unit, content, and integration/API tests:
@@ -205,7 +237,7 @@ Current coverage includes:
 - Server-side free vs premium entitlement filtering
 - Login rate limiting and progress update validation
 - Password-hash response leakage checks
-- Frontend error telemetry endpoint checks
+- Health checks, request IDs, optional log forwarding, and frontend error telemetry endpoint checks
 - Static-file exposure checks for `.env`, user JSON, and source files
 - Free vs premium UI gating
 - Account details and sign-out browser flows
@@ -251,6 +283,6 @@ The following are ignored:
 
 The free/premium split is enforced server-side for bootstrap data as well as in the UI. Free and anonymous users receive Book 1 content plus locked Book 2/3 metadata; premium users receive the full Book 1-3 curriculum.
 
-Security controls currently include HttpOnly same-site session cookies, shared MongoDB-backed session/rate-limit/OAuth state in deployed MongoDB mode, login/register throttling, progress update validation, static asset allowlisting, transactional reset/verification email support, and baseline browser security headers.
+Security controls currently include HttpOnly same-site session cookies, shared MongoDB-backed session/rate-limit/OAuth state in deployed MongoDB mode, login/register throttling, progress update validation, static asset allowlisting, transactional reset/verification email support, baseline browser security headers, request IDs, safe health checks, and structured production logs with optional webhook forwarding.
 
-Before production launch, rotate any MongoDB/OAuth credentials that were shared outside `.env`, set `COOKIE_SECURE=true` behind HTTPS, configure a transactional email provider, restrict admin accounts carefully, forward structured JSON logs to a log platform, and ensure Heroku production has `MONGODB_URI` configured and does not set `ALLOW_UNSAFE_PRODUCTION_JSON_FALLBACK`.
+Before production launch, rotate any MongoDB/OAuth credentials that were shared outside `.env`, set `COOKIE_SECURE=true` behind HTTPS, configure a transactional email provider, restrict admin accounts carefully, connect Heroku stdout logs or `OBSERVABILITY_WEBHOOK_URL` to a real log platform, and ensure Heroku production has `MONGODB_URI` configured and does not set `ALLOW_UNSAFE_PRODUCTION_JSON_FALLBACK`.

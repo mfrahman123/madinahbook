@@ -27,6 +27,12 @@ const oauthStateTtlMs = Number(process.env.OAUTH_STATE_TTL_MS || 10 * 60 * 1000)
 const isProduction = process.env.NODE_ENV === "production";
 const host = process.env.HOST || (isProduction ? "0.0.0.0" : "127.0.0.1");
 const allowUnsafeProductionJsonFallback = process.env.ALLOW_UNSAFE_PRODUCTION_JSON_FALLBACK === "true";
+const serviceName = process.env.OBSERVABILITY_SERVICE_NAME || "madinah-arabic";
+const observabilityWebhookUrl = process.env.OBSERVABILITY_WEBHOOK_URL || "";
+const observabilityWebhookSecret = process.env.OBSERVABILITY_WEBHOOK_SECRET || "";
+const observabilitySampleRate = boundedNumber(process.env.OBSERVABILITY_SAMPLE_RATE, 1, 0, 1);
+const observabilityTimeoutMs = boundedNumber(process.env.OBSERVABILITY_TIMEOUT_MS, 2500, 250, 10_000);
+const logForwarder = createLogForwarder();
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -107,15 +113,132 @@ function requestError(message, statusCode) {
 }
 
 function structuredLog(level, event, details = {}) {
-  const safeDetails = Object.fromEntries(
-    Object.entries(details).filter(([, value]) => value !== undefined)
-  );
-  console.log(JSON.stringify({
+  if (!shouldLogEvent(level, event)) return null;
+
+  const entry = sanitizeLogEntry({
     level,
     event,
     timestamp: new Date().toISOString(),
-    ...safeDetails
-  }));
+    service: serviceName,
+    environment: process.env.NODE_ENV || "development",
+    release: process.env.HEROKU_SLUG_COMMIT || process.env.SOURCE_VERSION || "",
+    ...details
+  });
+
+  console.log(JSON.stringify(entry));
+  logForwarder.forward(entry);
+  return entry;
+}
+
+function shouldLogEvent(level, event) {
+  if (observabilitySampleRate >= 1) return true;
+  if (level === "error" || level === "warn") return true;
+  if (event !== "http.request") return true;
+  return Math.random() < observabilitySampleRate;
+}
+
+function sanitizeLogEntry(entry) {
+  return Object.fromEntries(
+    Object.entries(entry)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [key, sanitizeLogValue(key, value, 0)])
+  );
+}
+
+function sanitizeLogValue(key, value, depth) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  const normalizedKey = String(key).toLowerCase();
+  if (/(authorization|cookie|password|secret|token|private.?key|api.?key|session)/i.test(normalizedKey)) {
+    return "[redacted]";
+  }
+
+  if (typeof value === "string") {
+    if (normalizedKey.includes("email") || ["to", "from", "replyto", "reply_to"].includes(normalizedKey)) {
+      return redactEmail(value);
+    }
+    return redactSensitiveUrlParams(boundedString(value, 1500));
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") return value;
+
+  if (Array.isArray(value)) {
+    return depth >= 3 ? `[array:${value.length}]` : value.slice(0, 25).map((item) => sanitizeLogValue(key, item, depth + 1));
+  }
+
+  if (typeof value === "object") {
+    if (depth >= 3) return "[object]";
+    return Object.fromEntries(
+      Object.entries(value)
+        .slice(0, 50)
+        .filter(([, itemValue]) => itemValue !== undefined)
+        .map(([itemKey, itemValue]) => [itemKey, sanitizeLogValue(itemKey, itemValue, depth + 1)])
+    );
+  }
+
+  return String(value);
+}
+
+function redactSensitiveUrlParams(value) {
+  return String(value || "").replace(/([?&](?:token|code|state|session|secret|api_key|apikey|key)=)[^&#\s"']+/gi, "$1[redacted]");
+}
+
+function redactEmail(value) {
+  const email = normalizeEmail(value);
+  if (!email || !email.includes("@")) return boundedString(value, 120);
+  const [local, domain] = email.split("@");
+  const digest = crypto.createHash("sha256").update(email).digest("hex").slice(0, 12);
+  return `${local.slice(0, 2)}***@${domain}#${digest}`;
+}
+
+function createLogForwarder() {
+  let failureCount = 0;
+
+  return {
+    forward(entry) {
+      if (!observabilityWebhookUrl) return;
+      if (!/^https?:\/\//i.test(observabilityWebhookUrl)) return;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), observabilityTimeoutMs);
+      fetch(observabilityWebhookUrl, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(observabilityWebhookSecret ? { "x-observability-secret": observabilityWebhookSecret } : {})
+        },
+        body: JSON.stringify(entry),
+        signal: controller.signal
+      })
+        .then((response) => {
+          clearTimeout(timeout);
+          if (!response.ok && failureCount < 3) {
+            failureCount += 1;
+            console.warn(JSON.stringify({
+              level: "warn",
+              event: "observability.forward_failed",
+              timestamp: new Date().toISOString(),
+              service: serviceName,
+              statusCode: response.status
+            }));
+          }
+        })
+        .catch((error) => {
+          clearTimeout(timeout);
+          if (failureCount < 3) {
+            failureCount += 1;
+            console.warn(JSON.stringify({
+              level: "warn",
+              event: "observability.forward_failed",
+              timestamp: new Date().toISOString(),
+              service: serviceName,
+              message: boundedString(error.message, 180)
+            }));
+          }
+        });
+    }
+  };
 }
 
 function normalizeEmail(email) {
@@ -216,6 +339,16 @@ async function authenticatedUserFromRequest(request) {
 function clientIp(request) {
   const forwarded = String(request.headers["x-forwarded-for"] || "").split(",")[0].trim();
   return forwarded || request.socket.remoteAddress || "unknown";
+}
+
+function requestIdFromRequest(request) {
+  const headerValue = String(request.headers["x-request-id"] || "").trim();
+  if (/^[A-Za-z0-9._:-]{8,120}$/.test(headerValue)) return headerValue;
+  return crypto.randomUUID();
+}
+
+function hashIdentifier(value) {
+  return crypto.createHash("sha256").update(String(value || "unknown")).digest("hex").slice(0, 16);
 }
 
 async function enforceAuthRateLimit(request, purpose, email) {
@@ -1205,6 +1338,13 @@ function boundedInteger(value, min, max) {
   return Math.max(min, Math.min(max, Math.floor(number)));
 }
 
+function boundedNumber(value, fallback, min, max) {
+  if (value === undefined || value === null || String(value).trim() === "") return fallback;
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, number));
+}
+
 function boundedString(value, maxLength) {
   return String(value || "").slice(0, maxLength);
 }
@@ -1329,6 +1469,8 @@ function readTextBody(request) {
 
 async function createStore() {
   const curriculum = readJson(dataPath);
+  const summary = contentSummary(curriculum);
+  structuredLog("info", "content.loaded", summary);
 
   if (isProduction && !process.env.MONGODB_URI && !allowUnsafeProductionJsonFallback) {
     throw new Error("MONGODB_URI is required in production; local JSON fallback is disabled.");
@@ -1350,7 +1492,7 @@ async function createStore() {
       await seedMongoUsersFromLocalFiles(database, curriculum);
       authStateStore = await createMongoAuthStateStore(database);
       structuredLog("info", "auth_state_store.ready", { mode: authStateStore.mode });
-      return createMongoStore(database, curriculum);
+      return { ...createMongoStore(database, curriculum), contentSummary: summary };
     } catch (error) {
       if (isProduction && !allowUnsafeProductionJsonFallback) {
         throw new Error(`MongoDB is required in production and could not be initialized: ${error.message}`);
@@ -1361,7 +1503,17 @@ async function createStore() {
 
   authStateStore = createMemoryAuthStateStore();
   structuredLog("info", "auth_state_store.ready", { mode: authStateStore.mode });
-  return createJsonStore(curriculum);
+  return { ...createJsonStore(curriculum), contentSummary: summary };
+}
+
+function contentSummary(curriculum) {
+  return {
+    books: curriculum.books?.length || 0,
+    lessons: curriculum.lessons?.length || 0,
+    vocabulary: curriculum.vocabulary?.length || 0,
+    exercises: curriculum.exercises?.length || 0,
+    grammar: curriculum.grammar?.length || 0
+  };
 }
 
 async function syncMongoCurriculum(database, curriculum) {
@@ -1961,6 +2113,23 @@ function sendJson(response, statusCode, value, headers = {}) {
   response.end(JSON.stringify(value));
 }
 
+function sendHealth(response, store, requestId) {
+  sendJson(response, 200, {
+    ok: true,
+    service: serviceName,
+    timestamp: new Date().toISOString(),
+    uptimeSeconds: Math.round(process.uptime()),
+    environment: process.env.NODE_ENV || "development",
+    release: process.env.HEROKU_SLUG_COMMIT || process.env.SOURCE_VERSION || "",
+    databaseMode: store.mode === "json" ? "local-json" : store.mode,
+    authStateMode: authStateStore.mode,
+    content: store.contentSummary,
+    requestId
+  }, {
+    "cache-control": "no-store"
+  });
+}
+
 function sendStatic(request, response) {
   const parsedUrl = new URL(request.url, "http://localhost");
   const pathname = parsedUrl.pathname === "/" ? "/index.html" : parsedUrl.pathname;
@@ -2001,16 +2170,28 @@ async function start() {
   const server = http.createServer(async (request, response) => {
     const startedAt = Date.now();
     const parsedUrl = new URL(request.url, "http://localhost");
+    const requestId = requestIdFromRequest(request);
+    request.requestId = requestId;
+    response.setHeader("x-request-id", requestId);
+
     response.on("finish", () => {
       structuredLog("info", "http.request", {
+        requestId,
         method: request.method,
         path: parsedUrl.pathname,
         statusCode: response.statusCode,
-        durationMs: Date.now() - startedAt
+        durationMs: Date.now() - startedAt,
+        ipHash: hashIdentifier(clientIp(request)),
+        userAgent: boundedString(request.headers["user-agent"], 180)
       });
     });
 
     try {
+      if (request.method === "GET" && parsedUrl.pathname === "/api/health") {
+        sendHealth(response, store, requestId);
+        return;
+      }
+
       if (request.method === "GET" && parsedUrl.pathname === "/api/bootstrap") {
         sendJson(response, 200, await store.bootstrap(await userFromRequest(request)));
         return;
@@ -2030,9 +2211,13 @@ async function start() {
       if (request.method === "POST" && parsedUrl.pathname === "/api/client-error") {
         const body = await readBody(request);
         structuredLog("error", "frontend.error", {
+          requestId,
           message: boundedString(body.message, 300),
           source: boundedString(body.source, 120),
           route: boundedString(body.route, 80),
+          path: boundedString(body.path, 180),
+          stack: boundedString(body.stack, 1200),
+          userAgent: boundedString(request.headers["user-agent"], 180),
           userId: await authenticatedUserFromRequest(request) || "anonymous"
         });
         sendJson(response, 200, { ok: true });
@@ -2191,13 +2376,16 @@ async function start() {
 
       sendStatic(request, response);
     } catch (error) {
-      structuredLog("error", "server.error", {
+      const statusCode = error.statusCode || 500;
+      const rejectedAuth = parsedUrl.pathname.startsWith("/api/auth/") && [401, 403, 429].includes(statusCode);
+      structuredLog(statusCode >= 500 ? "error" : "warn", rejectedAuth ? "auth.request_rejected" : statusCode >= 500 ? "server.error" : "request.rejected", {
+        requestId,
         method: request.method,
         path: parsedUrl.pathname,
-        statusCode: error.statusCode || 500,
+        statusCode,
         message: error.message
       });
-      sendJson(response, error.statusCode || 500, { error: error.message });
+      sendJson(response, statusCode, { error: error.message, requestId });
     }
   });
 
@@ -2212,7 +2400,25 @@ async function start() {
   });
 }
 
+process.on("unhandledRejection", (reason) => {
+  structuredLog("error", "process.unhandled_rejection", {
+    message: boundedString(reason?.message || reason, 500),
+    stack: boundedString(reason?.stack, 1200)
+  });
+});
+
+process.on("uncaughtException", (error) => {
+  structuredLog("error", "process.uncaught_exception", {
+    message: boundedString(error?.message || error, 500),
+    stack: boundedString(error?.stack, 1200)
+  });
+  process.exit(1);
+});
+
 start().catch((error) => {
-  console.error(error);
+  structuredLog("error", "server.start_failed", {
+    message: boundedString(error.message, 500),
+    stack: boundedString(error.stack, 1200)
+  });
   process.exit(1);
 });

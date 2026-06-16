@@ -29,6 +29,10 @@ trufflehog git "file://$(pwd)" --no-verification --no-update
 
 Use TruffleHog verified mode only when you intentionally want it to contact providers to validate discovered credentials.
 
+## Production Logs
+
+Server logs are structured JSON and redact common secret-bearing fields before stdout or webhook forwarding. Treat log providers and webhook collectors as production systems: protect their credentials, restrict access, and avoid adding raw request bodies or secrets to future log events.
+
 ## GitHub Secret Protection
 
 Enable these in GitHub repository settings when available for the account/plan:

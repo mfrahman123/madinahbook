@@ -1747,7 +1747,13 @@ function reportFrontendError(error, source = "window") {
   fetch("/api/client-error", authFetchOptions({
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message, source, route: state.route })
+    body: JSON.stringify({
+      message,
+      source,
+      route: state.route,
+      path: window.location.pathname,
+      stack: error?.stack || ""
+    })
   })).catch(() => {});
 }
 

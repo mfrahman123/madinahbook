@@ -46,6 +46,25 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(await google.text(), /Google sign-in is not configured/);
   });
 
+  it("exposes production-safe health and request-id observability metadata", async () => {
+    const { response, body } = await api(server.baseUrl, "/api/health", {
+      headers: { "x-request-id": "test-request-12345" }
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-request-id"), "test-request-12345");
+    assert.equal(body.ok, true);
+    assert.equal(body.service, "madinah-arabic");
+    assert.equal(body.databaseMode, "local-json");
+    assert.equal(body.authStateMode, "memory");
+    assert.equal(body.content.books, 3);
+    assert.equal(body.content.lessons, 88);
+    assert.equal(body.content.vocabulary, 1292);
+    assert.equal(body.requestId, "test-request-12345");
+    const logs = await waitForLog(server, /"requestId":"test-request-12345"/);
+    assert.match(logs, /"event":"http\.request"/);
+  });
+
   it("serves the full Book 1, Book 2 and Book 3 curriculum to premium users", async () => {
     const { body } = await bootstrapAs(server, paidTestUser);
 
@@ -354,12 +373,44 @@ describe("Madinah Arabic API and static app", () => {
   it("accepts frontend error telemetry without requiring login", async () => {
     const telemetry = await api(server.baseUrl, "/api/client-error", {
       method: "POST",
-      body: JSON.stringify({ message: "Synthetic UI error", source: "test", route: "home" })
+      body: JSON.stringify({
+        message: "Synthetic UI error",
+        source: "test",
+        route: "home",
+        path: "/?token=super-secret-token",
+        stack: "SyntheticStack:1 https://example.test/reset?token=super-secret-token"
+      })
     });
 
     assert.equal(telemetry.response.status, 200);
     assert.equal(telemetry.body.ok, true);
     assert.match(server.logs(), /frontend\.error/);
+    assert.match(server.logs(), /SyntheticStack:1/);
+    assert.match(server.logs(), /token=\[redacted\]/);
+    assert.doesNotMatch(server.logs(), /super-secret-token/);
+  });
+
+  it("can forward structured logs to an observability webhook", async () => {
+    const receiver = await startObservabilityWebhook();
+    const observedServer = await startTestServer({
+      OBSERVABILITY_WEBHOOK_URL: receiver.url,
+      OBSERVABILITY_WEBHOOK_SECRET: "observability-test-secret"
+    });
+
+    try {
+      await api(observedServer.baseUrl, "/api/health", {
+        headers: { "x-request-id": "forwarded-request-123" }
+      });
+      const event = await receiver.waitFor((entry) => entry.event === "http.request" && entry.requestId === "forwarded-request-123");
+
+      assert.equal(event.service, "madinah-arabic");
+      assert.equal(event.path, "/api/health");
+      assert.equal(event.statusCode, 200);
+      assert.equal(receiver.secrets.includes("observability-test-secret"), true);
+    } finally {
+      await observedServer.stop();
+      await receiver.stop();
+    }
   });
 
   it("rejects invalid reset and verification tokens", async () => {
@@ -817,6 +868,53 @@ async function startEmailWebhook() {
     url: `http://127.0.0.1:${port}/mail`,
     stop: () => new Promise((resolve) => server.close(resolve))
   };
+}
+
+async function startObservabilityWebhook() {
+  const events = [];
+  const secrets = [];
+  const server = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.on("end", () => {
+      secrets.push(request.headers["x-observability-secret"] || "");
+      events.push(JSON.parse(body));
+      response.writeHead(202, { "content-type": "application/json" });
+      response.end(JSON.stringify({ ok: true }));
+    });
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  const { port } = server.address();
+  return {
+    events,
+    secrets,
+    url: `http://127.0.0.1:${port}/logs`,
+    async waitFor(predicate) {
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        const event = events.find(predicate);
+        if (event) return event;
+        await new Promise((resolve) => setTimeout(resolve, 75));
+      }
+      throw new Error(`Timed out waiting for observability event. Received: ${JSON.stringify(events.slice(-5), null, 2)}`);
+    },
+    stop: () => new Promise((resolve) => server.close(resolve))
+  };
+}
+
+async function waitForLog(server, pattern) {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const logs = server.logs();
+    if (pattern.test(logs)) return logs;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timed out waiting for log pattern ${pattern}. Recent logs:\n${server.logs().slice(-2000)}`);
 }
 
 function pronunciationFinalVowelIssues(word) {

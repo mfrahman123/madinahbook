@@ -54,6 +54,11 @@ export async function startTestServer(envOverrides = {}) {
       RESEND_API_KEY: "",
       EMAIL_WEBHOOK_URL: "",
       EMAIL_WEBHOOK_SECRET: "",
+      OBSERVABILITY_SERVICE_NAME: "",
+      OBSERVABILITY_WEBHOOK_URL: "",
+      OBSERVABILITY_WEBHOOK_SECRET: "",
+      OBSERVABILITY_SAMPLE_RATE: "",
+      OBSERVABILITY_TIMEOUT_MS: "",
       ALLOW_UNSAFE_PRODUCTION_JSON_FALLBACK: "",
       ...envOverrides
     },
