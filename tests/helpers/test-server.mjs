@@ -54,6 +54,7 @@ export async function startTestServer(envOverrides = {}) {
       RESEND_API_KEY: "",
       EMAIL_WEBHOOK_URL: "",
       EMAIL_WEBHOOK_SECRET: "",
+      ALLOW_UNSAFE_PRODUCTION_JSON_FALLBACK: "",
       ...envOverrides
     },
     stdio: ["ignore", "pipe", "pipe"]
@@ -68,7 +69,17 @@ export async function startTestServer(envOverrides = {}) {
   });
 
   const baseUrl = `http://127.0.0.1:${port}`;
-  await waitForBootstrap(baseUrl, child, () => logs);
+  try {
+    await waitForBootstrap(baseUrl, child, () => logs);
+  } catch (error) {
+    if (!child.killed) child.kill();
+    await Promise.race([
+      once(child, "exit").catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, 1200))
+    ]);
+    await fs.rm(dataDir, { recursive: true, force: true });
+    throw error;
+  }
 
   return {
     baseUrl,

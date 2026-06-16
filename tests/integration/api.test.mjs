@@ -420,6 +420,17 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(verified.body.user.emailVerified, true);
   });
 
+  it("blocks local JSON fallback during production startup", async () => {
+    await assert.rejects(
+      () => startTestServer({
+        NODE_ENV: "production",
+        AUTH_BASE_URL: "https://example.test",
+        COOKIE_SECURE: "true"
+      }),
+      /MONGODB_URI is required in production/i
+    );
+  });
+
   it("sends production auth emails and never exposes dev tokens", async () => {
     const webhook = await startEmailWebhook();
     const productionServer = await startTestServer({
@@ -428,7 +439,8 @@ describe("Madinah Arabic API and static app", () => {
       EMAIL_PROVIDER: "webhook",
       EMAIL_FROM: "no-reply@example.test",
       EMAIL_WEBHOOK_URL: webhook.url,
-      COOKIE_SECURE: "true"
+      COOKIE_SECURE: "true",
+      ALLOW_UNSAFE_PRODUCTION_JSON_FALLBACK: "true"
     });
 
     try {
@@ -480,7 +492,8 @@ describe("Madinah Arabic API and static app", () => {
     const productionServer = await startTestServer({
       NODE_ENV: "production",
       AUTH_BASE_URL: "https://example.test",
-      COOKIE_SECURE: "true"
+      COOKIE_SECURE: "true",
+      ALLOW_UNSAFE_PRODUCTION_JSON_FALLBACK: "true"
     });
 
     try {

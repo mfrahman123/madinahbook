@@ -66,7 +66,7 @@ PORT=4175 npm run dev
 
 ## MongoDB
 
-The app runs without MongoDB by falling back to local JSON persistence. For MongoDB, copy `.env.example` to `.env` and set:
+Local development can run without MongoDB by falling back to local JSON persistence. Production requires MongoDB and refuses to start without `MONGODB_URI`. For MongoDB, copy `.env.example` to `.env` and set:
 
 ```sh
 MONGODB_URI="mongodb+srv://USER:PASSWORD@cluster0.example.mongodb.net/?appName=Cluster0"
@@ -75,7 +75,7 @@ MONGODB_DB="madinah_arabic"
 
 Do not commit `.env`. It is ignored by Git.
 
-When MongoDB is configured, user sessions, auth rate limits, and OAuth sign-in state are stored in shared MongoDB collections with TTL indexes. Local JSON mode keeps those auth records in memory for development only.
+When MongoDB is configured, user sessions, auth rate limits, and OAuth sign-in state are stored in shared MongoDB collections with TTL indexes. Local JSON mode keeps those auth records in memory for development only. Do not set `ALLOW_UNSAFE_PRODUCTION_JSON_FALLBACK=true` on Heroku or any public deployment.
 
 ## Transactional Email
 
@@ -253,4 +253,4 @@ The free/premium split is enforced server-side for bootstrap data as well as in 
 
 Security controls currently include HttpOnly same-site session cookies, shared MongoDB-backed session/rate-limit/OAuth state in deployed MongoDB mode, login/register throttling, progress update validation, static asset allowlisting, transactional reset/verification email support, and baseline browser security headers.
 
-Before production launch, rotate any MongoDB/OAuth credentials that were shared outside `.env`, set `COOKIE_SECURE=true` behind HTTPS, configure a transactional email provider, restrict admin accounts carefully, forward structured JSON logs to a log platform, and ensure Heroku production is using MongoDB mode rather than local JSON fallback.
+Before production launch, rotate any MongoDB/OAuth credentials that were shared outside `.env`, set `COOKIE_SECURE=true` behind HTTPS, configure a transactional email provider, restrict admin accounts carefully, forward structured JSON logs to a log platform, and ensure Heroku production has `MONGODB_URI` configured and does not set `ALLOW_UNSAFE_PRODUCTION_JSON_FALLBACK`.

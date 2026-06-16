@@ -26,6 +26,7 @@ const tokenTtlMs = Number(process.env.AUTH_TOKEN_TTL_MS || 30 * 60 * 1000);
 const oauthStateTtlMs = Number(process.env.OAUTH_STATE_TTL_MS || 10 * 60 * 1000);
 const isProduction = process.env.NODE_ENV === "production";
 const host = process.env.HOST || (isProduction ? "0.0.0.0" : "127.0.0.1");
+const allowUnsafeProductionJsonFallback = process.env.ALLOW_UNSAFE_PRODUCTION_JSON_FALLBACK === "true";
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -1329,6 +1330,16 @@ function readTextBody(request) {
 async function createStore() {
   const curriculum = readJson(dataPath);
 
+  if (isProduction && !process.env.MONGODB_URI && !allowUnsafeProductionJsonFallback) {
+    throw new Error("MONGODB_URI is required in production; local JSON fallback is disabled.");
+  }
+
+  if (isProduction && allowUnsafeProductionJsonFallback) {
+    structuredLog("warn", "database.unsafe_json_fallback_enabled", {
+      reason: "ALLOW_UNSAFE_PRODUCTION_JSON_FALLBACK is set"
+    });
+  }
+
   if (process.env.MONGODB_URI) {
     try {
       const { MongoClient } = require("mongodb");
@@ -1341,6 +1352,9 @@ async function createStore() {
       structuredLog("info", "auth_state_store.ready", { mode: authStateStore.mode });
       return createMongoStore(database, curriculum);
     } catch (error) {
+      if (isProduction && !allowUnsafeProductionJsonFallback) {
+        throw new Error(`MongoDB is required in production and could not be initialized: ${error.message}`);
+      }
       console.warn(`MongoDB unavailable, using local JSON persistence: ${error.message}`);
     }
   }
