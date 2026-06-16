@@ -78,6 +78,7 @@ describe("Madinah Arabic Selenium flows", () => {
 
   it("opens forgotten password and reset flows from the login modal", async () => {
     await openFreshHome(driver, server.baseUrl);
+    await waitForText(driver, "Learn Arabic through a guided, premium study workspace.");
     await clickFirstVisible(driver, '[data-auth-mode="login"]');
     await waitForText(driver, "Forgot password?");
 
@@ -324,7 +325,9 @@ describe("Madinah Arabic Selenium flows", () => {
 
 async function buildDriver() {
   const options = new chrome.Options();
-  options.addArguments("--headless=new", "--window-size=1440,1100", "--disable-gpu", "--no-sandbox");
+  const headed = process.env.SELENIUM_HEADED === "true";
+  options.addArguments("--window-size=1440,1100", "--disable-gpu", "--no-sandbox");
+  if (!headed) options.addArguments("--headless=new");
 
   const chromePath = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
   if (fs.existsSync(chromePath)) {
