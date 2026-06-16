@@ -58,6 +58,8 @@ const baseSecurityHeaders = {
   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
 };
 
+const emailService = createEmailService();
+
 const planEntitlements = {
   free: {
     books: ["book-1"]
@@ -370,6 +372,232 @@ function requestOrigin(request) {
   if (process.env.AUTH_BASE_URL) return process.env.AUTH_BASE_URL.replace(/\/$/, "");
   const proto = request.headers["x-forwarded-proto"] || (request.socket.encrypted ? "https" : "http");
   return `${proto}://${request.headers.host}`;
+}
+
+function createEmailService() {
+  const provider = String(process.env.EMAIL_PROVIDER || inferEmailProvider()).trim().toLowerCase();
+  if (!provider) return null;
+
+  const from = String(process.env.EMAIL_FROM || "").trim();
+  const fromName = String(process.env.EMAIL_FROM_NAME || "Madinah Arabic").trim();
+  const replyTo = String(process.env.EMAIL_REPLY_TO || "").trim();
+
+  if (provider === "sendgrid") {
+    const apiKey = String(process.env.SENDGRID_API_KEY || "").trim();
+    if (!apiKey || !from) return unavailableEmailService(provider, "SENDGRID_API_KEY and EMAIL_FROM are required.");
+    return {
+      provider,
+      async send(message) {
+        const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            personalizations: [{ to: [{ email: message.to }], subject: message.subject }],
+            from: { email: from, name: fromName },
+            ...(replyTo ? { reply_to: { email: replyTo } } : {}),
+            content: [
+              { type: "text/plain", value: message.text },
+              { type: "text/html", value: message.html }
+            ]
+          })
+        });
+        if (!response.ok) throw requestError("Email provider rejected the message.", 502);
+      }
+    };
+  }
+
+  if (provider === "resend") {
+    const apiKey = String(process.env.RESEND_API_KEY || "").trim();
+    if (!apiKey || !from) return unavailableEmailService(provider, "RESEND_API_KEY and EMAIL_FROM are required.");
+    return {
+      provider,
+      async send(message) {
+        const response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            from: fromName ? `${fromName} <${from}>` : from,
+            to: [message.to],
+            subject: message.subject,
+            text: message.text,
+            html: message.html,
+            ...(replyTo ? { reply_to: replyTo } : {})
+          })
+        });
+        if (!response.ok) throw requestError("Email provider rejected the message.", 502);
+      }
+    };
+  }
+
+  if (provider === "webhook") {
+    const webhookUrl = String(process.env.EMAIL_WEBHOOK_URL || "").trim();
+    const webhookSecret = String(process.env.EMAIL_WEBHOOK_SECRET || "").trim();
+    if (!webhookUrl || !from) return unavailableEmailService(provider, "EMAIL_WEBHOOK_URL and EMAIL_FROM are required.");
+    return {
+      provider,
+      async send(message) {
+        const response = await fetch(webhookUrl, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...(webhookSecret ? { authorization: `Bearer ${webhookSecret}` } : {})
+          },
+          body: JSON.stringify({
+            provider: "madinah-webhook",
+            from,
+            fromName,
+            replyTo: replyTo || undefined,
+            ...message
+          })
+        });
+        if (!response.ok) throw requestError("Email webhook rejected the message.", 502);
+      }
+    };
+  }
+
+  if (provider === "log" && !isProduction) {
+    return {
+      provider,
+      async send(message) {
+        structuredLog("info", "email.dev_message", {
+          type: message.type,
+          to: message.to,
+          subject: message.subject,
+          actionUrl: message.actionUrl
+        });
+      }
+    };
+  }
+
+  return unavailableEmailService(provider, `Unsupported EMAIL_PROVIDER "${provider}".`);
+}
+
+function inferEmailProvider() {
+  if (process.env.SENDGRID_API_KEY) return "sendgrid";
+  if (process.env.RESEND_API_KEY) return "resend";
+  if (process.env.EMAIL_WEBHOOK_URL) return "webhook";
+  return "";
+}
+
+function unavailableEmailService(provider, reason) {
+  return {
+    provider,
+    unavailable: true,
+    reason,
+    async send() {
+      throw requestError("Email delivery is not configured.", 503);
+    }
+  };
+}
+
+function requireEmailDeliveryConfigured(type) {
+  if (!emailService || emailService.unavailable) {
+    structuredLog("error", "email.delivery_unconfigured", {
+      type,
+      provider: emailService?.provider || "none",
+      reason: emailService?.reason
+    });
+    throw requestError("Email delivery is not configured.", 503);
+  }
+}
+
+async function sendAuthEmail(request, type, tokenRecord) {
+  if (!tokenRecord?.email) return false;
+  if (!emailService || emailService.unavailable) {
+    if (isProduction) requireEmailDeliveryConfigured(type);
+    structuredLog("info", "email.delivery_skipped_dev", {
+      type,
+      to: tokenRecord.email,
+      provider: emailService?.provider || "none",
+      reason: emailService?.reason
+    });
+    return false;
+  }
+
+  const message = authEmailMessage(request, type, tokenRecord);
+  await emailService.send(message);
+  structuredLog("info", "email.sent", {
+    type,
+    provider: emailService.provider,
+    to: tokenRecord.email
+  });
+  return true;
+}
+
+function authEmailMessage(request, type, tokenRecord) {
+  const config = {
+    reset: {
+      subject: "Reset your Madinah Arabic password",
+      heading: "Reset your password",
+      intro: "Use the secure link below to reset your Madinah Arabic password.",
+      cta: "Reset password",
+      fallback: "If you did not request a password reset, you can ignore this email."
+    },
+    verify: {
+      subject: "Verify your Madinah Arabic email",
+      heading: "Verify your email",
+      intro: "Confirm this email address so your Madinah Arabic account stays protected.",
+      cta: "Verify email",
+      fallback: "If you did not create this account, you can ignore this email."
+    }
+  }[type];
+
+  const actionUrl = authActionUrl(request, type, tokenRecord.token);
+  const expiry = new Date(tokenRecord.expiresAt).toLocaleString("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Europe/London"
+  });
+  const text = [
+    config.heading,
+    "",
+    config.intro,
+    "",
+    actionUrl,
+    "",
+    `This link expires at ${expiry}.`,
+    config.fallback,
+    "",
+    "Madinah Arabic"
+  ].join("\n");
+  const html = [
+    `<p>${escapeHtml(config.intro)}</p>`,
+    `<p><a href="${escapeHtml(actionUrl)}">${escapeHtml(config.cta)}</a></p>`,
+    `<p>This link expires at ${escapeHtml(expiry)}.</p>`,
+    `<p>${escapeHtml(config.fallback)}</p>`
+  ].join("");
+
+  return {
+    type,
+    to: tokenRecord.email,
+    subject: config.subject,
+    text,
+    html,
+    actionUrl,
+    expiresAt: tokenRecord.expiresAt
+  };
+}
+
+function authActionUrl(request, type, token) {
+  const url = new URL(requestOrigin(request));
+  url.searchParams.set("auth", type === "verify" ? "verify" : "reset");
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function oauthRedirectUri(request, provider) {
@@ -1676,8 +1904,10 @@ async function start() {
       if (request.method === "POST" && parsedUrl.pathname === "/api/auth/register") {
         const body = await readBody(request);
         enforceAuthRateLimit(request, "register", body.email);
+        if (isProduction) requireEmailDeliveryConfigured("verify");
         const user = await store.register(body);
         const verification = await store.requestEmailVerification(user.userId);
+        await sendAuthEmail(request, "verify", verification);
         const sessionToken = createSession(user);
         clearAuthRateLimit(request, "register", body.email);
         sendJson(
@@ -1712,7 +1942,9 @@ async function start() {
       if (request.method === "POST" && parsedUrl.pathname === "/api/auth/forgot-password") {
         const body = await readBody(request);
         enforceAuthRateLimit(request, "forgot-password", body.email);
+        if (isProduction) requireEmailDeliveryConfigured("reset");
         const reset = await store.requestPasswordReset(body.email);
+        await sendAuthEmail(request, "reset", reset);
         clearAuthRateLimit(request, "forgot-password", body.email);
         sendJson(response, 200, {
           ok: true,
@@ -1735,7 +1967,9 @@ async function start() {
           sendJson(response, 401, { error: "Sign in required to verify email." });
           return;
         }
+        if (isProduction) requireEmailDeliveryConfigured("verify");
         const verification = await store.requestEmailVerification(userId);
+        await sendAuthEmail(request, "verify", verification);
         sendJson(response, 200, {
           ok: true,
           message: "Verification email prepared.",

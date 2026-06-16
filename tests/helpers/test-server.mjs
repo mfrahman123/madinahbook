@@ -25,7 +25,7 @@ export const paidTestUser = {
   passwordHash: testUser.passwordHash
 };
 
-export async function startTestServer() {
+export async function startTestServer(envOverrides = {}) {
   const port = await getFreePort();
   const dataDir = await createDataFixture();
   const child = spawn(process.execPath, ["server.js"], {
@@ -45,7 +45,16 @@ export async function startTestServer() {
       APPLE_CLIENT_ID: "",
       APPLE_TEAM_ID: "",
       APPLE_KEY_ID: "",
-      APPLE_PRIVATE_KEY: ""
+      APPLE_PRIVATE_KEY: "",
+      EMAIL_PROVIDER: "",
+      EMAIL_FROM: "",
+      EMAIL_FROM_NAME: "",
+      EMAIL_REPLY_TO: "",
+      SENDGRID_API_KEY: "",
+      RESEND_API_KEY: "",
+      EMAIL_WEBHOOK_URL: "",
+      EMAIL_WEBHOOK_SECRET: "",
+      ...envOverrides
     },
     stdio: ["ignore", "pipe", "pipe"]
   });

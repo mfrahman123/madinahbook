@@ -27,9 +27,9 @@ A modern Arabic learning platform for the Madinah Arabic book series. The app cu
 
 ## Current Auth Notes
 
-The app supports local email/password registration, login, logout, password hashing, forgotten-password reset tokens, and email verification tokens.
+The app supports local email/password registration, login, logout, password hashing, forgotten-password reset emails, and email verification emails.
 
-In local development and tests, reset/verification endpoints return a `devToken` so the flow is usable without an email provider. In production (`NODE_ENV=production`), tokens are not returned in API responses; connect a transactional email provider before launching publicly.
+In local development and tests, reset/verification endpoints return a `devToken` so the flow is usable without an email provider. In production (`NODE_ENV=production`), tokens are never returned in API responses. Production reset and verification flows require a configured email provider and fail closed if email delivery is missing.
 
 Automated tests seed these accounts:
 
@@ -74,6 +74,42 @@ MONGODB_DB="madinah_arabic"
 ```
 
 Do not commit `.env`. It is ignored by Git.
+
+## Transactional Email
+
+Password reset and email verification can be delivered through SendGrid, Resend, or a webhook-compatible mail queue. Set `AUTH_BASE_URL` so generated links point at the correct site.
+
+SendGrid:
+
+```sh
+EMAIL_PROVIDER="sendgrid"
+EMAIL_FROM="no-reply@example.com"
+EMAIL_FROM_NAME="Madinah Arabic"
+SENDGRID_API_KEY=""
+AUTH_BASE_URL="https://madinahbook-71ce82c26733.herokuapp.com"
+```
+
+Resend:
+
+```sh
+EMAIL_PROVIDER="resend"
+EMAIL_FROM="no-reply@example.com"
+EMAIL_FROM_NAME="Madinah Arabic"
+RESEND_API_KEY=""
+AUTH_BASE_URL="https://madinahbook-71ce82c26733.herokuapp.com"
+```
+
+Webhook adapter for a mail queue or integration test receiver:
+
+```sh
+EMAIL_PROVIDER="webhook"
+EMAIL_FROM="no-reply@example.com"
+EMAIL_WEBHOOK_URL="https://mail-worker.example.com/messages"
+EMAIL_WEBHOOK_SECRET=""
+AUTH_BASE_URL="https://madinahbook-71ce82c26733.herokuapp.com"
+```
+
+Do not use the local `devToken` flow for production users.
 
 ## Social login
 
@@ -213,6 +249,6 @@ The following are ignored:
 
 The free/premium split is enforced server-side for bootstrap data as well as in the UI. Free and anonymous users receive Book 1 content plus locked Book 2/3 metadata; premium users receive the full Book 1-3 curriculum.
 
-Security controls currently include HttpOnly same-site session cookies, in-memory session expiry, login/register throttling, progress update validation, static asset allowlisting, and baseline browser security headers.
+Security controls currently include HttpOnly same-site session cookies, in-memory session expiry, login/register throttling, progress update validation, static asset allowlisting, transactional reset/verification email support, and baseline browser security headers.
 
-Before production launch, rotate any MongoDB credentials that were shared outside `.env`, set `COOKIE_SECURE=true` behind HTTPS, wire reset/verification tokens to a real email provider, restrict admin accounts carefully, forward structured JSON logs to a log platform, and consider moving sessions/rate limits to a shared store if the app runs on more than one server process.
+Before production launch, rotate any MongoDB/OAuth credentials that were shared outside `.env`, set `COOKIE_SECURE=true` behind HTTPS, configure a transactional email provider, restrict admin accounts carefully, forward structured JSON logs to a log platform, and consider moving sessions/rate limits to a shared store if the app runs on more than one server process.

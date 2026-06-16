@@ -1,12 +1,15 @@
+const initialParams = new URLSearchParams(window.location.search);
+const initialAuthMode = ["reset", "verify"].includes(initialParams.get("auth")) ? initialParams.get("auth") : null;
+
 const state = {
   route: "home",
-  selectedLessonId: new URLSearchParams(window.location.search).get("lesson") || "lesson-4",
+  selectedLessonId: initialParams.get("lesson") || "lesson-4",
   data: null,
   progress: null,
   search: "",
-  theme: new URLSearchParams(window.location.search).get("theme") || localStorage.getItem("madinah-theme") || "dark",
+  theme: initialParams.get("theme") || localStorage.getItem("madinah-theme") || "dark",
   language: "en",
-  lessonTab: new URLSearchParams(window.location.search).get("tab") || "learn",
+  lessonTab: initialParams.get("tab") || "learn",
   selectedExerciseId: null,
   exerciseFeedback: {},
   vocabularyQuizByLesson: {},
@@ -15,8 +18,8 @@ const state = {
   cumulativeFeedback: {},
   sentenceBuilderFeedback: {},
   morphologyFeedback: {},
-  vocabularyTab: new URLSearchParams(window.location.search).get("vocabTab") || "list",
-  selectedVocabularyBookSlug: new URLSearchParams(window.location.search).get("vocabBook") || "book-1",
+  vocabularyTab: initialParams.get("vocabTab") || "list",
+  selectedVocabularyBookSlug: initialParams.get("vocabBook") || "book-1",
   vocabularyPage: 1,
   vocabTesterFilters: {
     bookSlugs: ["book-1"],
@@ -26,10 +29,10 @@ const state = {
   vocabTester: null,
   vocabTesterFeedback: {},
   writingFeedback: {},
-  authMode: null,
+  authMode: initialAuthMode,
   authError: "",
   authNotice: "",
-  authDevToken: "",
+  authDevToken: initialParams.get("token") || "",
   sessionToken: "",
   user: null,
   adminContent: null,

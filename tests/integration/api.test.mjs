@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import http from "node:http";
 import { after, before, describe, it } from "node:test";
 import { api, authHeaders, paidTestUser, startTestServer, testUser } from "../helpers/test-server.mjs";
 
@@ -419,6 +420,83 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(verified.body.user.emailVerified, true);
   });
 
+  it("sends production auth emails and never exposes dev tokens", async () => {
+    const webhook = await startEmailWebhook();
+    const productionServer = await startTestServer({
+      NODE_ENV: "production",
+      AUTH_BASE_URL: "https://example.test",
+      EMAIL_PROVIDER: "webhook",
+      EMAIL_FROM: "no-reply@example.test",
+      EMAIL_WEBHOOK_URL: webhook.url,
+      COOKIE_SECURE: "true"
+    });
+
+    try {
+      const email = uniqueEmail("prod-email");
+      const created = await api(productionServer.baseUrl, "/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Production Learner", email, password: "test123" })
+      });
+      const resendVerification = await api(productionServer.baseUrl, "/api/auth/send-verification", {
+        method: "POST",
+        headers: authHeaders(created)
+      });
+      const forgot = await api(productionServer.baseUrl, "/api/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email })
+      });
+
+      assert.equal(created.response.status, 200);
+      assert.equal(created.body.devToken, undefined);
+      assert.equal(resendVerification.response.status, 200);
+      assert.equal(resendVerification.body.devToken, undefined);
+      assert.equal(forgot.response.status, 200);
+      assert.equal(forgot.body.devToken, undefined);
+      assert.equal(webhook.messages.length, 3);
+      assert.deepEqual(webhook.messages.map((message) => message.type), ["verify", "verify", "reset"]);
+      assert.ok(webhook.messages.every((message) => message.to === email));
+      assert.match(webhook.messages[0].actionUrl, /^https:\/\/example\.test\/\?auth=verify&token=/);
+      assert.match(webhook.messages[2].actionUrl, /^https:\/\/example\.test\/\?auth=reset&token=/);
+
+      const resetToken = new URL(webhook.messages[2].actionUrl).searchParams.get("token");
+      const reset = await api(productionServer.baseUrl, "/api/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({ token: resetToken, password: "new-password" })
+      });
+      const login = await api(productionServer.baseUrl, "/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password: "new-password" })
+      });
+
+      assert.equal(reset.response.status, 200);
+      assert.equal(login.response.status, 200);
+    } finally {
+      await productionServer.stop();
+      await webhook.stop();
+    }
+  });
+
+  it("fails closed when production email delivery is not configured", async () => {
+    const productionServer = await startTestServer({
+      NODE_ENV: "production",
+      AUTH_BASE_URL: "https://example.test",
+      COOKIE_SECURE: "true"
+    });
+
+    try {
+      const blocked = await api(productionServer.baseUrl, "/api/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email: testUser.email })
+      });
+
+      assert.equal(blocked.response.status, 503);
+      assert.match(blocked.body.error, /email delivery is not configured/i);
+      assert.equal(blocked.body.devToken, undefined);
+    } finally {
+      await productionServer.stop();
+    }
+  });
+
   it("rejects anonymous progress writes", async () => {
     const blocked = await api(server.baseUrl, "/api/progress", {
       method: "PATCH",
@@ -699,6 +777,33 @@ async function bootstrapAs(server, user) {
   return api(server.baseUrl, "/api/bootstrap", {
     headers: authHeaders(login)
   });
+}
+
+async function startEmailWebhook() {
+  const messages = [];
+  const server = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.on("end", () => {
+      messages.push(JSON.parse(body));
+      response.writeHead(202, { "content-type": "application/json" });
+      response.end(JSON.stringify({ ok: true }));
+    });
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  const { port } = server.address();
+  return {
+    messages,
+    url: `http://127.0.0.1:${port}/mail`,
+    stop: () => new Promise((resolve) => server.close(resolve))
+  };
 }
 
 function pronunciationFinalVowelIssues(word) {
