@@ -17,6 +17,7 @@ A modern Arabic learning platform for the Madinah Arabic book series. The app cu
 - No transliteration questions in vocabulary quizzes
 - Browser speech-synthesis audio notes with final-vowel pronunciation
 - Free and premium plan UI with locked premium surfaces
+- Stripe Checkout, Customer Portal, and webhook-driven premium entitlement sync
 - Account details page, local sign-up/sign-in, progress saving, and sign out
 - Forgotten password, reset password, and email-verification flows
 - Admin-only content management for vocabulary, lessons, examples, exercise prompts, and exercises
@@ -148,6 +149,39 @@ http://localhost:4173/api/auth/apple/callback
 
 Google and Microsoft require a client ID and client secret. Apple requires a Services ID as `APPLE_CLIENT_ID`, Team ID, Key ID, and the private key contents. `MICROSOFT_TENANT=common` allows personal Microsoft accounts plus work/school accounts; use `consumers` for Outlook/Hotmail/Live accounts only.
 
+## Stripe Billing
+
+Premium subscriptions use Stripe Checkout and Stripe Billing. The app never handles card details directly. Stripe webhooks update `subscriptionPlan`, `subscriptionStatus`, and `subscriptionEndsAt`, and the existing server-side entitlement filtering then unlocks or locks premium content.
+
+Set these locally or in Heroku config vars:
+
+```sh
+STRIPE_SECRET_KEY=""
+STRIPE_PREMIUM_PRICE_ID=""
+STRIPE_PREMIUM_PRICE_LABEL="Premium subscription"
+STRIPE_WEBHOOK_SECRET=""
+AUTH_BASE_URL="https://madinahbook-71ce82c26733.herokuapp.com"
+```
+
+Create a recurring Price in Stripe for the Premium plan, then use that Price ID as `STRIPE_PREMIUM_PRICE_ID`.
+
+Stripe webhook endpoint:
+
+```text
+https://madinahbook-71ce82c26733.herokuapp.com/api/billing/webhook
+```
+
+Recommended webhook events:
+
+```text
+checkout.session.completed
+customer.subscription.created
+customer.subscription.updated
+customer.subscription.deleted
+```
+
+Users start Premium from the Subscription page. Stripe redirects back to `/?route=subscription&billing=success` or `/?route=subscription&billing=cancelled`. Users with a linked Stripe customer can open the Stripe Customer Portal from Subscription or Account.
+
 ## Observability
 
 The server writes JSON logs to stdout, which Heroku captures automatically and can forward through log drains. Every request receives an `x-request-id` header; send your own `x-request-id` from monitoring tools to correlate a response with its log line.
@@ -232,6 +266,7 @@ Current coverage includes:
 - Slash formatting for paired verb forms
 - Auth login/register/logout/session behavior
 - Forgotten password, reset password, and email verification behavior
+- Stripe billing configuration checks and webhook-driven entitlement sync
 - Admin content loading/editing and non-admin blocking
 - HttpOnly cookie session behavior
 - Server-side free vs premium entitlement filtering
@@ -283,6 +318,6 @@ The following are ignored:
 
 The free/premium split is enforced server-side for bootstrap data as well as in the UI. Free and anonymous users receive Book 1 content plus locked Book 2/3 metadata; premium users receive the full Book 1-3 curriculum.
 
-Security controls currently include HttpOnly same-site session cookies, shared MongoDB-backed session/rate-limit/OAuth state in deployed MongoDB mode, login/register throttling, progress update validation, static asset allowlisting, transactional reset/verification email support, baseline browser security headers, request IDs, safe health checks, and structured production logs with optional webhook forwarding.
+Security controls currently include HttpOnly same-site session cookies, shared MongoDB-backed session/rate-limit/OAuth state in deployed MongoDB mode, login/register throttling, progress update validation, static asset allowlisting, transactional reset/verification email support, Stripe webhook signature verification, baseline browser security headers, request IDs, safe health checks, and structured production logs with optional webhook forwarding.
 
 Before production launch, rotate any MongoDB/OAuth credentials that were shared outside `.env`, set `COOKIE_SECURE=true` behind HTTPS, configure a transactional email provider, restrict admin accounts carefully, connect Heroku stdout logs or `OBSERVABILITY_WEBHOOK_URL` to a real log platform, and ensure Heroku production has `MONGODB_URI` configured and does not set `ALLOW_UNSAFE_PRODUCTION_JSON_FALLBACK`.

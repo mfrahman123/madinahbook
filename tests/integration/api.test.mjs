@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import http from "node:http";
 import { after, before, describe, it } from "node:test";
 import { api, authHeaders, paidTestUser, startTestServer, testUser } from "../helpers/test-server.mjs";
@@ -388,6 +389,101 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(server.logs(), /SyntheticStack:1/);
     assert.match(server.logs(), /token=\[redacted\]/);
     assert.doesNotMatch(server.logs(), /super-secret-token/);
+  });
+
+  it("requires sign-in and Stripe config before creating billing checkout", async () => {
+    const anonymous = await api(server.baseUrl, "/api/billing/checkout", { method: "POST" });
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: testUser.email, password: testUser.password })
+    });
+    const missingConfig = await api(server.baseUrl, "/api/billing/checkout", {
+      method: "POST",
+      headers: authHeaders(login)
+    });
+
+    assert.equal(anonymous.response.status, 401);
+    assert.equal(missingConfig.response.status, 503);
+    assert.match(missingConfig.body.error, /stripe checkout is not configured/i);
+  });
+
+  it("syncs premium access from signed Stripe subscription webhooks", async () => {
+    const webhookSecret = "whsec_test_secret";
+    const billingServer = await startTestServer({
+      STRIPE_SECRET_KEY: "sk_test_fake",
+      STRIPE_PREMIUM_PRICE_ID: "price_premium_test",
+      STRIPE_WEBHOOK_SECRET: webhookSecret
+    });
+
+    try {
+      const email = uniqueEmail("stripe");
+      const password = "test123";
+      const created = await api(billingServer.baseUrl, "/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Stripe Learner", email, password })
+      });
+      const userId = created.body.user.userId;
+      const activeEvent = stripeEventPayload("customer.subscription.updated", {
+        id: "sub_test_active",
+        object: "subscription",
+        customer: "cus_test_active",
+        status: "active",
+        current_period_end: 1893456000,
+        cancel_at_period_end: false,
+        metadata: { userId },
+        items: { data: [{ price: { id: "price_premium_test" } }] }
+      });
+      const upgraded = await postStripeWebhook(billingServer, webhookSecret, activeEvent);
+      const premiumLogin = await api(billingServer.baseUrl, "/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      });
+      const premiumBootstrap = await api(billingServer.baseUrl, "/api/bootstrap", {
+        headers: authHeaders(premiumLogin)
+      });
+
+      assert.equal(upgraded.response.status, 200);
+      assert.equal(premiumLogin.body.user.subscriptionPlan, "paid");
+      assert.equal(premiumLogin.body.user.subscriptionStatus, "active");
+      assert.equal(premiumLogin.body.user.subscriptionEndsAt, "2030-01-01T00:00:00.000Z");
+      assert.equal(premiumLogin.body.user.billingProvider, "stripe");
+      assert.equal(premiumLogin.body.user.billingPortalAvailable, true);
+      assert.equal(premiumBootstrap.body.books.find((book) => book.slug === "book-2").status, "available");
+
+      const cancelledEvent = stripeEventPayload("customer.subscription.deleted", {
+        id: "sub_test_active",
+        object: "subscription",
+        customer: "cus_test_active",
+        status: "canceled",
+        current_period_end: 1893456000,
+        cancel_at_period_end: false,
+        metadata: { userId },
+        items: { data: [{ price: { id: "price_premium_test" } }] }
+      });
+      const downgraded = await postStripeWebhook(billingServer, webhookSecret, cancelledEvent);
+      const freeLogin = await api(billingServer.baseUrl, "/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      });
+      const freeBootstrap = await api(billingServer.baseUrl, "/api/bootstrap", {
+        headers: authHeaders(freeLogin)
+      });
+      const badSignature = await api(billingServer.baseUrl, "/api/billing/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "t=123,v1=bad" },
+        body: JSON.stringify(cancelledEvent)
+      });
+
+      assert.equal(downgraded.response.status, 200);
+      assert.equal(freeLogin.body.user.subscriptionPlan, "free");
+      assert.equal(freeLogin.body.user.subscriptionStatus, "cancelled");
+      assert.equal(freeLogin.body.user.billingPortalAvailable, true);
+      assert.equal(freeBootstrap.body.books.find((book) => book.slug === "book-2").status, "locked");
+      assert.equal(badSignature.response.status, 400);
+      assert.match(badSignature.body.error, /signature verification failed/i);
+    } finally {
+      await billingServer.stop();
+    }
   });
 
   it("can forward structured logs to an observability webhook", async () => {
@@ -906,6 +1002,35 @@ async function startObservabilityWebhook() {
     },
     stop: () => new Promise((resolve) => server.close(resolve))
   };
+}
+
+function stripeEventPayload(type, object) {
+  return {
+    id: `evt_${type.replace(/[^a-z0-9]/gi, "_")}`,
+    object: "event",
+    api_version: "2026-02-25.clover",
+    created: Math.floor(Date.now() / 1000),
+    type,
+    data: { object }
+  };
+}
+
+async function postStripeWebhook(server, secret, payload) {
+  const body = JSON.stringify(payload);
+  return api(server.baseUrl, "/api/billing/webhook", {
+    method: "POST",
+    headers: { "stripe-signature": stripeSignatureHeader(secret, body) },
+    body
+  });
+}
+
+function stripeSignatureHeader(secret, body) {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(`${timestamp}.${body}`)
+    .digest("hex");
+  return `t=${timestamp},v1=${signature}`;
 }
 
 async function waitForLog(server, pattern) {

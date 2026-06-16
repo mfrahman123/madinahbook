@@ -33,6 +33,12 @@ const state = {
   authError: "",
   authNotice: "",
   authDevToken: initialParams.get("token") || "",
+  billingError: "",
+  billingNotice: initialParams.get("billing") === "success"
+    ? "Stripe checkout completed. Your premium access will appear as soon as Stripe confirms the subscription."
+    : initialParams.get("billing") === "cancelled"
+      ? "Stripe checkout was cancelled."
+      : "",
   sessionToken: "",
   user: null,
   adminContent: null,
@@ -1642,6 +1648,38 @@ async function sendEmailVerification() {
   render();
 }
 
+async function startBillingCheckout() {
+  state.billingError = "";
+  state.billingNotice = "";
+  render();
+
+  const response = await fetch("/api/billing/checkout", authFetchOptions({ method: "POST" }));
+  const data = await response.json();
+  if (!response.ok || !data.url) {
+    state.billingError = data.error || t("billingCheckoutError", "Unable to start Stripe checkout.");
+    render();
+    return;
+  }
+
+  window.location.assign(data.url);
+}
+
+async function openBillingPortal() {
+  state.billingError = "";
+  state.billingNotice = "";
+  render();
+
+  const response = await fetch("/api/billing/portal", authFetchOptions({ method: "POST" }));
+  const data = await response.json();
+  if (!response.ok || !data.url) {
+    state.billingError = data.error || t("billingPortalError", "Unable to open billing portal.");
+    render();
+    return;
+  }
+
+  window.location.assign(data.url);
+}
+
 async function requestReminderPermission() {
   if (!("Notification" in window)) {
     state.reminderNotice = t("notificationsUnsupported", "Notifications are not supported in this browser.");
@@ -2743,6 +2781,10 @@ function renderCurriculumPage() {
 function renderSubscriptionPage() {
   const planKey = currentPlanKey();
   const signedIn = isAuthenticated();
+  const billing = state.data?.billing || {};
+  const checkoutReady = Boolean(billing.checkoutConfigured);
+  const portalReady = Boolean(state.user?.billingPortalAvailable && billing.portalConfigured);
+  const billingMessage = state.billingError || state.billingNotice;
   return `
     <section class="page-stack subscription-page">
       <section class="subscription-hero card">
@@ -2757,16 +2799,22 @@ function renderSubscriptionPage() {
           <small>${signedIn ? escapeHtml(state.user.subscriptionStatus || "active") : t("signInToSeePlan", "Sign in to see your plan status")}</small>
         </div>
       </section>
+      ${billingMessage ? `<p class="billing-message ${state.billingError ? "error" : ""}">${escapeHtml(billingMessage)}</p>` : ""}
       ${renderMembershipTable()}
       <section class="card subscription-next">
         <div>
           <p class="section-label">${t("nextStep", "Next step")}</p>
           <h3>${hasPremiumAccess() ? t("premiumActive", "Premium is active on this account") : t("startLearningToday", "Start learning today")}</h3>
-          <p>${hasPremiumAccess() ? t("premiumActiveText", "Book 1, Book 2, Book 3, quizzes, exercises, and review tools are unlocked.") : t("startLearningText", "Create an account to save progress, or sign in with an existing account to continue where you left off.")}</p>
+          <p>${hasPremiumAccess() ? t("premiumActiveText", "Book 1, Book 2, Book 3, quizzes, exercises, and review tools are unlocked.") : signedIn ? t("upgradeText", "Upgrade securely with Stripe to unlock Books 2-3, exercises, quizzes, review, and complete vocabulary testing.") : t("startLearningText", "Create an account to save progress, or sign in with an existing account to continue where you left off.")}</p>
+          ${signedIn && !checkoutReady && !hasPremiumAccess() ? `<p class="preference-note">${t("billingSetupNeeded", "Stripe billing is not configured yet. Add Stripe keys and a Premium Price ID in production settings.")}</p>` : ""}
         </div>
         <div class="landing-actions">
           ${signedIn
-            ? `<button class="primary-button" type="button" data-route="account">${t("account", "Account")} ${icon("arrow")}</button>`
+            ? hasPremiumAccess()
+              ? `${portalReady ? `<button class="primary-button" type="button" data-billing-portal>${t("manageBilling", "Manage billing")} ${icon("arrow")}</button>` : `<button class="primary-button" type="button" data-route="account">${t("account", "Account")} ${icon("arrow")}</button>`}
+                 <button class="ghost-button" type="button" data-route="account">${t("account", "Account")}</button>`
+              : `<button class="primary-button" type="button" data-billing-checkout ${checkoutReady ? "" : "disabled"}>${t("upgradeWithStripe", "Upgrade with Stripe")} ${icon("arrow")}</button>
+                 <button class="ghost-button" type="button" data-route="book-1">${t("continueBookOne", "Continue Book 1")}</button>`
             : `<button class="primary-button" type="button" data-auth-mode="register">${t("createAccount", "Create account")} ${icon("arrow")}</button>
                <button class="ghost-button" type="button" data-auth-mode="login">${t("signIn", "Sign in")}</button>`}
         </div>
@@ -4616,6 +4664,7 @@ function renderAccountPage() {
         <div class="account-actions">
           <button class="primary-button" type="button" data-route="${escapeHtml(currentLesson.bookSlug)}">${icon("book")} ${t("continue", "Continue")} ${escapeHtml(localizedBookTitle(getBook(currentLesson.bookSlug)))}</button>
           <button class="ghost-button" type="button" data-route="subscription">${icon("spark")} ${t("subscription", "Subscription")}</button>
+          ${state.user.billingPortalAvailable ? `<button class="ghost-button" type="button" data-billing-portal>${icon("spark")} ${t("manageBilling", "Manage billing")}</button>` : ""}
           ${state.user.emailVerified ? "" : `<button class="ghost-button" type="button" data-send-verification>${icon("check")} ${t("verifyEmail", "Verify email")}</button>`}
           ${isAdmin() ? `<button class="ghost-button" type="button" data-route="admin">${icon("target")} ${t("admin", "Admin")}</button>` : ""}
           <button class="ghost-button danger-button" type="button" data-auth-signout>${icon("x")} ${t("signOut", "Sign out")}</button>
@@ -5125,6 +5174,18 @@ document.addEventListener("click", (event) => {
   const offlineButton = event.target.closest("[data-install-offline]");
   if (offlineButton) {
     refreshOfflineCache();
+    return;
+  }
+
+  const billingCheckoutButton = event.target.closest("[data-billing-checkout]");
+  if (billingCheckoutButton) {
+    startBillingCheckout();
+    return;
+  }
+
+  const billingPortalButton = event.target.closest("[data-billing-portal]");
+  if (billingPortalButton) {
+    openBillingPortal();
     return;
   }
 });

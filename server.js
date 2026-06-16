@@ -3,6 +3,13 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
+let StripeSdk = null;
+
+try {
+  StripeSdk = require("stripe");
+} catch {
+  StripeSdk = null;
+}
 
 const root = __dirname;
 const dataRoot = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(root, "data");
@@ -33,6 +40,12 @@ const observabilityWebhookSecret = process.env.OBSERVABILITY_WEBHOOK_SECRET || "
 const observabilitySampleRate = boundedNumber(process.env.OBSERVABILITY_SAMPLE_RATE, 1, 0, 1);
 const observabilityTimeoutMs = boundedNumber(process.env.OBSERVABILITY_TIMEOUT_MS, 2500, 250, 10_000);
 const logForwarder = createLogForwarder();
+const stripeApiVersion = "2026-02-25.clover";
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
+const stripePremiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID || "";
+const stripePremiumPriceLabel = process.env.STRIPE_PREMIUM_PRICE_LABEL || "Premium subscription";
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
+const stripeClient = createStripeClient();
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -239,6 +252,275 @@ function createLogForwarder() {
         });
     }
   };
+}
+
+function createStripeClient() {
+  if (!stripeSecretKey || !StripeSdk) return null;
+  return new StripeSdk(stripeSecretKey, {
+    apiVersion: stripeApiVersion,
+    appInfo: {
+      name: "Madinah Arabic",
+      version: "1.0.0"
+    }
+  });
+}
+
+function publicBillingConfig() {
+  return {
+    provider: "stripe",
+    checkoutConfigured: Boolean(stripeClient && stripePremiumPriceId),
+    portalConfigured: Boolean(stripeClient),
+    priceLabel: stripePremiumPriceLabel
+  };
+}
+
+function requireStripeCheckoutConfigured() {
+  if (!StripeSdk) throw requestError("Stripe SDK is not installed.", 503);
+  if (!stripeClient || !stripePremiumPriceId) {
+    throw requestError("Stripe checkout is not configured.", 503);
+  }
+}
+
+function requireStripeClientConfigured() {
+  if (!StripeSdk) throw requestError("Stripe SDK is not installed.", 503);
+  if (!stripeClient) throw requestError("Stripe billing is not configured.", 503);
+}
+
+function requireStripeWebhookConfigured() {
+  if (!StripeSdk) throw requestError("Stripe SDK is not installed.", 503);
+  if (!stripeClient || !stripeWebhookSecret) {
+    throw requestError("Stripe webhook verification is not configured.", 503);
+  }
+}
+
+function billingReturnUrl(request, billingState = "") {
+  const url = new URL(requestOrigin(request));
+  url.searchParams.set("route", "subscription");
+  if (billingState) url.searchParams.set("billing", billingState);
+  return url.toString();
+}
+
+function stripeStringId(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  return value.id || "";
+}
+
+function stripeTimestampToIso(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? new Date(number * 1000).toISOString() : null;
+}
+
+function mapStripeSubscriptionStatus(status) {
+  if (status === "active" || status === "trialing") return "active";
+  if (status === "past_due" || status === "unpaid") return "past_due";
+  return "cancelled";
+}
+
+function billingPatchFromStripeSubscription(subscription) {
+  const subscriptionStatus = mapStripeSubscriptionStatus(subscription.status);
+  const priceId = subscription.items?.data?.[0]?.price?.id || stripePremiumPriceId || "";
+  return sanitizeBillingPatch({
+    billingProvider: "stripe",
+    stripeCustomerId: stripeStringId(subscription.customer),
+    stripeSubscriptionId: stripeStringId(subscription.id),
+    stripePriceId: priceId,
+    stripeSubscriptionStatus: subscription.status || "",
+    stripeCancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
+    subscriptionPlan: subscriptionStatus === "active" ? "paid" : "free",
+    subscriptionStatus,
+    subscriptionEndsAt: stripeTimestampToIso(subscription.current_period_end || subscription.cancel_at)
+  });
+}
+
+function billingPatchFromCheckoutSession(session) {
+  return sanitizeBillingPatch({
+    billingProvider: "stripe",
+    stripeCustomerId: stripeStringId(session.customer),
+    stripeSubscriptionId: stripeStringId(session.subscription),
+    stripePriceId: stripePremiumPriceId
+  });
+}
+
+function sanitizeBillingPatch(patch = {}) {
+  const sanitized = {};
+  if (patch.billingProvider !== undefined) sanitized.billingProvider = patch.billingProvider === "stripe" ? "stripe" : "";
+  if (patch.stripeCustomerId !== undefined) sanitized.stripeCustomerId = boundedString(patch.stripeCustomerId, 255);
+  if (patch.stripeSubscriptionId !== undefined) sanitized.stripeSubscriptionId = boundedString(patch.stripeSubscriptionId, 255);
+  if (patch.stripePriceId !== undefined) sanitized.stripePriceId = boundedString(patch.stripePriceId, 255);
+  if (patch.stripeSubscriptionStatus !== undefined) sanitized.stripeSubscriptionStatus = boundedString(patch.stripeSubscriptionStatus, 80);
+  if (patch.stripeCancelAtPeriodEnd !== undefined) sanitized.stripeCancelAtPeriodEnd = Boolean(patch.stripeCancelAtPeriodEnd);
+  if (patch.subscriptionPlan !== undefined) sanitized.subscriptionPlan = normalizeSubscriptionPlan(patch.subscriptionPlan);
+  if (patch.subscriptionStatus !== undefined) sanitized.subscriptionStatus = normalizeSubscriptionStatus(patch.subscriptionStatus);
+  if (patch.subscriptionEndsAt !== undefined) sanitized.subscriptionEndsAt = patch.subscriptionEndsAt || null;
+  return sanitized;
+}
+
+async function ensureStripeCustomerForUser(store, request, userId) {
+  requireStripeCheckoutConfigured();
+  const user = await store.billingUser(userId);
+  if (!user || user.isDemo) throw requestError("Sign in required.", 401);
+  if (user.stripeCustomerId) return user.stripeCustomerId;
+
+  try {
+    const customer = await stripeClient.customers.create({
+      email: user.email,
+      name: user.displayName,
+      metadata: {
+        userId,
+        app: "madinah-arabic"
+      }
+    });
+    await store.updateBillingUser(userId, {
+      billingProvider: "stripe",
+      stripeCustomerId: customer.id
+    });
+    structuredLog("info", "stripe.customer_created", { requestId: request.requestId, userId, stripeCustomerId: customer.id });
+    return customer.id;
+  } catch (error) {
+    structuredLog("error", "stripe.customer_create_failed", {
+      requestId: request.requestId,
+      userId,
+      message: error.message
+    });
+    throw requestError("Unable to prepare Stripe customer.", 502);
+  }
+}
+
+async function createStripeCheckoutSession(request, store, userId) {
+  const user = await store.billingUser(userId);
+  if (!user || user.isDemo) throw requestError("Sign in required.", 401);
+  const customerId = await ensureStripeCustomerForUser(store, request, userId);
+
+  try {
+    const session = await stripeClient.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      client_reference_id: userId,
+      line_items: [{ price: stripePremiumPriceId, quantity: 1 }],
+      allow_promotion_codes: true,
+      success_url: billingReturnUrl(request, "success"),
+      cancel_url: billingReturnUrl(request, "cancelled"),
+      metadata: {
+        userId,
+        app: "madinah-arabic"
+      },
+      subscription_data: {
+        metadata: {
+          userId,
+          app: "madinah-arabic"
+        }
+      }
+    });
+    structuredLog("info", "stripe.checkout_session_created", {
+      requestId: request.requestId,
+      userId,
+      stripeCustomerId: customerId,
+      checkoutSessionId: session.id
+    });
+    return session;
+  } catch (error) {
+    structuredLog("error", "stripe.checkout_session_failed", {
+      requestId: request.requestId,
+      userId,
+      message: error.message
+    });
+    throw requestError("Unable to start Stripe checkout.", 502);
+  }
+}
+
+async function createStripePortalSession(request, store, userId) {
+  requireStripeClientConfigured();
+  const user = await store.billingUser(userId);
+  if (!user || user.isDemo) throw requestError("Sign in required.", 401);
+  if (!user.stripeCustomerId) throw requestError("No Stripe customer is linked to this account yet.", 400);
+
+  try {
+    const session = await stripeClient.billingPortal.sessions.create({
+      customer: user.stripeCustomerId,
+      return_url: billingReturnUrl(request)
+    });
+    structuredLog("info", "stripe.portal_session_created", {
+      requestId: request.requestId,
+      userId,
+      stripeCustomerId: user.stripeCustomerId
+    });
+    return session;
+  } catch (error) {
+    structuredLog("error", "stripe.portal_session_failed", {
+      requestId: request.requestId,
+      userId,
+      message: error.message
+    });
+    throw requestError("Unable to open Stripe billing portal.", 502);
+  }
+}
+
+function verifyStripeWebhook(rawBody, signature) {
+  requireStripeWebhookConfigured();
+  try {
+    return stripeClient.webhooks.constructEvent(rawBody, signature, stripeWebhookSecret);
+  } catch {
+    throw requestError("Stripe webhook signature verification failed.", 400);
+  }
+}
+
+async function handleStripeWebhook(store, event) {
+  const object = event.data?.object || {};
+
+  if (event.type === "checkout.session.completed") {
+    await syncStripeCheckoutSession(store, object);
+    return;
+  }
+
+  if (event.type?.startsWith("customer.subscription.")) {
+    await syncStripeSubscription(store, object);
+    return;
+  }
+
+  structuredLog("info", "stripe.webhook_ignored", {
+    stripeEventId: event.id,
+    stripeEventType: event.type
+  });
+}
+
+async function syncStripeCheckoutSession(store, session) {
+  const userId = session.client_reference_id || session.metadata?.userId || "";
+  if (!userId) {
+    structuredLog("warn", "stripe.checkout_missing_user", { checkoutSessionId: session.id });
+    return;
+  }
+
+  await store.updateBillingUser(userId, billingPatchFromCheckoutSession(session));
+  structuredLog("info", "stripe.checkout_completed", {
+    userId,
+    stripeCustomerId: stripeStringId(session.customer),
+    stripeSubscriptionId: stripeStringId(session.subscription)
+  });
+}
+
+async function syncStripeSubscription(store, subscription) {
+  const customerId = stripeStringId(subscription.customer);
+  const metadataUserId = subscription.metadata?.userId || "";
+  const existingUser = metadataUserId ? null : await store.billingUserByStripeCustomer(customerId);
+  const userId = metadataUserId || existingUser?.userId || "";
+
+  if (!userId) {
+    structuredLog("warn", "stripe.subscription_missing_user", {
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: subscription.id,
+      stripeSubscriptionStatus: subscription.status
+    });
+    return;
+  }
+
+  await store.updateBillingUser(userId, billingPatchFromStripeSubscription(subscription));
+  structuredLog("info", "stripe.subscription_synced", {
+    userId,
+    stripeCustomerId: customerId,
+    stripeSubscriptionId: subscription.id,
+    stripeSubscriptionStatus: subscription.status
+  });
 }
 
 function normalizeEmail(email) {
@@ -574,16 +856,20 @@ function publicUser(
 }
 
 function publicUserFromRecord(user) {
-  return publicUser(
-    user.userId,
-    user.displayName,
-    user.email,
-    user.subscriptionPlan,
-    user.subscriptionStatus,
-    user.subscriptionEndsAt,
-    user.role,
-    user.emailVerified
-  );
+  return {
+    ...publicUser(
+      user.userId,
+      user.displayName,
+      user.email,
+      user.subscriptionPlan,
+      user.subscriptionStatus,
+      user.subscriptionEndsAt,
+      user.role,
+      user.emailVerified
+    ),
+    billingProvider: user.billingProvider || (user.stripeCustomerId ? "stripe" : ""),
+    billingPortalAvailable: Boolean(user.stripeCustomerId)
+  };
 }
 
 function providerDisplayName(provider) {
@@ -1644,6 +1930,7 @@ function createMongoStore(database, fallbackCurriculum) {
         resources,
         progress,
         user: publicRecord,
+        billing: publicBillingConfig(),
         authProviders: availableOAuthProviderIds(),
         databaseMode: "mongodb"
       }, fallbackCurriculum, publicRecord);
@@ -1790,6 +2077,27 @@ function createMongoStore(database, fallbackCurriculum) {
       structuredLog("info", "auth.email_verified", { userId: user.userId });
       return publicUserFromRecord({ ...user, emailVerified: true });
     },
+    async billingUser(userId) {
+      return database.collection("users").findOne({ userId }, { projection: { _id: 0, passwordHash: 0 } });
+    },
+    async billingUserByStripeCustomer(stripeCustomerId) {
+      if (!stripeCustomerId) return null;
+      return database.collection("users").findOne({ stripeCustomerId }, { projection: { _id: 0, passwordHash: 0 } });
+    },
+    async updateBillingUser(userId, patch) {
+      const sanitized = sanitizeBillingPatch(patch);
+      if (!Object.keys(sanitized).length) {
+        return database.collection("users").findOne({ userId }, { projection: { _id: 0, passwordHash: 0 } });
+      }
+      const result = await database.collection("users").findOneAndUpdate(
+        { userId },
+        { $set: { ...sanitized, updatedAt: new Date() } },
+        { projection: { _id: 0, passwordHash: 0 }, returnDocument: "after" }
+      );
+      const updated = result?.value || result;
+      if (!updated) throw requestError("Billing account not found.", 404);
+      return updated;
+    },
     async adminContent(userId) {
       await requireAdminRecord(userId);
       const [books, lessons, vocabulary, grammar, exercises, resources] = await Promise.all([
@@ -1904,6 +2212,7 @@ function createJsonStore(curriculum) {
         resources: curriculum.resources,
         progress: getJsonProgress(user),
         user,
+        billing: publicBillingConfig(),
         authProviders: availableOAuthProviderIds(),
         databaseMode: "local-json"
       }, curriculum, user);
@@ -2038,6 +2347,32 @@ function createJsonStore(curriculum) {
       });
       structuredLog("info", "auth.email_verified", { userId: user.userId });
       return publicUserFromRecord(updated);
+    },
+    async billingUser(userId) {
+      const user = findUserRecord(userId);
+      if (!user) return null;
+      const { passwordHash, ...safeUser } = user;
+      return safeUser;
+    },
+    async billingUserByStripeCustomer(stripeCustomerId) {
+      if (!stripeCustomerId) return null;
+      const user = readUsers().find((item) => item.stripeCustomerId === stripeCustomerId);
+      if (!user) return null;
+      const { passwordHash, ...safeUser } = user;
+      return safeUser;
+    },
+    async updateBillingUser(userId, patch) {
+      const sanitized = sanitizeBillingPatch(patch);
+      if (!Object.keys(sanitized).length) {
+        const user = findUserRecord(userId);
+        if (!user) return null;
+        const { passwordHash, ...safeUser } = user;
+        return safeUser;
+      }
+      const updated = updateUserRecord(userId, sanitized);
+      if (!updated) throw requestError("Billing account not found.", 404);
+      const { passwordHash, ...safeUser } = updated;
+      return safeUser;
     },
     async adminContent(userId) {
       requireJsonAdmin(userId);
@@ -2205,6 +2540,38 @@ async function start() {
         }
 
         sendJson(response, 200, { progress: await store.updateProgress(userId, await readBody(request)) });
+        return;
+      }
+
+      if (request.method === "POST" && parsedUrl.pathname === "/api/billing/checkout") {
+        const userId = await authenticatedUserFromRequest(request);
+        if (!userId) {
+          sendJson(response, 401, { error: "Sign in required to upgrade." });
+          return;
+        }
+
+        const session = await createStripeCheckoutSession(request, store, userId);
+        sendJson(response, 200, { url: session.url });
+        return;
+      }
+
+      if (request.method === "POST" && parsedUrl.pathname === "/api/billing/portal") {
+        const userId = await authenticatedUserFromRequest(request);
+        if (!userId) {
+          sendJson(response, 401, { error: "Sign in required to manage billing." });
+          return;
+        }
+
+        const session = await createStripePortalSession(request, store, userId);
+        sendJson(response, 200, { url: session.url });
+        return;
+      }
+
+      if (request.method === "POST" && parsedUrl.pathname === "/api/billing/webhook") {
+        const rawBody = await readTextBody(request);
+        const stripeEvent = verifyStripeWebhook(rawBody, request.headers["stripe-signature"]);
+        await handleStripeWebhook(store, stripeEvent);
+        sendJson(response, 200, { received: true });
         return;
       }
 
