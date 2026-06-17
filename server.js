@@ -422,35 +422,84 @@ function sanitizeBillingPatch(patch = {}) {
   return sanitized;
 }
 
-async function ensureStripeCustomerForUser(store, request, userId) {
-  requireStripeClientConfigured();
-  const user = await store.billingUser(userId);
-  if (!user || user.isDemo) throw requestError("Sign in required.", 401);
-  if (user.stripeCustomerId) return user.stripeCustomerId;
+function isRecoverableStripeCustomerError(error) {
+  const message = String(error?.message || "");
+  return /No such customer/i.test(message) &&
+    (error?.code === "resource_missing" || /similar object exists in (live|test) mode/i.test(message));
+}
 
+async function createStripeCustomerForUser(store, request, user) {
   try {
     const customer = await stripeClient.customers.create({
       email: user.email,
       name: user.displayName,
       metadata: {
-        userId,
+        userId: user.userId,
         app: "madinah-arabic"
       }
     });
-    await store.updateBillingUser(userId, {
+    await store.updateBillingUser(user.userId, {
       billingProvider: "stripe",
       stripeCustomerId: customer.id
     });
-    structuredLog("info", "stripe.customer_created", { requestId: request.requestId, userId, stripeCustomerId: customer.id });
+    structuredLog("info", "stripe.customer_created", { requestId: request.requestId, userId: user.userId, stripeCustomerId: customer.id });
     return customer.id;
   } catch (error) {
     structuredLog("error", "stripe.customer_create_failed", {
       requestId: request.requestId,
-      userId,
+      userId: user.userId,
       message: error.message
     });
     throw requestError("Unable to prepare Stripe customer.", 502);
   }
+}
+
+async function ensureStripeCustomerForUser(store, request, userId) {
+  requireStripeClientConfigured();
+  const user = await store.billingUser(userId);
+  if (!user || user.isDemo) throw requestError("Sign in required.", 401);
+
+  if (user.stripeCustomerId) {
+    let shouldClearStaleCustomer = false;
+    let staleCustomerMessage = "";
+
+    try {
+      const customer = await stripeClient.customers.retrieve(user.stripeCustomerId);
+      if (!customer?.deleted) return user.stripeCustomerId;
+      shouldClearStaleCustomer = true;
+      staleCustomerMessage = "Saved Stripe customer has been deleted.";
+    } catch (error) {
+      if (!isRecoverableStripeCustomerError(error)) {
+        structuredLog("error", "stripe.customer_retrieve_failed", {
+          requestId: request.requestId,
+          userId,
+          stripeCustomerId: user.stripeCustomerId,
+          message: error.message
+        });
+        throw requestError("Unable to prepare Stripe customer.", 502);
+      }
+
+      shouldClearStaleCustomer = true;
+      staleCustomerMessage = error.message;
+    }
+
+    if (shouldClearStaleCustomer) {
+      structuredLog("warn", "stripe.customer_stale_cleared", {
+        requestId: request.requestId,
+        userId,
+        stripeCustomerId: user.stripeCustomerId,
+        message: staleCustomerMessage
+      });
+      await store.updateBillingUser(userId, {
+        stripeCustomerId: "",
+        stripeSubscriptionId: "",
+        stripePriceId: "",
+        stripeSubscriptionStatus: ""
+      });
+    }
+  }
+
+  return createStripeCustomerForUser(store, request, { ...user, userId });
 }
 
 async function createStripeCheckoutSession(request, store, userId, planId = defaultStripePlanId) {
@@ -521,17 +570,17 @@ async function createStripePortalSession(request, store, userId) {
   requireStripeClientConfigured();
   const user = await store.billingUser(userId);
   if (!user || user.isDemo) throw requestError("Sign in required.", 401);
-  if (!user.stripeCustomerId) throw requestError("No Stripe customer is linked to this account yet.", 400);
+  const customerId = await ensureStripeCustomerForUser(store, request, userId);
 
   try {
     const session = await stripeClient.billingPortal.sessions.create({
-      customer: user.stripeCustomerId,
+      customer: customerId,
       return_url: billingReturnUrl(request)
     });
     structuredLog("info", "stripe.portal_session_created", {
       requestId: request.requestId,
       userId,
-      stripeCustomerId: user.stripeCustomerId
+      stripeCustomerId: customerId
     });
     return session;
   } catch (error) {
