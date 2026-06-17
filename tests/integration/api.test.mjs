@@ -489,6 +489,39 @@ describe("Madinah Arabic API and static app", () => {
       assert.equal(badSignature.response.status, 400);
       assert.match(badSignature.body.error, /signature verification failed/i);
 
+      const checkoutEmail = uniqueEmail("stripe-checkout");
+      const checkoutCreated = await api(billingServer.baseUrl, "/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Checkout Learner", email: checkoutEmail, password })
+      });
+      const subscriptionCheckoutEvent = stripeEventPayload("checkout.session.completed", {
+        id: "cs_test_subscription",
+        object: "checkout.session",
+        mode: "subscription",
+        payment_status: "paid",
+        customer: "cus_test_checkout",
+        subscription: "sub_test_checkout",
+        client_reference_id: checkoutCreated.body.user.userId,
+        metadata: {
+          userId: checkoutCreated.body.user.userId,
+          planId: "monthly",
+          stripePriceId: "price_premium_monthly_test"
+        }
+      });
+      const checkoutSynced = await postStripeWebhook(billingServer, webhookSecret, subscriptionCheckoutEvent, "/api/stripe/webhook");
+      const checkoutLogin = await api(billingServer.baseUrl, "/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: checkoutEmail, password })
+      });
+      const checkoutBootstrap = await api(billingServer.baseUrl, "/api/bootstrap", {
+        headers: authHeaders(checkoutLogin)
+      });
+
+      assert.equal(checkoutSynced.response.status, 200);
+      assert.equal(checkoutLogin.body.user.subscriptionPlan, "paid");
+      assert.equal(checkoutLogin.body.user.subscriptionStatus, "active");
+      assert.equal(checkoutBootstrap.body.books.find((book) => book.slug === "book-2").status, "available");
+
       const lifetimeEmail = uniqueEmail("stripe-lifetime");
       const lifetimeCreated = await api(billingServer.baseUrl, "/api/auth/register", {
         method: "POST",
@@ -1052,9 +1085,9 @@ function stripeEventPayload(type, object) {
   };
 }
 
-async function postStripeWebhook(server, secret, payload) {
+async function postStripeWebhook(server, secret, payload, pathName = "/api/billing/webhook") {
   const body = JSON.stringify(payload);
-  return api(server.baseUrl, "/api/billing/webhook", {
+  return api(server.baseUrl, pathName, {
     method: "POST",
     headers: { "stripe-signature": stripeSignatureHeader(secret, body) },
     body

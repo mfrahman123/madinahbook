@@ -398,11 +398,13 @@ function billingPatchFromCheckoutSession(session) {
     stripePriceId: session.metadata?.stripePriceId || ""
   };
 
-  if (session.mode === "payment" && session.payment_status === "paid") {
+  if (["payment", "subscription"].includes(session.mode) && session.payment_status === "paid") {
     patch.subscriptionPlan = "paid";
     patch.subscriptionStatus = "active";
-    patch.subscriptionEndsAt = null;
-    patch.stripeSubscriptionStatus = "lifetime";
+    if (session.mode === "payment") {
+      patch.subscriptionEndsAt = null;
+      patch.stripeSubscriptionStatus = "lifetime";
+    }
   }
 
   return sanitizeBillingPatch(patch);
@@ -2705,7 +2707,7 @@ async function start() {
         return;
       }
 
-      if (request.method === "POST" && parsedUrl.pathname === "/api/billing/webhook") {
+      if (request.method === "POST" && ["/api/billing/webhook", "/api/stripe/webhook"].includes(parsedUrl.pathname)) {
         const rawBody = await readTextBody(request);
         const stripeEvent = verifyStripeWebhook(rawBody, request.headers["stripe-signature"]);
         await handleStripeWebhook(store, stripeEvent);
