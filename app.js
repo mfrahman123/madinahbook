@@ -234,6 +234,7 @@ const uiText = {
     transliteration: "উচ্চারণ",
     english: "অর্থ",
     meaning: "অর্থ",
+    typeArabicSentence: "সম্পূর্ণ আরবি বাক্য লিখুন",
     audio: "অডিও",
     viewAll: "সব দেখুন",
     availableBooks: "উপলব্ধ বই",
@@ -2101,9 +2102,9 @@ async function refreshOfflineCache() {
     await cache.addAll([
       "/",
       "/index.html",
-      "/app.js?v=20260620-answer-leak-fix",
-      "/learning-core.js?v=20260620-answer-leak-fix",
-      "/styles.css?v=20260620-answer-leak-fix",
+      "/app.js?v=20260620-question-flow-fix",
+      "/learning-core.js?v=20260620-question-flow-fix",
+      "/styles.css?v=20260620-question-flow-fix",
       "/api/bootstrap"
     ]);
     state.offlineNotice = t("offlineReady", "Offline cache refreshed for core lessons and vocabulary.");
@@ -4424,12 +4425,13 @@ function getLessonExerciseCards(lesson, lessonVocabulary) {
 
 function renderCheckedPractice(card) {
   const feedback = state.writingFeedback[card.id];
+  const showArabicPrompt = card.checked.arabic && !isSameArabicText(card.checked.arabic, card.checked.answer);
   return `
     <form class="checked-practice" data-book-exercise-check="${card.id}" data-answer="${escapeHtml(card.checked.answer)}" data-prompt="${escapeHtml(card.checked.prompt)}" data-arabic="${escapeHtml(card.checked.arabic || "")}">
       <div>
         <strong>${t("checkedPractice", "Checked practice")}</strong>
         <p>${escapeHtml(localizedText(card.checked.prompt))}</p>
-        ${card.checked.arabic ? `<button class="example-arabic" type="button" data-speak="${escapeHtml(card.checked.arabic)}" lang="ar">${card.checked.arabic}</button>` : ""}
+        ${showArabicPrompt ? `<button class="example-arabic" type="button" data-speak="${escapeHtml(card.checked.arabic)}" lang="ar">${card.checked.arabic}</button>` : ""}
       </div>
       <label class="checked-input">
         <span>${t("yourAnswer", "Your answer")}</span>
@@ -4489,11 +4491,12 @@ function renderExampleQuestions(examples) {
       <strong>${t("exampleQuestions", "Example questions")}</strong>
       <div class="example-question-list">
         ${examples
-          .map(
-            (example) => `
+          .map((example) => {
+            const showArabicPrompt = example.arabic && !isSameArabicText(example.arabic, example.answer);
+            return `
               <article class="example-question">
                 <p>${escapeHtml(localizedText(example.question))}</p>
-                ${example.arabic ? `<button class="example-arabic" type="button" data-speak="${escapeHtml(example.arabic)}" lang="ar">${example.arabic}</button>` : ""}
+                ${showArabicPrompt ? `<button class="example-arabic" type="button" data-speak="${escapeHtml(example.arabic)}" lang="ar">${example.arabic}</button>` : ""}
                 ${example.answer ? `
                   <details class="example-answer">
                     <summary><span>${t("revealAnswer", "Reveal answer")}</span>${icon("arrow")}</summary>
@@ -4508,8 +4511,8 @@ function renderExampleQuestions(examples) {
                   </details>
                 ` : ""}
               </article>
-            `
-          )
+            `;
+          })
           .join("")}
       </div>
     </div>
@@ -4785,7 +4788,7 @@ function renderSentenceBuilder(lesson) {
       <form class="sentence-builder-form" data-sentence-builder="${lesson.id}">
         <label class="form-field">
           <span>${t("yourSentence", "Your sentence")}</span>
-          <input name="sentenceAnswer" dir="rtl" lang="ar" placeholder="${escapeHtml(builder.answer)}" autocomplete="off" />
+          <input name="sentenceAnswer" dir="rtl" lang="ar" placeholder="${escapeHtml(t("typeArabicSentence", "Type the full Arabic sentence"))}" autocomplete="off" />
         </label>
         <button class="primary-button compact-button" type="submit">${icon("check")} ${t("check", "Check")}</button>
       </form>
@@ -4817,7 +4820,11 @@ function renderMorphologyDrills(lesson) {
           const feedback = state.morphologyFeedback[`${lesson.id}:${drill.id}`];
           return `
             <article class="mini-drill">
-              <p>${escapeHtml(drill.prompt)}</p>
+              <p>${escapeHtml(localizedText(drill.prompt))}</p>
+              <div class="mini-drill-cues">
+                ${drill.meaning ? `<span>${t("meaning", "Meaning")}: ${escapeHtml(localizedText(drill.meaning))}</span>` : ""}
+                ${drill.root ? `<span>${t("root", "Root")}: <b dir="rtl" lang="ar">${escapeHtml(drill.root)}</b></span>` : ""}
+              </div>
               <div class="options">
                 ${drill.options.map((option) => {
                   const answered = Boolean(feedback);

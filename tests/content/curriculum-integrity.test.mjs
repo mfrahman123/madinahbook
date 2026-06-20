@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const curriculum = JSON.parse(fs.readFileSync(path.join(root, "data", "curriculum.json"), "utf8"));
 const capacitorConfig = JSON.parse(fs.readFileSync(path.join(root, "capacitor.config.json"), "utf8"));
+const core = require("../../learning-core.js");
 
 describe("curriculum content integrity", () => {
   it("keeps the expected Book 1-3 lesson snapshot", () => {
@@ -94,6 +97,17 @@ describe("curriculum content integrity", () => {
         assert.ok(card.forms?.present, `${lesson.id} ${card.title} missing present form`);
         assert.ok(card.forms?.verbalNoun, `${lesson.id} ${card.title} missing verbal noun`);
         assert.ok(card.forms?.activeParticiple, `${lesson.id} ${card.title} missing active participle`);
+      }
+    }
+  });
+
+  it("does not leak morphology drill answers in generated prompts", () => {
+    for (const lesson of curriculum.lessons) {
+      const drills = core.createMorphologyDrills(lesson, () => 0.42);
+      for (const drill of drills) {
+        assert.ok(drill.answer, `${lesson.id} morphology drill missing answer`);
+        assert.ok(!drill.prompt.includes(drill.answer), `${lesson.id} prompt leaks answer ${drill.answer}`);
+        assert.ok(!drill.prompt.includes(drill.cardTitle), `${lesson.id} prompt leaks card title ${drill.cardTitle}`);
       }
     }
   });

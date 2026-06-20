@@ -15,6 +15,7 @@ const lessons = [
     morphologyCards: [
       {
         title: "دَرَسَ",
+        meaning: "to study",
         root: "د ر س",
         forms: {
           past: "دَرَسَ",
@@ -154,6 +155,10 @@ describe("learning-core adaptive practice helpers", () => {
     assert.ok(sentence.tokens.length >= 2);
     assert.ok(morphology.length >= 1);
     assert.ok(morphology[0].options.includes(morphology[0].answer));
+    assert.equal(morphology[0].prompt, "Choose the past form.");
+    assert.equal(morphology[0].meaning, "to study");
+    assert.equal(morphology[0].root, "د ر س");
+    assert.doesNotMatch(morphology[0].prompt, /دَرَسَ/);
     assert.equal(cumulative.questions.length, 3);
   });
 });

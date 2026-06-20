@@ -233,6 +233,15 @@
     }[key] || key;
   }
 
+  function morphologyCue(card) {
+    const meaning = String(card?.meaning || "").trim();
+    const root = String(card?.root || "").trim();
+    if (meaning && root) return `for "${meaning}" (root ${root})`;
+    if (meaning) return `for "${meaning}"`;
+    if (root) return `for root ${root}`;
+    return "for this verb";
+  }
+
   function createMorphologyDrills(lesson, random = Math.random) {
     const cards = Array.isArray(lesson?.morphologyCards) ? lesson.morphologyCards : [];
     return cards
@@ -241,14 +250,17 @@
         if (formEntries.length < 2) return null;
         const [answerKey, answer] = formEntries[cardIndex % formEntries.length];
         const options = shuffle(uniqueValues(formEntries.map(([, value]) => value)), random);
+        const cue = morphologyCue(card);
         return {
           id: `morph-${lesson.id}-${cardIndex + 1}-${answerKey}`,
           cardTitle: card.title || "Verb pattern",
-          prompt: `Choose the ${formLabel(answerKey)} for ${card.title || card.root || "this verb"}.`,
+          prompt: `Choose the ${formLabel(answerKey)}.`,
+          meaning: card.meaning || "",
+          root: card.root || "",
           answer,
           answerKey,
           options,
-          explanation: `${card.title || card.root || "This form"}: the ${formLabel(answerKey)} is ${answer}.`
+          explanation: `${cue}: the ${formLabel(answerKey)} is ${answer}.`
         };
       })
       .filter(Boolean);

@@ -300,10 +300,23 @@ describe("Madinah Arabic Selenium flows", () => {
     const translationAnswerText = await translationAnswer.getText();
     assert.doesNotMatch(translationAnswerText, /ذَهَبْنَا إِلَى الْجَامِعَةِ/);
 
+    await driver.get(`${server.baseUrl}/?route=book-1&lesson=lesson-8&tab=book-exercises`);
+    await waitForText(driver, "Example questions");
+    const arabicAnswerExample = await driver.findElement(By.xpath("//details[contains(@class, 'book-exercise-item') and @open]//article[contains(@class, 'example-question')][.//p[contains(., 'Which Arabic word means')]]"));
+    assert.doesNotMatch(await arabicAnswerExample.getText(), /أَمَامَ/);
+    const arabicAnswerDetails = await arabicAnswerExample.findElement(By.css(".example-answer"));
+    await driver.executeScript("arguments[0].open = true;", arabicAnswerDetails);
+    await driver.wait(async () => {
+      const answerText = await driver.executeScript("return arguments[0].innerText;", arabicAnswerExample);
+      return answerText.includes("أَمَامَ");
+    }, 5000, "Timed out waiting for Arabic answer reveal");
+
     await driver.findElement(By.css('.lesson-tabs [data-lesson-tab="quiz"]')).click();
     await waitForText(driver, "Vocabulary Quiz");
     await waitForText(driver, "Random Vocabulary Quiz");
     await waitForText(driver, "Sentence Builder");
+    const sentenceInput = await driver.findElement(By.css('.sentence-builder-form input[name="sentenceAnswer"]'));
+    assert.equal(await sentenceInput.getAttribute("placeholder"), "Type the full Arabic sentence");
   });
 
   it("shows adaptive milestone practice and account learning preferences", async () => {
@@ -346,6 +359,14 @@ describe("Madinah Arabic Selenium flows", () => {
 
     await driver.findElement(By.css('.lesson-tabs [data-lesson-tab="quiz"]')).click();
     await waitForText(driver, "Random Vocabulary Quiz");
+
+    await driver.get(`${server.baseUrl}/?route=book-2&lesson=book-2-lesson-8&tab=quiz`);
+    await waitForText(driver, "Pattern drills");
+    await waitForText(driver, "to hear");
+    await waitForText(driver, "س م ع");
+    const morphologyPrompt = await driver.findElement(By.css(".mini-drill p")).getText();
+    assert.equal(morphologyPrompt, "Choose the past form.");
+    assert.doesNotMatch(morphologyPrompt, /سَمِعَ/);
   });
 
   it("opens Book 3 lessons as available course content", async () => {

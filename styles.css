@@ -5401,6 +5401,33 @@ textarea:focus-visible {
   line-height: 1.45;
 }
 
+.mini-drill-cues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mini-drill-cues span {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
+  border-radius: calc(var(--radius) - 5px);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mini-drill-cues b {
+  color: var(--text-strong);
+  font-family: "Noto Naskh Arabic", "Geeza Pro", "Times New Roman", serif;
+  font-size: 1.2em;
+  font-weight: 800;
+}
+
 .answer-explanation,
 .preference-note {
   margin: 0;
