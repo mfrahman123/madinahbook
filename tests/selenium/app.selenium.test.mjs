@@ -234,6 +234,16 @@ describe("Madinah Arabic Selenium flows", () => {
       const disabledStates = await Promise.all(options.map((option) => option.getAttribute("disabled")));
       return disabledStates.length > 0 && disabledStates.every((value) => value !== null);
     }, 5000, "Timed out waiting for answered tester options to lock");
+
+    await firstQuestion.findElement(By.css('[data-retry-answer="vocab-tester"]')).click();
+    await driver.wait(async () => {
+      [firstQuestion] = await driver.findElements(By.css(".vocab-test-question"));
+      if (!firstQuestion) return false;
+      const options = await firstQuestion.findElements(By.css("[data-vocab-tester-answer]"));
+      const retryButtons = await firstQuestion.findElements(By.css('[data-retry-answer="vocab-tester"]'));
+      const disabledStates = await Promise.all(options.map((option) => option.getAttribute("disabled")));
+      return options.length > 0 && retryButtons.length === 0 && disabledStates.every((value) => value === null);
+    }, 5000, "Timed out waiting for retry to unlock tester options");
   });
 
   it("keeps light mode selected controls calm and non-yellow", async () => {

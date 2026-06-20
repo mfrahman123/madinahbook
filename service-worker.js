@@ -1,10 +1,10 @@
-const CACHE_NAME = "madinah-arabic-shell-v5-locked-options-fix";
+const CACHE_NAME = "madinah-arabic-shell-v6-retry-options-fix";
 const SHELL_ASSETS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260620-locked-options-fix",
-  "/learning-core.js?v=20260620-locked-options-fix",
-  "/app.js?v=20260620-locked-options-fix",
+  "/styles.css?v=20260620-retry-options-fix",
+  "/learning-core.js?v=20260620-retry-options-fix",
+  "/app.js?v=20260620-retry-options-fix",
   "/manifest.webmanifest",
   "/assets/madinah-icon.svg"
 ];

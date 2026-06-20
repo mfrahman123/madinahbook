@@ -3889,11 +3889,61 @@ tbody tr:hover td {
 .feedback {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 22px;
   padding: 16px;
   border-radius: var(--radius);
   font-weight: 600;
+}
+
+.feedback > span {
+  flex: 1 1 auto;
+}
+
+.retry-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 58%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    opacity 180ms ease;
+}
+
+.retry-button:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, currentColor 10%, var(--surface));
+}
+
+.retry-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.answer-followup {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.answer-followup .answer-explanation {
+  margin-top: 0;
+}
+
+.answer-followup .retry-button {
+  justify-self: start;
 }
 
 .audio-pulse {

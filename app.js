@@ -78,6 +78,7 @@ const iconPaths = {
   speaker: '<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16 9.5c.8.8 1.2 1.6 1.2 2.5s-.4 1.7-1.2 2.5"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
   x: '<path d="m6 6 12 12"/><path d="m18 6-12 12"/>',
+  retry: '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
   target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3"/><path d="M22 12h-3"/><path d="M12 22v-3"/><path d="M2 12h3"/>',
   menu: '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
@@ -220,7 +221,9 @@ const uiText = {
     checkAnswer: "উত্তর যাচাই করুন",
     revealAnswer: "উত্তর দেখুন",
     correct: "সঠিক",
+    retry: "আবার চেষ্টা",
     notQuite: "পুরোপুরি নয়। সঠিক উত্তর:",
+    notQuiteShort: "পুরোপুরি নয়।",
     correctSaved: "সঠিক। শব্দটি অগ্রগতিতে সংরক্ষিত হয়েছে।",
     done: "সম্পন্ন",
     markPracticeDone: "অনুশীলন সম্পন্ন করুন",
@@ -1481,6 +1484,17 @@ function renderQuestionExplanation(question, selectedAnswer = "") {
   `;
 }
 
+function renderRetryButton(kind, payload = {}) {
+  const attributes = Object.entries(payload)
+    .map(([key, value]) => `data-retry-${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}="${escapeHtml(value)}"`)
+    .join(" ");
+  return `
+    <button class="retry-button" type="button" data-retry-answer="${escapeHtml(kind)}" ${attributes}>
+      ${icon("retry")} ${t("retry", "Retry")}
+    </button>
+  `;
+}
+
 function byId(items, id) {
   return items.find((item) => item.id === id);
 }
@@ -2102,9 +2116,9 @@ async function refreshOfflineCache() {
     await cache.addAll([
       "/",
       "/index.html",
-      "/app.js?v=20260620-locked-options-fix",
-      "/learning-core.js?v=20260620-locked-options-fix",
-      "/styles.css?v=20260620-locked-options-fix",
+      "/app.js?v=20260620-retry-options-fix",
+      "/learning-core.js?v=20260620-retry-options-fix",
+      "/styles.css?v=20260620-retry-options-fix",
       "/api/bootstrap"
     ]);
     state.offlineNotice = t("offlineReady", "Offline cache refreshed for core lessons and vocabulary.");
@@ -2342,6 +2356,36 @@ function answerVocabularyQuiz(lessonId, answer) {
   });
 }
 
+function retryAnswer(kind, payload = {}) {
+  if (kind === "exercise") {
+    delete state.exerciseFeedback[payload.exerciseId];
+  }
+
+  if (kind === "vocab-quiz") {
+    delete state.vocabularyQuizFeedback[payload.lessonId];
+  }
+
+  if (kind === "vocab-tester") {
+    delete state.vocabTesterFeedback[payload.questionId];
+  }
+
+  if (kind === "cumulative") {
+    const lessonFeedback = state.cumulativeFeedback[payload.lessonId];
+    if (lessonFeedback) delete lessonFeedback[payload.questionId];
+  }
+
+  if (kind === "morphology") {
+    delete state.morphologyFeedback[`${payload.lessonId}:${payload.drillId}`];
+  }
+
+  if (kind === "sentence-builder") {
+    delete state.sentenceBuilderFeedback[payload.lessonId];
+  }
+
+  state.motion.tester = true;
+  render();
+}
+
 function generateNewVocabularyQuiz(lessonId) {
   if (!hasPremiumAccess()) return;
   const lesson = byId(state.data.lessons, lessonId);
@@ -2484,12 +2528,12 @@ function answerVocabTester(questionId, answer) {
   if (!question) return;
   if (state.vocabTesterFeedback[questionId]) return;
 
-  const previous = state.vocabTesterFeedback[questionId];
+  const previous = state.progress.exerciseAttempts[`vocab-tester-${questionId}`];
   const correct = answer === question.answer;
   state.vocabTesterFeedback[questionId] = { status: correct ? "correct" : "incorrect", answer };
   hapticFeedback(correct);
   const mistakeId = `tester-${question.wordId}`;
-  const gainedXp = correct && previous?.status !== "correct" ? 10 : 0;
+  const gainedXp = correct && previous !== "correct" ? 10 : 0;
   markMotionXp(gainedXp);
 
   saveProgress({
@@ -4812,6 +4856,7 @@ function renderSentenceBuilder(lesson) {
         <div class="feedback ${correct ? "correct" : "incorrect"}">
           ${icon(correct ? "check" : "x")}
           <span>${correct ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(feedback.expected)}`}</span>
+          ${renderRetryButton("sentence-builder", { lessonId: lesson.id })}
         </div>
       ` : ""}
     </section>
@@ -4853,7 +4898,14 @@ function renderMorphologyDrills(lesson) {
                   `;
                 }).join("")}
               </div>
-              ${feedback ? `<p class="answer-explanation">${escapeHtml(drill.explanation)}</p>` : ""}
+              ${feedback ? `
+                <div class="feedback ${feedback.status === "correct" ? "correct" : "incorrect"}">
+                  ${icon(feedback.status === "correct" ? "check" : "x")}
+                  <span>${feedback.status === "correct" ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(drill.answer)}`}</span>
+                  ${renderRetryButton("morphology", { lessonId: lesson.id, drillId: drill.id })}
+                </div>
+                <p class="answer-explanation">${escapeHtml(drill.explanation)}</p>
+              ` : ""}
             </article>
           `;
         }).join("")}
@@ -4920,7 +4972,12 @@ function renderCumulativeQuestion(lessonId, question, feedback, number) {
           `;
         }).join("")}
       </div>
-      ${feedback ? renderQuestionExplanation(question, feedback.answer) : ""}
+      ${feedback ? `
+        <div class="answer-followup">
+          ${renderQuestionExplanation(question, feedback.answer)}
+          ${renderRetryButton("cumulative", { lessonId, questionId: question.id })}
+        </div>
+      ` : ""}
     </article>
   `;
 }
@@ -5275,7 +5332,8 @@ function renderVocabTesterQuestion(question) {
       ${feedback ? `
         <div class="feedback ${feedback.status === "correct" ? "correct" : "incorrect"}">
           ${icon(feedback.status === "correct" ? "check" : "x")}
-          <span>${feedback.status === "correct" ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(question.answer, { answerArabic: question.answerArabic || "", arabic: question.arabic || "" })}`}</span>
+          <span>${feedback.status === "correct" ? t("correct", "Correct") : t("notQuiteShort", "Not quite.")}</span>
+          ${renderRetryButton("vocab-tester", { questionId: question.id })}
         </div>
         ${renderQuestionExplanation(question, feedback.answer)}
       ` : ""}
@@ -5541,13 +5599,14 @@ function renderExercisesPage() {
 }
 
 function renderExerciseFeedback(exercise) {
-  const feedback = state.exerciseFeedback[exercise.id] || state.progress.exerciseAttempts[exercise.id];
+  const feedback = state.exerciseFeedback[exercise.id];
   if (!feedback) return "";
   const correct = feedback === "correct";
   return `
     <div class="feedback ${correct ? "correct" : "incorrect"}">
       ${icon(correct ? "check" : "x")}
-      <span>${correct ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(exercise.answer, { arabic: exercise.arabic || "" })}`}</span>
+      <span>${correct ? t("correct", "Correct") : t("notQuiteShort", "Not quite.")}</span>
+      ${renderRetryButton("exercise", { exerciseId: exercise.id })}
     </div>
     ${renderModelAnswerExplanation(exercise.answer, { arabic: exercise.arabic || "" })}
   `;
@@ -5560,7 +5619,8 @@ function renderVocabularyQuizFeedback(lessonId, quiz) {
   return `
     <div class="feedback ${correct ? "correct" : "incorrect"}">
       ${icon(correct ? "check" : "x")}
-      <span>${correct ? t("correctSaved", "Correct. Vocabulary saved to progress.") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(quiz.answer, { arabic: quiz.arabic || "" })}`}</span>
+      <span>${correct ? t("correctSaved", "Correct. Vocabulary saved to progress.") : t("notQuiteShort", "Not quite.")}</span>
+      ${renderRetryButton("vocab-quiz", { lessonId })}
     </div>
     ${renderQuestionExplanation(quiz, feedback.answer)}
   `;
@@ -6300,6 +6360,17 @@ document.addEventListener("click", (event) => {
   const vocabularyQuizAnswerButton = event.target.closest("[data-vocab-quiz-answer]");
   if (vocabularyQuizAnswerButton) {
     answerVocabularyQuiz(vocabularyQuizAnswerButton.dataset.vocabQuizLesson, vocabularyQuizAnswerButton.dataset.vocabQuizAnswer);
+    return;
+  }
+
+  const retryButton = event.target.closest("[data-retry-answer]");
+  if (retryButton) {
+    retryAnswer(retryButton.dataset.retryAnswer, {
+      exerciseId: retryButton.dataset.retryExerciseId,
+      lessonId: retryButton.dataset.retryLessonId,
+      questionId: retryButton.dataset.retryQuestionId,
+      drillId: retryButton.dataset.retryDrillId
+    });
     return;
   }
 
