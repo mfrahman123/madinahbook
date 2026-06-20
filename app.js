@@ -2102,9 +2102,9 @@ async function refreshOfflineCache() {
     await cache.addAll([
       "/",
       "/index.html",
-      "/app.js?v=20260620-question-flow-fix",
-      "/learning-core.js?v=20260620-question-flow-fix",
-      "/styles.css?v=20260620-question-flow-fix",
+      "/app.js?v=20260620-locked-options-fix",
+      "/learning-core.js?v=20260620-locked-options-fix",
+      "/styles.css?v=20260620-locked-options-fix",
       "/api/bootstrap"
     ]);
     state.offlineNotice = t("offlineReady", "Offline cache refreshed for core lessons and vocabulary.");
@@ -2286,6 +2286,7 @@ function nextLessonId(currentId) {
 
 function answerExercise(exercise, answer) {
   if (!hasPremiumAccess()) return;
+  if (state.exerciseFeedback[exercise.id]) return;
   const correct = answer === exercise.answer;
   state.exerciseFeedback[exercise.id] = correct ? "correct" : "incorrect";
   hapticFeedback(correct);
@@ -2312,6 +2313,7 @@ function answerExercise(exercise, answer) {
 
 function answerVocabularyQuiz(lessonId, answer) {
   if (!hasPremiumAccess()) return;
+  if (state.vocabularyQuizFeedback[lessonId]) return;
   const quiz = state.vocabularyQuizByLesson[lessonId];
   if (!quiz) return;
 
@@ -2319,7 +2321,9 @@ function answerVocabularyQuiz(lessonId, answer) {
   state.vocabularyQuizFeedback[lessonId] = { status: correct ? "correct" : "incorrect", answer };
   hapticFeedback(correct);
   const mistakeId = `vocab-${quiz.wordId}`;
-  markMotionXp(correct ? 15 : 0);
+  const previous = state.progress.exerciseAttempts[`vocab-${lessonId}`];
+  const gainedXp = correct && previous !== "correct" ? 15 : 0;
+  markMotionXp(gainedXp);
   saveProgress({
     learnedVocabularyIds: correct ? [quiz.wordId] : [],
     vocabularyStats: { [quiz.wordId]: reviewStatsFor(quiz.wordId, correct) },
@@ -2334,7 +2338,7 @@ function answerVocabularyQuiz(lessonId, answer) {
           expected: quiz.answer,
           given: answer
         })),
-    xp: state.progress.xp + (correct ? 15 : 0)
+    xp: state.progress.xp + gainedXp
   });
 }
 
@@ -2478,6 +2482,7 @@ function openLessonTab(lessonId, tab) {
 function answerVocabTester(questionId, answer) {
   const question = state.vocabTester?.questions.find((item) => item.id === questionId);
   if (!question) return;
+  if (state.vocabTesterFeedback[questionId]) return;
 
   const previous = state.vocabTesterFeedback[questionId];
   const correct = answer === question.answer;
@@ -2510,6 +2515,7 @@ function answerCumulativeQuestion(lessonId, questionId, answer) {
   const test = state.cumulativeTestByLesson[lessonId];
   const question = test?.questions.find((item) => item.id === questionId);
   if (!question) return;
+  if (state.cumulativeFeedback[lessonId]?.[questionId]) return;
   const correct = answer === question.answer;
   state.cumulativeFeedback[lessonId] = {
     ...(state.cumulativeFeedback[lessonId] || {}),
@@ -2518,7 +2524,9 @@ function answerCumulativeQuestion(lessonId, questionId, answer) {
   hapticFeedback(correct);
   const mistakeId = question.wordId ? `cumulative-${question.wordId}` : `cumulative-${questionId}`;
 
-  markMotionXp(correct ? 12 : 0);
+  const previous = state.progress.exerciseAttempts[`cumulative-${questionId}`];
+  const gainedXp = correct && previous !== "correct" ? 12 : 0;
+  markMotionXp(gainedXp);
   saveProgress({
     learnedVocabularyIds: correct && question.wordId ? [question.wordId] : [],
     vocabularyStats: question.wordId ? { [question.wordId]: reviewStatsFor(question.wordId, correct) } : {},
@@ -2533,7 +2541,7 @@ function answerCumulativeQuestion(lessonId, questionId, answer) {
           expected: question.answer,
           given: answer
         })),
-    xp: state.progress.xp + (correct ? 12 : 0)
+    xp: state.progress.xp + gainedXp
   });
 }
 
@@ -2542,10 +2550,13 @@ function answerMorphologyDrill(lessonId, drillId, answer) {
   const lesson = byId(state.data.lessons, lessonId);
   const drill = window.MadinahLearningCore.createMorphologyDrills(lesson).find((item) => item.id === drillId);
   if (!drill) return;
+  if (state.morphologyFeedback[`${lessonId}:${drillId}`]) return;
   const correct = answer === drill.answer;
   state.morphologyFeedback[`${lessonId}:${drillId}`] = { status: correct ? "correct" : "incorrect", answer };
   hapticFeedback(correct);
-  markMotionXp(correct ? 10 : 0);
+  const previous = state.progress.exerciseAttempts[`morphology-${drillId}`];
+  const gainedXp = correct && previous !== "correct" ? 10 : 0;
+  markMotionXp(gainedXp);
   saveProgress({
     exerciseAttempts: { [`morphology-${drillId}`]: correct ? "correct" : "incorrect" },
     ...(correct
@@ -2557,7 +2568,7 @@ function answerMorphologyDrill(lessonId, drillId, answer) {
           expected: drill.answer,
           given: answer
         })),
-    xp: state.progress.xp + (correct ? 10 : 0)
+    xp: state.progress.xp + gainedXp
   });
 }
 
@@ -2582,7 +2593,9 @@ function checkBookExercise(form) {
   const lesson = getSelectedLesson();
   const mistakeId = `write-${cardId}`;
 
-  markMotionXp(correct ? 20 : 0);
+  const previous = progressRecord("writingAttempts")[mistakeId];
+  const gainedXp = correct && previous !== "correct" ? 20 : 0;
+  markMotionXp(gainedXp);
   saveProgress({
     exerciseAnswers: { [cardId]: correct ? "correct" : "incorrect" },
     writingAttempts: { [mistakeId]: correct ? "correct" : "incorrect" },
@@ -2596,7 +2609,7 @@ function checkBookExercise(form) {
           expected,
           given
         })),
-    xp: state.progress.xp + (correct ? 20 : 0)
+    xp: state.progress.xp + gainedXp
   });
 }
 
@@ -2612,7 +2625,9 @@ function checkSentenceBuilder(form) {
   state.sentenceBuilderFeedback[lessonId] = { status: correct ? "correct" : "incorrect", expected: builder.answer, given };
   hapticFeedback(correct);
 
-  markMotionXp(correct ? 15 : 0);
+  const previous = state.progress.exerciseAttempts[`sentence-${lessonId}`];
+  const gainedXp = correct && previous !== "correct" ? 15 : 0;
+  markMotionXp(gainedXp);
   saveProgress({
     exerciseAttempts: { [`sentence-${lessonId}`]: correct ? "correct" : "incorrect" },
     ...(correct
@@ -2625,7 +2640,7 @@ function checkSentenceBuilder(form) {
           expected: builder.answer,
           given
         })),
-    xp: state.progress.xp + (correct ? 15 : 0)
+    xp: state.progress.xp + gainedXp
   });
 }
 
@@ -4696,13 +4711,14 @@ function renderLessonQuiz(lesson, lessonVocabulary) {
           ${renderExerciseArabicPrompt(exercise)}
           <div class="options">
             ${exercise.options
-              .map(
-                (option) => `
-                  <button class="option-button" type="button" data-answer="${escapeHtml(option)}" data-exercise-answer="${exercise.id}">
+              .map((option) => {
+                const answered = Boolean(state.exerciseFeedback[exercise.id]);
+                return `
+                  <button class="option-button" type="button" data-answer="${escapeHtml(option)}" data-exercise-answer="${exercise.id}" ${answered ? "disabled" : ""}>
                     ${renderExerciseOptionDisplay(option)}
                   </button>
-                `
-              )
+                `;
+              })
               .join("")}
           </div>
           ${renderExerciseFeedback(exercise)}
@@ -4755,7 +4771,7 @@ function renderVocabularyQuiz(lesson, lessonVocabulary) {
             const isCorrect = answered && option === quiz.answer;
             const isWrong = answered && option === feedback.answer && option !== quiz.answer;
             return `
-              <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-vocab-quiz-answer="${escapeHtml(option)}" data-vocab-quiz-lesson="${lesson.id}">
+              <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-vocab-quiz-answer="${escapeHtml(option)}" data-vocab-quiz-lesson="${lesson.id}" ${answered ? "disabled" : ""}>
                 <span ${hasArabic(option) ? 'class="arabic-option" lang="ar"' : ""}>${escapeHtml(localizedOption(option))}</span>
               </button>
             `;
@@ -4831,7 +4847,7 @@ function renderMorphologyDrills(lesson) {
                   const isCorrect = answered && option === drill.answer;
                   const isWrong = answered && option === feedback.answer && option !== drill.answer;
                   return `
-                    <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-morph-lesson="${lesson.id}" data-morph-drill="${escapeHtml(drill.id)}" data-morph-answer="${escapeHtml(option)}">
+                    <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-morph-lesson="${lesson.id}" data-morph-drill="${escapeHtml(drill.id)}" data-morph-answer="${escapeHtml(option)}" ${answered ? "disabled" : ""}>
                       <span class="arabic-option" lang="ar">${escapeHtml(option)}</span>
                     </button>
                   `;
@@ -4898,7 +4914,7 @@ function renderCumulativeQuestion(lessonId, question, feedback, number) {
           const isCorrect = answered && option === question.answer;
           const isWrong = answered && option === feedback.answer && option !== question.answer;
           return `
-            <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-cumulative-lesson="${lessonId}" data-cumulative-question="${escapeHtml(question.id)}" data-cumulative-answer="${escapeHtml(option)}">
+            <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-cumulative-lesson="${lessonId}" data-cumulative-question="${escapeHtml(question.id)}" data-cumulative-answer="${escapeHtml(option)}" ${answered ? "disabled" : ""}>
               ${question.answerKey === "exercise" ? renderExerciseOptionDisplay(option) : `<span ${hasArabic(option) ? 'class="arabic-option" lang="ar"' : ""}>${escapeHtml(localizedOption(option))}</span>`}
             </button>
           `;
@@ -5249,7 +5265,7 @@ function renderVocabTesterQuestion(question) {
             const isCorrect = answered && option === question.answer;
             const isWrong = answered && option === feedback.answer && option !== question.answer;
             return `
-              <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-vocab-tester-answer="${escapeHtml(option)}" data-vocab-tester-question="${question.id}">
+              <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-vocab-tester-answer="${escapeHtml(option)}" data-vocab-tester-question="${question.id}" ${answered ? "disabled" : ""}>
                 <span ${hasArabic(option) ? 'class="arabic-option" lang="ar"' : ""}>${escapeHtml(localizedOption(option))}</span>
               </button>
             `;
@@ -5508,13 +5524,14 @@ function renderExercisesPage() {
         ${renderExerciseArabicPrompt(selected)}
         <div class="options">
           ${selected.options
-            .map(
-              (option) => `
-                <button class="option-button" type="button" data-answer="${escapeHtml(option)}" data-exercise-answer="${selected.id}">
+            .map((option) => {
+              const answered = Boolean(state.exerciseFeedback[selected.id]);
+              return `
+                <button class="option-button" type="button" data-answer="${escapeHtml(option)}" data-exercise-answer="${selected.id}" ${answered ? "disabled" : ""}>
                   ${renderExerciseOptionDisplay(option)}
                 </button>
-              `
-            )
+              `;
+            })
             .join("")}
         </div>
         ${renderExerciseFeedback(selected)}

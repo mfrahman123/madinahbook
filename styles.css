@@ -3741,6 +3741,14 @@ tbody tr:hover td {
   transform: translateY(-1px);
 }
 
+.option-button:disabled {
+  cursor: default;
+}
+
+.option-button:disabled:not(.correct-option):not(.incorrect-option) {
+  opacity: 0.68;
+}
+
 .compact-button {
   min-height: 38px;
 }
