@@ -1779,6 +1779,25 @@ h3 {
   animation: answerReveal var(--motion-medium) var(--motion-ease) both;
 }
 
+.practice-answer-reveal {
+  max-width: 760px;
+}
+
+.practice-answer-content {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.practice-answer-content .answer-extra {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.practice-answer-reveal[open] .practice-answer-content {
+  animation: answerReveal var(--motion-medium) var(--motion-ease) both;
+}
+
 .achievement-card,
 .reading-mode-panel {
   display: grid;
@@ -3939,6 +3958,10 @@ tbody tr:hover td {
 }
 
 .answer-followup .answer-explanation {
+  margin-top: 0;
+}
+
+.answer-followup .feedback {
   margin-top: 0;
 }
 

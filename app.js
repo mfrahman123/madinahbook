@@ -219,7 +219,10 @@ const uiText = {
     checkedPractice: "যাচাই করা অনুশীলন",
     yourAnswer: "আপনার উত্তর",
     checkAnswer: "উত্তর যাচাই করুন",
+    viewAnswer: "উত্তর দেখুন",
     revealAnswer: "উত্তর দেখুন",
+    viewExplanation: "ব্যাখ্যা দেখুন",
+    modelAnswer: "মডেল উত্তর",
     correct: "সঠিক",
     retry: "আবার চেষ্টা",
     notQuite: "পুরোপুরি নয়। সঠিক উত্তর:",
@@ -1456,12 +1459,20 @@ function renderExerciseArabicPrompt(exercise, className = "arabic-hero exercise-
   return `<button class="${className}" type="button" data-speak="${escapeHtml(arabic)}" lang="ar">${arabic}</button>`;
 }
 
-function renderModelAnswerExplanation(answer, context = {}, explanation = "") {
+function renderModelAnswerReveal(answer, context = {}, explanation = "", options = {}) {
+  const correct = Boolean(options.correct);
+  if (correct && !explanation) return "";
   return `
-    <p class="answer-explanation">
-      <span>${escapeHtml(explanation || "Model answer:")}</span>
-      ${renderAnswerDisplay(answer, context)}
-    </p>
+    <details class="answer-reveal practice-answer-reveal">
+      <summary>
+        <span>${correct ? t("viewExplanation", "View explanation") : t("viewAnswer", "View answer")}</span>
+        ${icon("arrow")}
+      </summary>
+      <div class="practice-answer-content">
+        ${correct ? "" : `<span class="answer-kicker">${t("modelAnswer", "Model answer")}</span>${renderAnswerDisplay(answer, context)}`}
+        ${explanation ? `<span class="answer-extra">${escapeHtml(explanation)}</span>` : ""}
+      </div>
+    </details>
   `;
 }
 
@@ -1472,16 +1483,7 @@ function renderQuestionExplanation(question, selectedAnswer = "") {
     answerArabic: question?.answerArabic || "",
     arabic: question?.answerKey === "english" ? question?.arabic || "" : question?.arabic || ""
   };
-  const explanation = question?.explanation || "";
-  const prefix = correct ? t("correct", "Correct.") : t("notQuiteCorrectAnswer", "Not quite. Correct answer:");
-
-  return `
-    <p class="answer-explanation">
-      <span>${escapeHtml(prefix)}</span>
-      ${renderAnswerDisplay(answer, context)}
-      ${explanation ? `<span class="answer-extra">${escapeHtml(explanation)}</span>` : ""}
-    </p>
-  `;
+  return renderModelAnswerReveal(answer, context, question?.explanation || "", { correct });
 }
 
 function renderRetryButton(kind, payload = {}) {
@@ -2116,9 +2118,9 @@ async function refreshOfflineCache() {
     await cache.addAll([
       "/",
       "/index.html",
-      "/app.js?v=20260620-retry-options-fix",
-      "/learning-core.js?v=20260620-retry-options-fix",
-      "/styles.css?v=20260620-retry-options-fix",
+      "/app.js?v=20260620-answer-reveal-fix",
+      "/learning-core.js?v=20260620-answer-reveal-fix",
+      "/styles.css?v=20260620-answer-reveal-fix",
       "/api/bootstrap"
     ]);
     state.offlineNotice = t("offlineReady", "Offline cache refreshed for core lessons and vocabulary.");
@@ -4500,8 +4502,9 @@ function renderCheckedPractice(card) {
       ${feedback ? `
         <div class="feedback ${feedback.status === "correct" ? "correct" : "incorrect"}">
           ${icon(feedback.status === "correct" ? "check" : "x")}
-          <span>${feedback.status === "correct" ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(feedback.expected, { arabic: card.checked.arabic || "" })}`}</span>
+          <span>${feedback.status === "correct" ? t("correct", "Correct") : t("notQuiteShort", "Not quite.")}</span>
         </div>
+        ${feedback.status === "correct" ? "" : renderModelAnswerReveal(feedback.expected, { arabic: card.checked.arabic || "" })}
       ` : ""}
     </form>
   `;
@@ -4812,7 +4815,7 @@ function renderVocabularyQuiz(lesson, lessonVocabulary) {
         ${quiz.options
           .map((option) => {
             const answered = Boolean(feedback);
-            const isCorrect = answered && option === quiz.answer;
+            const isCorrect = answered && feedback.status === "correct" && option === quiz.answer;
             const isWrong = answered && option === feedback.answer && option !== quiz.answer;
             return `
               <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-vocab-quiz-answer="${escapeHtml(option)}" data-vocab-quiz-lesson="${lesson.id}" ${answered ? "disabled" : ""}>
@@ -4855,9 +4858,10 @@ function renderSentenceBuilder(lesson) {
       ${feedback ? `
         <div class="feedback ${correct ? "correct" : "incorrect"}">
           ${icon(correct ? "check" : "x")}
-          <span>${correct ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(feedback.expected)}`}</span>
+          <span>${correct ? t("correct", "Correct") : t("notQuiteShort", "Not quite.")}</span>
           ${renderRetryButton("sentence-builder", { lessonId: lesson.id })}
         </div>
+        ${correct ? "" : renderModelAnswerReveal(feedback.expected)}
       ` : ""}
     </section>
   `;
@@ -4889,7 +4893,7 @@ function renderMorphologyDrills(lesson) {
               <div class="options">
                 ${drill.options.map((option) => {
                   const answered = Boolean(feedback);
-                  const isCorrect = answered && option === drill.answer;
+                  const isCorrect = answered && feedback.status === "correct" && option === drill.answer;
                   const isWrong = answered && option === feedback.answer && option !== drill.answer;
                   return `
                     <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-morph-lesson="${lesson.id}" data-morph-drill="${escapeHtml(drill.id)}" data-morph-answer="${escapeHtml(option)}" ${answered ? "disabled" : ""}>
@@ -4901,10 +4905,10 @@ function renderMorphologyDrills(lesson) {
               ${feedback ? `
                 <div class="feedback ${feedback.status === "correct" ? "correct" : "incorrect"}">
                   ${icon(feedback.status === "correct" ? "check" : "x")}
-                  <span>${feedback.status === "correct" ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(drill.answer)}`}</span>
+                  <span>${feedback.status === "correct" ? t("correct", "Correct") : t("notQuiteShort", "Not quite.")}</span>
                   ${renderRetryButton("morphology", { lessonId: lesson.id, drillId: drill.id })}
                 </div>
-                <p class="answer-explanation">${escapeHtml(drill.explanation)}</p>
+                ${renderModelAnswerReveal(drill.answer, {}, drill.explanation, { correct: feedback.status === "correct" })}
               ` : ""}
             </article>
           `;
@@ -4963,7 +4967,7 @@ function renderCumulativeQuestion(lessonId, question, feedback, number) {
       <div class="vocab-test-options">
         ${(question.options || []).map((option) => {
           const answered = Boolean(feedback);
-          const isCorrect = answered && option === question.answer;
+          const isCorrect = answered && feedback.status === "correct" && option === question.answer;
           const isWrong = answered && option === feedback.answer && option !== question.answer;
           return `
             <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-cumulative-lesson="${lessonId}" data-cumulative-question="${escapeHtml(question.id)}" data-cumulative-answer="${escapeHtml(option)}" ${answered ? "disabled" : ""}>
@@ -4974,8 +4978,12 @@ function renderCumulativeQuestion(lessonId, question, feedback, number) {
       </div>
       ${feedback ? `
         <div class="answer-followup">
+          <div class="feedback ${feedback.status === "correct" ? "correct" : "incorrect"}">
+            ${icon(feedback.status === "correct" ? "check" : "x")}
+            <span>${feedback.status === "correct" ? t("correct", "Correct") : t("notQuiteShort", "Not quite.")}</span>
+            ${renderRetryButton("cumulative", { lessonId, questionId: question.id })}
+          </div>
           ${renderQuestionExplanation(question, feedback.answer)}
-          ${renderRetryButton("cumulative", { lessonId, questionId: question.id })}
         </div>
       ` : ""}
     </article>
@@ -5319,7 +5327,7 @@ function renderVocabTesterQuestion(question) {
         ${question.options
           .map((option) => {
             const answered = Boolean(feedback);
-            const isCorrect = answered && option === question.answer;
+            const isCorrect = answered && feedback.status === "correct" && option === question.answer;
             const isWrong = answered && option === feedback.answer && option !== question.answer;
             return `
               <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-vocab-tester-answer="${escapeHtml(option)}" data-vocab-tester-question="${question.id}" ${answered ? "disabled" : ""}>
@@ -5608,7 +5616,7 @@ function renderExerciseFeedback(exercise) {
       <span>${correct ? t("correct", "Correct") : t("notQuiteShort", "Not quite.")}</span>
       ${renderRetryButton("exercise", { exerciseId: exercise.id })}
     </div>
-    ${renderModelAnswerExplanation(exercise.answer, { arabic: exercise.arabic || "" })}
+    ${correct ? "" : renderModelAnswerReveal(exercise.answer, { arabic: exercise.arabic || "" })}
   `;
 }
 

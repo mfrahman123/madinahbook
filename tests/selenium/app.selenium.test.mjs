@@ -226,7 +226,8 @@ describe("Madinah Arabic Selenium flows", () => {
     await waitForQuestionCount(driver, 3);
 
     let firstQuestion = await driver.findElement(By.css(".vocab-test-question"));
-    await firstQuestion.findElement(By.css("[data-vocab-tester-answer]")).click();
+    const wrongAnswerButton = await findWrongVocabTesterAnswerButton(driver, firstQuestion);
+    await wrongAnswerButton.click();
     await driver.wait(async () => {
       [firstQuestion] = await driver.findElements(By.css(".vocab-test-question"));
       if (!firstQuestion) return false;
@@ -234,6 +235,17 @@ describe("Madinah Arabic Selenium flows", () => {
       const disabledStates = await Promise.all(options.map((option) => option.getAttribute("disabled")));
       return disabledStates.length > 0 && disabledStates.every((value) => value !== null);
     }, 5000, "Timed out waiting for answered tester options to lock");
+
+    const feedbackText = await firstQuestion.findElement(By.css(".feedback")).getText();
+    assert.doesNotMatch(feedbackText, /Correct answer:/);
+    assert.match(feedbackText, /Not quite/);
+    assert.equal((await firstQuestion.findElements(By.css(".correct-option"))).length, 0);
+    assert.equal((await firstQuestion.findElements(By.css(".incorrect-option"))).length, 1);
+    const answerReveal = await firstQuestion.findElement(By.css(".practice-answer-reveal"));
+    assert.equal(await answerReveal.getAttribute("open"), null);
+    assert.match(await answerReveal.getText(), /View answer/);
+    await answerReveal.findElement(By.css("summary")).click();
+    await driver.wait(async () => (await answerReveal.getAttribute("open")) !== null, 5000, "Timed out waiting for answer reveal to open");
 
     await firstQuestion.findElement(By.css('[data-retry-answer="vocab-tester"]')).click();
     await driver.wait(async () => {
@@ -498,6 +510,28 @@ async function clickFirstVisible(driver, selector) {
     }
   }
   throw new Error(`No visible element found for selector: ${selector}`);
+}
+
+async function findWrongVocabTesterAnswerButton(driver, questionElement) {
+  const meta = await driver.executeScript(`
+    const question = arguments[0];
+    return {
+      prompt: question.querySelector(".vocab-test-prompt p")?.innerText.trim() || "",
+      display: question.querySelector(".vocab-test-prompt strong, .vocab-test-prompt [data-speak]")?.innerText.trim() || "",
+      options: Array.from(question.querySelectorAll("[data-vocab-tester-answer]")).map((button, index) => ({
+        index,
+        text: button.innerText.trim()
+      }))
+    };
+  `, questionElement);
+  const data = await driver.executeScript("return fetch('/api/bootstrap').then((response) => response.json());");
+  const word = meta.prompt.includes("Arabic word")
+    ? data.vocabulary.find((item) => item.english === meta.display)
+    : data.vocabulary.find((item) => item.arabic === meta.display);
+  const correctAnswer = meta.prompt.includes("Arabic word") ? word?.arabic : word?.english;
+  const wrongOption = meta.options.find((option) => option.text !== correctAnswer) || meta.options[1] || meta.options[0];
+  const buttons = await questionElement.findElements(By.css("[data-vocab-tester-answer]"));
+  return buttons[wrongOption.index];
 }
 
 async function readSelectedPalette(driver, selectors) {
