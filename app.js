@@ -1214,6 +1214,267 @@ function localizedOption(value) {
   return hasArabic(value) ? value : localizedText(value);
 }
 
+const ANSWER_ARABIC_GLOSSARY = [
+  ["fatḥah", "فَتْحَةٌ"],
+  ["fathah", "فَتْحَةٌ"],
+  ["kasrah", "كَسْرَةٌ"],
+  ["ḍammah", "ضَمَّةٌ"],
+  ["dammah", "ضَمَّةٌ"],
+  ["tanwin", "تَنْوِينٌ"],
+  ["definite", "مَعْرِفَةٌ"],
+  ["indefinite", "نَكِرَةٌ"],
+  ["marfu", "مَرْفُوعٌ"],
+  ["marfūʿ", "مَرْفُوعٌ"],
+  ["mansub", "مَنْصُوبٌ"],
+  ["manṣūb", "مَنْصُوبٌ"],
+  ["majzum", "مَجْزُومٌ"],
+  ["majzūm", "مَجْزُومٌ"],
+  ["mudari", "مُضَارِعٌ"],
+  ["mudari'", "مُضَارِعٌ"],
+  ["mudāriʿ", "مُضَارِعٌ"],
+  ["second-person mudari", "الْمُضَارِعُ لِلْمُخَاطَبِ"],
+  ["past tense isnad", "إِسْنَادُ الْمَاضِي"],
+  ["mudari isnad", "إِسْنَادُ الْمُضَارِعِ"],
+  ["mudari' isnad", "إِسْنَادُ الْمُضَارِعِ"],
+  ["isnad", "إِسْنَادٌ"],
+  ["maf'ul mutlaq", "مَفْعُولٌ مُطْلَقٌ"],
+  ["mafʿul mutlaq", "مَفْعُولٌ مُطْلَقٌ"],
+  ["tamyiz", "تَمْيِيزٌ"],
+  ["tamyīz", "تَمْيِيزٌ"],
+  ["khabar", "خَبَرٌ"],
+  ["zarf of time", "ظَرْفُ زَمَانٍ"],
+  ["zarf", "ظَرْفٌ"],
+  ["mudaf", "مُضَافٌ"],
+  ["muḍāf", "مُضَافٌ"],
+  ["ma'dud", "مَعْدُودٌ"],
+  ["maʿdūd", "مَعْدُودٌ"],
+  ["masdar", "مَصْدَرٌ"],
+  ["active participle", "اسْمُ الْفَاعِلِ"],
+  ["passive participle", "اسْمُ الْمَفْعُولِ"],
+  ["noun of instrument", "اسْمُ الْآلَةِ"],
+  ["instrument noun", "اسْمُ الْآلَةِ"],
+  ["noun of place", "اسْمُ الْمَكَانِ"],
+  ["noun of time", "اسْمُ الزَّمَانِ"],
+  ["place noun", "اسْمُ الْمَكَانِ"],
+  ["time noun", "اسْمُ الزَّمَانِ"],
+  ["mithal", "مِثَالٌ"],
+  ["mithāl", "مِثَالٌ"],
+  ["ajwaf", "أَجْوَفُ"],
+  ["nāqiṣ", "نَاقِصٌ"],
+  ["naqis", "نَاقِصٌ"],
+  ["muḍaʿʿaf", "مُضَعَّفٌ"],
+  ["mudaaf", "مُضَعَّفٌ"],
+  ["diptote", "مَمْنُوعٌ مِنَ الصَّرْفِ"],
+  ["accusative", "نَصْبٌ"],
+  ["genitive", "جَرٌّ"],
+  ["nominative", "رَفْعٌ"],
+  ["indicative", "رَفْعٌ"],
+  ["subjunctive", "نَصْبٌ"],
+  ["jussive", "جَزْمٌ"],
+  ["object", "مَفْعُولٌ بِهِ"],
+  ["direct object", "مَفْعُولٌ بِهِ"],
+  ["circumstantial clause", "جُمْلَةُ الْحَالِ"],
+  ["waw al-hal", "وَاوُ الْحَالِ"],
+  ["condition", "شَرْطٌ"],
+  ["prohibition", "نَهْيٌ"],
+  ["imperative", "أَمْرٌ"],
+  ["hamzah", "هَمْزَةٌ"],
+  ["nun", "نُونٌ"],
+  ["nūn", "نُونٌ"],
+  ["future", "مُسْتَقْبَلٌ"],
+  ["present", "مُضَارِعٌ"]
+];
+
+function normalizeAnswerGloss(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[ʿ‘’`]/g, "'")
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0600-\u06ff']+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function answerGlossParts(value) {
+  const text = String(value || "");
+  return uniqueValues([
+    text,
+    ...text.split(/\s*(?:,|;|\/|\band\b|\bor\b)\s*/i)
+  ].map((part) => part.trim()).filter(Boolean));
+}
+
+function glossaryArabicForAnswer(answer) {
+  const entries = ANSWER_ARABIC_GLOSSARY.map(([term, arabic]) => ({
+    key: normalizeAnswerGloss(term),
+    arabic
+  }));
+  const normalizedAnswer = normalizeAnswerGloss(answer);
+  const exactMatches = answerGlossParts(answer).flatMap((part) => {
+    const normalizedPart = normalizeAnswerGloss(part);
+    return entries.filter((entry) => entry.key === normalizedPart).map((entry) => entry.arabic);
+  });
+  if (exactMatches.length) return uniqueValues(exactMatches);
+
+  return uniqueValues(
+    entries
+      .filter((entry) => entry.key.length > 3 && normalizedAnswer.includes(entry.key))
+      .map((entry) => entry.arabic)
+  );
+}
+
+function vocabularyArabicForAnswer(answer) {
+  const parts = answerGlossParts(answer).map(normalizeAnswerGloss);
+  if (!parts.length) return [];
+
+  return uniqueValues(
+    (state.data.vocabulary || [])
+      .flatMap((word) => {
+        const glosses = [
+          word.english,
+          word.transliteration,
+          ...answerGlossParts(word.english || ""),
+          ...answerGlossParts(word.transliteration || "")
+        ].map(normalizeAnswerGloss);
+        return glosses.some((gloss) => parts.includes(gloss)) ? [word.arabic] : [];
+      })
+      .filter(Boolean)
+  ).slice(0, 3);
+}
+
+function answerArabicMatches(answer, context = {}, options = {}) {
+  if (!answer || hasArabic(answer)) return [];
+  const directMatches = uniqueValues([
+    ...vocabularyArabicForAnswer(answer),
+    ...glossaryArabicForAnswer(answer),
+    ...(context.answerArabic ? [context.answerArabic] : [])
+  ].filter(Boolean));
+
+  if (directMatches.length || options.includeSourceContext === false) return directMatches;
+  return context.arabic ? [context.arabic] : [];
+}
+
+function renderAnswerDisplay(answer, context = {}, options = {}) {
+  const value = String(answer || "");
+  const arabicMatches = answerArabicMatches(value, context, options);
+  const isArabic = hasArabic(value);
+  const label = isArabic ? value : localizedOption(value);
+  const classes = [
+    "answer-with-arabic",
+    isArabic ? "arabic-only" : "",
+    options.className || ""
+  ].filter(Boolean).join(" ");
+
+  return `
+    <span class="${classes}">
+      <span class="answer-primary" ${isArabic ? 'dir="rtl" lang="ar"' : ""}>${escapeHtml(label)}</span>
+      ${arabicMatches.length ? `<span class="answer-arabic" dir="rtl" lang="ar">${escapeHtml(arabicMatches.join(" / "))}</span>` : ""}
+    </span>
+  `;
+}
+
+function renderExerciseOptionDisplay(option) {
+  return renderAnswerDisplay(option, {}, {
+    includeSourceContext: false,
+    className: "option-answer"
+  });
+}
+
+function arabicTermsForText(text) {
+  const normalized = ` ${normalizeAnswerGloss(text)} `;
+  return uniqueValues(
+    ANSWER_ARABIC_GLOSSARY
+      .map(([term, arabic]) => ({ key: normalizeAnswerGloss(term), arabic }))
+      .filter((entry) => entry.key.length > 3 && normalized.includes(` ${entry.key} `))
+      .map((entry) => entry.arabic)
+  );
+}
+
+function renderPromptTermGlosses(prompt) {
+  const terms = arabicTermsForText(prompt);
+  if (!terms.length) return "";
+  return `
+    <div class="prompt-term-glosses" aria-label="${t("arabicTerms", "Arabic terms")}">
+      ${terms.map((term) => `<span dir="rtl" lang="ar">${escapeHtml(term)}</span>`).join("")}
+    </div>
+  `;
+}
+
+function renderPromptText(prompt) {
+  return `
+    <p>${escapeHtml(localizedText(prompt))}</p>
+    ${renderPromptTermGlosses(prompt)}
+  `;
+}
+
+function arabicLookupTokens(value) {
+  return normalizeArabicLookup(value)
+    .split(/[\s/]+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function isSameArabicText(first, second) {
+  if (!hasArabic(first) || !hasArabic(second)) return false;
+  const firstText = normalizeArabicLookup(first);
+  const secondText = normalizeArabicLookup(second);
+  if (firstText && firstText === secondText) return true;
+
+  const firstTokens = arabicLookupTokens(first).sort();
+  const secondTokens = arabicLookupTokens(second).sort();
+  return firstTokens.length > 0
+    && firstTokens.length === secondTokens.length
+    && firstTokens.every((token, index) => token === secondTokens[index]);
+}
+
+function exercisePromptArabic(exercise) {
+  if (!exercise?.arabic || !hasArabic(exercise.arabic)) return "";
+  const lesson = byId(state.data.lessons || [], exercise.lessonId);
+  const answerOnlyArabic = isSameArabicText(exercise.arabic, exercise.answer);
+  const prompt = String(exercise.prompt || "").toLowerCase();
+
+  if (!answerOnlyArabic) return exercise.arabic;
+  if (prompt.includes("model sentence") && lesson?.arabic && !isSameArabicText(lesson.arabic, exercise.answer)) {
+    return lesson.arabic;
+  }
+
+  return "";
+}
+
+function renderExerciseArabicPrompt(exercise, className = "arabic-hero exercise-prompt") {
+  const arabic = exercisePromptArabic(exercise);
+  if (!arabic) return "";
+  return `<button class="${className}" type="button" data-speak="${escapeHtml(arabic)}" lang="ar">${arabic}</button>`;
+}
+
+function renderModelAnswerExplanation(answer, context = {}, explanation = "") {
+  return `
+    <p class="answer-explanation">
+      <span>${escapeHtml(explanation || "Model answer:")}</span>
+      ${renderAnswerDisplay(answer, context)}
+    </p>
+  `;
+}
+
+function renderQuestionExplanation(question, selectedAnswer = "") {
+  const answer = question?.answer || "";
+  const correct = selectedAnswer === answer;
+  const context = {
+    answerArabic: question?.answerArabic || "",
+    arabic: question?.answerKey === "english" ? question?.arabic || "" : question?.arabic || ""
+  };
+  const explanation = question?.explanation || "";
+  const prefix = correct ? t("correct", "Correct.") : t("notQuiteCorrectAnswer", "Not quite. Correct answer:");
+
+  return `
+    <p class="answer-explanation">
+      <span>${escapeHtml(prefix)}</span>
+      ${renderAnswerDisplay(answer, context)}
+      ${explanation ? `<span class="answer-extra">${escapeHtml(explanation)}</span>` : ""}
+    </p>
+  `;
+}
+
 function byId(items, id) {
   return items.find((item) => item.id === id);
 }
@@ -1365,6 +1626,34 @@ function routeRequiresPremium(routeId) {
   return currentPlan().paidRoutes.includes(routeId);
 }
 
+function learningPreferences() {
+  return {
+    studyGoal: "guided-books",
+    skillFocus: "balanced",
+    dailyMinutes: 10,
+    onboardingComplete: false,
+    ...(state.progress?.learningPreferences || {})
+  };
+}
+
+function learningPreferenceLabel(type, value) {
+  const labels = {
+    studyGoal: {
+      "guided-books": t("guidedBooks", "Guided books"),
+      "quran-grammar": t("quranGrammar", "Qur'an grammar"),
+      vocabulary: t("vocabulary", "Vocabulary"),
+      "exam-revision": t("examRevision", "Exam revision")
+    },
+    skillFocus: {
+      balanced: t("balanced", "Balanced"),
+      reading: t("reading", "Reading"),
+      vocabulary: t("vocabulary", "Vocabulary"),
+      grammar: t("grammar", "Grammar")
+    }
+  };
+  return labels[type]?.[value] || String(value || "");
+}
+
 function paidFeatureText(feature = "default") {
   const copy = {
     book: t("paidBookText", "This book is part of Premium. You can continue Book 1 for free."),
@@ -1412,6 +1701,48 @@ function vocabularyFocusMatches(word, focus) {
   if (focus === "due") return isVocabularyDue(word);
   if (focus === "mistakes") return hasOpenVocabularyMistake(word);
   return true;
+}
+
+function vocabularyStatus(word) {
+  const stats = progressRecord("vocabularyStats")[word.id] || {};
+  const learned = state.progress.learnedVocabularyIds.includes(word.id);
+  const correct = Number(stats.correct || 0);
+  const incorrect = Number(stats.incorrect || 0);
+  const level = Number(stats.level || 0);
+
+  if (hasOpenVocabularyMistake(word) || incorrect > correct) return "weak";
+  if (learned && level >= 4) return "known";
+  if (learned || correct > 0 || Number(stats.reviewCount || 0) > 0) return "learning";
+  return "new";
+}
+
+function vocabularyStatusLabel(status) {
+  return {
+    new: t("new", "New"),
+    learning: t("learning", "Learning"),
+    known: t("known", "Known"),
+    weak: t("weak", "Weak")
+  }[status] || t("new", "New");
+}
+
+function vocabularyStatusCounts(words = state.data.vocabulary.filter((word) => canAccessBookSlug(word.bookSlug))) {
+  return words.reduce((counts, word) => {
+    counts[vocabularyStatus(word)] += 1;
+    return counts;
+  }, { new: 0, learning: 0, known: 0, weak: 0 });
+}
+
+function reviewScheduleText(word) {
+  const stats = progressRecord("vocabularyStats")[word.id];
+  if (!stats?.dueAt) return t("readyToLearn", "Ready to learn");
+  const due = Date.parse(stats.dueAt);
+  if (!Number.isFinite(due) || due <= Date.now()) return t("dueNow", "Due now");
+  const days = Math.max(1, Math.ceil((due - Date.now()) / (24 * 60 * 60 * 1000)));
+  return days === 1 ? t("dueTomorrow", "Due tomorrow") : `${t("dueIn", "Due in")} ${days} ${t("days", "days")}`;
+}
+
+function visibleVocabularyWords() {
+  return state.data.vocabulary.filter((word) => canAccessBookSlug(word.bookSlug));
 }
 
 function mistakeItems(lesson = null) {
@@ -1463,6 +1794,60 @@ function lessonMastery(lesson) {
   const completedScore = state.progress.completedLessonIds.includes(lesson.id) ? 1 : 0;
 
   return Math.round((vocabularyScore * 0.3 + exerciseScore * 0.25 + quizScore * 0.2 + writingScore * 0.15 + completedScore * 0.1) * 100);
+}
+
+function normalizeArabicLookup(value) {
+  return String(value || "")
+    .replace(/[ـ]/g, "")
+    .replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]/g, "")
+    .replace(/[^\u0621-\u064A\u0660-\u0669\s/]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeArabicCore(value) {
+  return normalizeArabicLookup(value).replace(/^ال/, "");
+}
+
+function wordForArabicToken(token, lessonVocabulary) {
+  const normalized = normalizeArabicCore(token);
+  if (!normalized) return null;
+  return lessonVocabulary.find((word) => {
+    const forms = String(word.arabic || "").split(/\s*\/\s*/);
+    return forms.some((form) => {
+      const wordNormalized = normalizeArabicCore(form);
+      return wordNormalized && (normalized === wordNormalized || normalized.includes(wordNormalized) || wordNormalized.includes(normalized));
+    });
+  }) || null;
+}
+
+function renderArabicWordInspector(text, lessonVocabulary) {
+  const tokens = String(text || "").split(/(\s+)/);
+  if (!tokens.some((token) => hasArabic(token))) return "";
+
+  return `
+    <div class="arabic-word-inspector" dir="rtl" lang="ar" aria-label="${t("tapArabicWords", "Tap Arabic words")}">
+      ${tokens.map((token) => {
+        if (!token.trim()) return escapeHtml(token);
+        if (!hasArabic(token)) return `<span>${escapeHtml(token)}</span>`;
+
+        const word = wordForArabicToken(token, lessonVocabulary);
+        const speakText = word?.arabic || token;
+        const status = word ? vocabularyStatus(word) : "new";
+        const meaning = word ? localizedText(word.english) : t("listenToPhrase", "Listen to this phrase");
+        return `
+          <details class="arabic-token ${word ? `status-${status}` : "unmatched"}">
+            <summary>${escapeHtml(token)}</summary>
+            <div class="arabic-token-popover" dir="ltr">
+              <strong>${escapeHtml(meaning)}</strong>
+              <span>${word ? `${vocabularyStatusLabel(status)} · ${reviewScheduleText(word)}` : t("audioOnly", "Audio only")}</span>
+              <button class="icon-button" type="button" data-speak="${escapeHtml(speakText)}" aria-label="${t("playAudio", "Play audio")}">${icon("speaker")}</button>
+            </div>
+          </details>
+        `;
+      }).join("")}
+    </div>
+  `;
 }
 
 function normalizeAnswer(value) {
@@ -1708,7 +2093,14 @@ async function refreshOfflineCache() {
 
   try {
     const cache = await caches.open("madinah-arabic-user-cache-v1");
-    await cache.addAll(["/", "/index.html", "/app.js", "/learning-core.js", "/styles.css", "/api/bootstrap"]);
+    await cache.addAll([
+      "/",
+      "/index.html",
+      "/app.js?v=20260620-answer-leak-fix",
+      "/learning-core.js?v=20260620-answer-leak-fix",
+      "/styles.css?v=20260620-answer-leak-fix",
+      "/api/bootstrap"
+    ]);
     state.offlineNotice = t("offlineReady", "Offline cache refreshed for core lessons and vocabulary.");
   } catch {
     state.offlineNotice = t("offlineRefreshFailed", "Offline cache could not be refreshed right now.");
@@ -2047,6 +2439,36 @@ function setVocabTesterLesson(lessonKey) {
   render();
 }
 
+function updateStudyPreference(key, rawValue) {
+  const current = learningPreferences();
+  const value = key === "dailyMinutes" ? Number(rawValue) : rawValue;
+  saveProgress({
+    learningPreferences: {
+      ...current,
+      [key]: value
+    }
+  });
+}
+
+function completeOnboarding() {
+  saveProgress({
+    learningPreferences: {
+      ...learningPreferences(),
+      onboardingComplete: true
+    }
+  });
+}
+
+function openLessonTab(lessonId, tab) {
+  const lesson = byId(state.data.lessons, lessonId);
+  if (!lesson) return;
+  state.selectedLessonId = lesson.id;
+  state.route = lesson.bookSlug;
+  state.lessonTab = tab || "learn";
+  state.motion.view = true;
+  render();
+}
+
 function answerVocabTester(questionId, answer) {
   const question = state.vocabTester?.questions.find((item) => item.id === questionId);
   if (!question) return;
@@ -2217,6 +2639,7 @@ function render() {
         <main class="${viewClass}">${renderRoute()}</main>
       </div>
       ${renderMobileBottomNav()}
+      ${renderMobileStickyAction()}
       ${renderCelebrationToast()}
       ${renderAuthModal()}
     `
@@ -2336,6 +2759,59 @@ function renderMobileBottomNav() {
         </button>
       `).join("")}
     </nav>
+  `;
+}
+
+function renderMobileStickyAction() {
+  if (!isAuthenticated()) return "";
+  const lesson = getSelectedLesson();
+  const currentLesson = getCurrentLesson();
+  let label = t("continue", "Continue");
+  let attrs = `data-lesson="${escapeHtml(currentLesson.id)}"`;
+  let secondary = `${escapeHtml(localizedBookTitle(getBook(currentLesson.bookSlug)))} · ${t("lesson", "Lesson")} ${escapeHtml(currentLesson.number)}`;
+
+  if (isBookRoute(state.route) && lesson) {
+    const nextTabByTab = {
+      learn: hasPremiumAccess() ? "book-exercises" : "",
+      "book-exercises": "quiz",
+      quiz: "review",
+      review: ""
+    };
+    const nextTab = nextTabByTab[state.lessonTab];
+    if (nextTab) {
+      label = state.lessonTab === "learn" ? t("practiceNext", "Practice next") : state.lessonTab === "book-exercises" ? t("startQuiz", "Start quiz") : t("reviewLesson", "Review lesson");
+      attrs = `data-open-lesson="${escapeHtml(lesson.id)}" data-open-lesson-tab="${escapeHtml(nextTab)}"`;
+    } else {
+      label = state.progress.completedLessonIds.includes(lesson.id) ? t("nextLesson", "Next lesson") : t("markComplete", "Mark complete");
+      attrs = state.progress.completedLessonIds.includes(lesson.id)
+        ? `data-lesson="${escapeHtml(nextLessonId(lesson.id))}"`
+        : `data-complete="${escapeHtml(lesson.id)}"`;
+    }
+    secondary = `${t("lesson", "Lesson")} ${escapeHtml(lesson.number)} · ${lessonMastery(lesson)}% ${t("mastery", "mastery")}`;
+  } else if (state.route === "vocabulary") {
+    label = state.vocabularyTab === "tester" ? t("generateNewTest", "Generate new test") : t("openVocabTester", "Open tester");
+    attrs = state.vocabularyTab === "tester" ? "data-vocab-tester-new" : 'data-vocabulary-tab="tester"';
+    secondary = `${getVocabTesterPool().length} ${t("selectedWords", "selected words")}`;
+  } else if (state.route === "exercises" || state.route === "review") {
+    label = t("continueLesson", "Continue lesson");
+    attrs = `data-lesson="${escapeHtml(currentLesson.id)}"`;
+    secondary = `${mistakeItems().length} ${t("openMistakes", "open mistakes")}`;
+  } else if (state.route === "account") {
+    label = state.user.billingPortalAvailable ? t("manageBilling", "Manage billing") : t("continueLearning", "Continue learning");
+    attrs = state.user.billingPortalAvailable ? "data-billing-portal" : `data-lesson="${escapeHtml(currentLesson.id)}"`;
+    secondary = escapeHtml(localizedPlanLabel());
+  }
+
+  return `
+    <section class="mobile-sticky-action" aria-label="${t("nextAction", "Next action")}">
+      <div>
+        <span>${secondary}</span>
+        <strong>${escapeHtml(label)}</strong>
+      </div>
+      <button class="primary-button" type="button" ${attrs}>
+        ${escapeHtml(label)} ${icon("arrow")}
+      </button>
+    </section>
   `;
 }
 
@@ -2698,14 +3174,264 @@ function renderAuthenticatedHome() {
   return `
     <section class="dashboard-grid learning-dashboard">
       <div class="primary-stack">
+        ${renderMobileTodayScreen(currentLesson)}
+        ${renderOnboardingPanel()}
         ${renderContinueCard(currentLesson)}
         ${renderQuickAccess()}
+        ${renderDailyMissionPanel(currentLesson)}
         ${renderTodayReviewPanel(currentLesson)}
+        ${renderLessonMapCard(currentLesson.bookSlug, currentLesson)}
       </div>
       <aside class="side-stack">
+        ${renderStudyProfileCard()}
         ${renderProgressPanel()}
         ${renderBooksPanel()}
       </aside>
+    </section>
+  `;
+}
+
+function renderMobileTodayScreen(currentLesson) {
+  const preferences = learningPreferences();
+  const dueWords = dueVocabularyItems().filter((word) => canAccessBookSlug(word.bookSlug));
+  const weakWords = weakVocabularyItems(3);
+  const lessonVocabulary = getLessonVocabulary(currentLesson);
+  const learned = lessonVocabulary.filter((word) => state.progress.learnedVocabularyIds.includes(word.id)).length;
+  const sessionSteps = [
+    [icon("play"), t("read", "Read"), currentLesson.arabic, `data-lesson="${escapeHtml(currentLesson.id)}"`],
+    [icon("words"), t("review", "Review"), `${Math.min(3, dueWords.length || lessonVocabulary.length)} ${t("words", "words")}`, 'data-route="vocabulary"'],
+    [icon("exercises"), t("practice", "Practice"), hasPremiumAccess() ? t("miniDrill", "Mini drill") : t("premiumPlan", "Premium"), hasPremiumAccess() ? `data-open-lesson="${escapeHtml(currentLesson.id)}" data-open-lesson-tab="book-exercises"` : 'data-route="subscription"']
+  ];
+
+  return `
+    <section class="mobile-today-screen">
+      <article class="mobile-hero-study">
+        <div>
+          <p class="section-label">${t("today", "Today")}</p>
+          <h2>${t("dailyStudyMission", "Daily Study Mission")}</h2>
+          <span>${preferences.dailyMinutes}m · ${learningPreferenceLabel("skillFocus", preferences.skillFocus)}</span>
+        </div>
+        <button class="primary-button" type="button" data-lesson="${escapeHtml(currentLesson.id)}">${t("start", "Start")} ${icon("arrow")}</button>
+      </article>
+      <article class="mobile-current-card">
+        <div class="card-heading">
+          <div>
+            <p class="section-label">${escapeHtml(localizedBookTitle(getBook(currentLesson.bookSlug)))}</p>
+            <h3>${t("lesson", "Lesson")} ${currentLesson.number}: ${escapeHtml(localizedLessonTitle(currentLesson))}</h3>
+          </div>
+          <span class="pill">${lessonMastery(currentLesson)}%</span>
+        </div>
+        <button class="mobile-current-arabic" type="button" data-speak="${escapeHtml(currentLesson.arabic)}" lang="ar">${currentLesson.arabic}</button>
+        <div class="mobile-session-progress">
+          <span>${learned}/${lessonVocabulary.length} ${t("words", "words")}</span>
+          <div class="bar"><span style="width:${lessonVocabulary.length ? Math.round((learned / lessonVocabulary.length) * 100) : 0}%"></span></div>
+        </div>
+      </article>
+      <section class="mobile-session-cards" aria-label="${t("todaySession", "Today session")}">
+        ${sessionSteps.map(([stepIcon, title, body, attrs]) => `
+          <button class="mobile-session-card" type="button" ${attrs}>
+            <span class="quick-icon">${stepIcon}</span>
+            <strong>${escapeHtml(title)}</strong>
+            <small ${hasArabic(body) ? 'dir="rtl" lang="ar"' : ""}>${escapeHtml(body)}</small>
+          </button>
+        `).join("")}
+      </section>
+      <section class="mobile-review-strip">
+        <div>
+          <p class="section-label">${t("quickReview", "Quick review")}</p>
+          <h3>${dueWords.length} ${t("wordsDue", "words due")}</h3>
+        </div>
+        <div class="chip-row">
+          ${(weakWords.length ? weakWords : dueWords).slice(0, 4).map((word) => `<button type="button" data-speak="${escapeHtml(word.arabic)}" lang="ar">${word.arabic}</button>`).join("") || `<span class="empty-state">${t("noDueWords", "No due words right now.")}</span>`}
+        </div>
+      </section>
+      <section class="mobile-offline-card">
+        <div>
+          <p class="section-label">${t("offlineStudy", "Offline study")}</p>
+          <h3>${t("keepRecentLessonsReady", "Keep recent lessons ready")}</h3>
+        </div>
+        <button class="ghost-button compact-button" type="button" data-install-offline>${t("refreshOffline", "Refresh offline cache")}</button>
+      </section>
+    </section>
+  `;
+}
+
+function renderOnboardingPanel() {
+  const preferences = learningPreferences();
+  if (preferences.onboardingComplete) return "";
+  const goals = [
+    ["guided-books", t("guidedBooks", "Guided books")],
+    ["quran-grammar", t("quranGrammar", "Qur'an grammar")],
+    ["vocabulary", t("vocabulary", "Vocabulary")],
+    ["exam-revision", t("examRevision", "Exam revision")]
+  ];
+  const focuses = [
+    ["balanced", t("balanced", "Balanced")],
+    ["reading", t("reading", "Reading")],
+    ["vocabulary", t("vocabulary", "Vocabulary")],
+    ["grammar", t("grammar", "Grammar")]
+  ];
+  const minuteOptions = [5, 10, 15, 25];
+
+  return `
+    <section class="card onboarding-card">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("studySetup", "Study setup")}</p>
+          <h2>${t("shapeYourDailyPath", "Shape your daily path")}</h2>
+        </div>
+        <span class="pill">${preferences.dailyMinutes} ${t("minutes", "minutes")}</span>
+      </div>
+      <div class="onboarding-grid">
+        <div class="preference-choice">
+          <span>${t("mainGoal", "Main goal")}</span>
+          <div class="filter-chip-row">
+            ${goals.map(([value, label]) => `
+              <button class="filter-chip ${preferences.studyGoal === value ? "active" : ""}" type="button" data-study-pref-key="studyGoal" data-study-pref-value="${value}">
+                ${escapeHtml(label)}
+              </button>
+            `).join("")}
+          </div>
+        </div>
+        <div class="preference-choice">
+          <span>${t("dailyTime", "Daily time")}</span>
+          <div class="filter-chip-row">
+            ${minuteOptions.map((value) => `
+              <button class="filter-chip ${Number(preferences.dailyMinutes) === value ? "active" : ""}" type="button" data-study-pref-key="dailyMinutes" data-study-pref-value="${value}">
+                ${value}m
+              </button>
+            `).join("")}
+          </div>
+        </div>
+        <div class="preference-choice">
+          <span>${t("skillFocus", "Skill focus")}</span>
+          <div class="filter-chip-row">
+            ${focuses.map(([value, label]) => `
+              <button class="filter-chip ${preferences.skillFocus === value ? "active" : ""}" type="button" data-study-pref-key="skillFocus" data-study-pref-value="${value}">
+                ${escapeHtml(label)}
+              </button>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+      <div class="onboarding-actions">
+        <p>${t("onboardingHint", "Your dashboard mission and review prompts will stay focused on this profile.")}</p>
+        <button class="primary-button compact-button" type="button" data-onboarding-complete>${t("saveStudyProfile", "Save study profile")} ${icon("check")}</button>
+      </div>
+    </section>
+  `;
+}
+
+function renderStudyProfileCard() {
+  const preferences = learningPreferences();
+  return `
+    <section class="card study-profile-card">
+      <div class="panel-heading">
+        <p class="section-label">${t("studyProfile", "Study profile")}</p>
+        <h2>${learningPreferenceLabel("studyGoal", preferences.studyGoal)}</h2>
+      </div>
+      <div class="study-profile-list">
+        <span>${icon("target")} ${learningPreferenceLabel("skillFocus", preferences.skillFocus)}</span>
+        <span>${icon("flame")} ${preferences.dailyMinutes} ${t("minutesPerDay", "minutes per day")}</span>
+        <span>${icon("spark")} ${preferences.onboardingComplete ? t("personalised", "Personalised") : t("setupPending", "Setup pending")}</span>
+      </div>
+    </section>
+  `;
+}
+
+function renderDailyMissionPanel(currentLesson) {
+  const preferences = learningPreferences();
+  const lessonVocabulary = getLessonVocabulary(currentLesson);
+  const lessonLearned = lessonVocabulary.filter((word) => state.progress.learnedVocabularyIds.includes(word.id)).length;
+  const dueWords = dueVocabularyItems().filter((word) => word.bookSlug === currentLesson.bookSlug && canAccessBookSlug(word.bookSlug));
+  const lessonCards = getLessonExerciseCards(currentLesson, lessonVocabulary);
+  const completedExerciseCount = lessonCards.filter((card) =>
+    progressRecord("exerciseAttempts")[card.id] === "complete" || progressRecord("exerciseAnswers")[card.id] === "correct"
+  ).length;
+  const complete = state.progress.completedLessonIds.includes(currentLesson.id);
+  const missions = [
+    {
+      iconName: "play",
+      title: t("readModelSentence", "Read model sentence"),
+      body: currentLesson.arabic,
+      done: complete,
+      lessonTab: "learn"
+    },
+    {
+      iconName: "words",
+      title: t("reviewThreeWords", "Review 3 words"),
+      body: dueWords.slice(0, 3).map((word) => word.arabic).join("  ") || `${lessonLearned}/${lessonVocabulary.length} ${t("lessonWords", "lesson words")}`,
+      done: lessonVocabulary.length ? lessonLearned >= Math.min(3, lessonVocabulary.length) : true,
+      route: "vocabulary"
+    },
+    {
+      iconName: "exercises",
+      title: t("consolidatePractice", "Consolidate practice"),
+      body: `${completedExerciseCount}/${lessonCards.length} ${t("practiceSections", "practice sections")}`,
+      done: lessonCards.length ? completedExerciseCount > 0 : true,
+      lessonTab: "book-exercises"
+    },
+    {
+      iconName: "check",
+      title: t("finishToday", "Finish today"),
+      body: `${preferences.dailyMinutes} ${t("minuteSession", "minute session")}`,
+      done: complete,
+      lessonId: currentLesson.id
+    }
+  ];
+
+  return `
+    <section class="card daily-mission-panel">
+      <div class="panel-heading inline">
+        <div>
+          <p class="section-label">${t("today", "Today")}</p>
+          <h2>${t("dailyStudyMission", "Daily Study Mission")}</h2>
+        </div>
+        <span class="pill">${preferences.dailyMinutes}m · ${learningPreferenceLabel("skillFocus", preferences.skillFocus)}</span>
+      </div>
+      <div class="mission-grid">
+        ${missions.map((mission) => `
+          <button class="mission-card ${mission.done ? "done" : ""}" type="button" ${mission.lessonTab ? `data-open-lesson="${currentLesson.id}" data-open-lesson-tab="${mission.lessonTab}"` : mission.route ? `data-route="${mission.route}"` : `data-lesson="${mission.lessonId}"`}>
+            <span class="quick-icon">${icon(mission.done ? "check" : mission.iconName)}</span>
+            <span>
+              <strong>${escapeHtml(mission.title)}</strong>
+              <small ${hasArabic(mission.body) ? 'dir="rtl" lang="ar"' : ""}>${escapeHtml(mission.body)}</small>
+            </span>
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderLessonMapCard(bookSlug, currentLesson = null) {
+  const book = getBook(bookSlug);
+  const lessons = lessonsForBook(bookSlug);
+  if (!lessons.length) return "";
+  const selectedId = currentLesson?.id || state.selectedLessonId;
+
+  return `
+    <section class="card lesson-map-card">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("roadmap", "Roadmap")}</p>
+          <h2>${escapeHtml(localizedBookTitle(book))} ${t("lessonPath", "Lesson Path")}</h2>
+        </div>
+        <span class="pill">${lessonProgressPercent(bookSlug)}% ${t("complete", "complete")}</span>
+      </div>
+      <div class="lesson-map-scroll">
+        ${lessons.map((lesson) => {
+          const complete = state.progress.completedLessonIds.includes(lesson.id);
+          const active = lesson.id === selectedId;
+          return `
+            <button class="lesson-map-node ${complete ? "done" : ""} ${active ? "active" : ""}" type="button" data-lesson="${lesson.id}">
+              <span>${complete ? icon("check") : escapeHtml(String(lesson.number))}</span>
+              <strong>${escapeHtml(localizedLessonTitle(lesson))}</strong>
+              <small>${lessonMastery(lesson)}%</small>
+            </button>
+          `;
+        }).join("")}
+      </div>
     </section>
   `;
 }
@@ -3194,7 +3920,10 @@ function renderBook(bookSlug) {
           <span class="status-chip ${complete ? "complete" : ""}">${complete ? t("completed", "Completed") : t("inProgress", "In progress")}</span>
         </div>
         ${renderMobileLessonPicker(book, lesson, bookLessons)}
+        ${renderMobileLessonSession(lesson, lessonVocabulary, complete)}
+        ${state.lessonTab === "learn" ? renderMobileStudyDeck(lesson, lessonVocabulary) : ""}
         <p class="focus">${escapeHtml(localizedLessonFocus(lesson))}</p>
+        ${renderLessonMapStrip(bookSlug, lesson)}
         ${renderLessonPath(lesson)}
         <div class="lesson-tabs" role="tablist" aria-label="${t("lessonSections", "Lesson sections")}">
           ${[
@@ -3235,6 +3964,51 @@ function renderMobileLessonPicker(book, lesson, bookLessons) {
           `).join("")}
         </select>
       </label>
+    </section>
+  `;
+}
+
+function renderMobileLessonSession(lesson, lessonVocabulary, complete) {
+  const due = dueVocabularyItems(lesson).length;
+  const learned = lessonVocabulary.filter((word) => state.progress.learnedVocabularyIds.includes(word.id)).length;
+  return `
+    <section class="mobile-session-panel" aria-label="${t("mobileLessonFlow", "Mobile lesson flow")}">
+      <div>
+        <p class="section-label">${t("fiveMinuteSession", "5-minute session")}</p>
+        <strong>${complete ? t("lessonReadyToReview", "Ready to review") : t("startWithLearn", "Start with Learn")}</strong>
+      </div>
+      <div class="mobile-session-steps">
+        ${[
+          ["learn", t("learn", "Learn"), true],
+          ["book-exercises", t("practice", "Practice"), hasPremiumAccess()],
+          ["quiz", t("quiz", "Quiz"), hasPremiumAccess()],
+          ["review", t("review", "Review"), hasPremiumAccess()]
+        ].map(([id, label, allowed]) => `
+          <button class="${state.lessonTab === id ? "active" : ""} ${allowed ? "" : "locked"}" type="button" data-lesson-tab="${id}">
+            ${allowed ? "" : icon("lock")} ${label}
+          </button>
+        `).join("")}
+      </div>
+      <div class="mobile-session-meta">
+        <span>${learned}/${lessonVocabulary.length} ${t("words", "words")}</span>
+        <span>${due} ${t("due", "due")}</span>
+      </div>
+    </section>
+  `;
+}
+
+function renderLessonMapStrip(bookSlug, selectedLesson) {
+  const lessons = lessonsForBook(bookSlug);
+  return `
+    <section class="lesson-map-strip" aria-label="${t("lessonPathMap", "Lesson path map")}">
+      ${lessons.map((lesson) => {
+        const complete = state.progress.completedLessonIds.includes(lesson.id);
+        return `
+          <button class="lesson-dot ${complete ? "done" : ""} ${lesson.id === selectedLesson.id ? "active" : ""}" type="button" data-lesson="${lesson.id}" aria-label="${t("lesson", "Lesson")} ${lesson.number}">
+            ${complete ? icon("check") : escapeHtml(String(lesson.number))}
+          </button>
+        `;
+      }).join("")}
     </section>
   `;
 }
@@ -3288,7 +4062,24 @@ function renderLessonPath(lesson) {
   `;
 }
 
-function renderLessonExamples(lesson) {
+function renderAchievementCard(lesson, lessonVocabulary, complete) {
+  if (!complete) return "";
+  const learned = lessonVocabulary.filter((word) => state.progress.learnedVocabularyIds.includes(word.id)).length;
+  const nextLesson = byId(state.data.lessons, nextLessonId(lesson.id));
+  return `
+    <section class="achievement-card">
+      <span class="quick-icon">${icon("spark")}</span>
+      <div>
+        <p class="section-label">${t("achievement", "Achievement")}</p>
+        <h3>${t("lessonCompleted", "Lesson completed")}</h3>
+        <p>${learned}/${lessonVocabulary.length} ${t("lessonWordsTracked", "lesson words tracked")} · ${lessonMastery(lesson)}% ${t("mastery", "mastery")}</p>
+      </div>
+      ${nextLesson && nextLesson.id !== lesson.id ? `<button class="ghost-button compact-button" type="button" data-lesson="${nextLesson.id}">${t("nextLesson", "Next lesson")} ${icon("arrow")}</button>` : ""}
+    </section>
+  `;
+}
+
+function renderLessonExamples(lesson, lessonVocabulary = []) {
   const examples = (lesson.examples?.length ? lesson.examples : [
     {
       label: "A",
@@ -3319,6 +4110,7 @@ function renderLessonExamples(lesson) {
                   <small>${escapeHtml(localizedSourceLabel(example.source))}</small>
                 </div>
                 <button class="lesson-example-arabic" type="button" data-speak="${escapeHtml(example.arabic)}" lang="ar">${example.arabic}</button>
+                ${renderArabicWordInspector(example.arabic, lessonVocabulary)}
                 <details class="answer-reveal">
                   <summary>
                     <span>${t("viewAnswer", "View answer")}</span>
@@ -3331,6 +4123,72 @@ function renderLessonExamples(lesson) {
           `)
           .join("")}
       </div>
+    </section>
+  `;
+}
+
+function renderReadingModePanel(lesson, lessonVocabulary) {
+  return `
+    <section class="reading-mode-panel">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("readingMode", "Reading mode")}</p>
+          <h3>${t("tapWordsToInspect", "Tap words to inspect")}</h3>
+        </div>
+        <span class="pill">${lessonVocabulary.length} ${t("words", "words")}</span>
+      </div>
+      <div class="reading-mode-sentence">
+        ${renderArabicWordInspector(lesson.arabic, lessonVocabulary)}
+      </div>
+    </section>
+  `;
+}
+
+function renderMobileStudyDeck(lesson, lessonVocabulary) {
+  const examples = (lesson.examples || []).slice(0, 2);
+  const focusWords = lessonVocabulary.slice(0, 5);
+  return `
+    <section class="mobile-study-deck" aria-label="${t("mobileStudyFlow", "Mobile study flow")}">
+      <article class="mobile-study-card primary">
+        <p class="section-label">${t("stepOne", "Step 1")}</p>
+        <h3>${t("listenAndRead", "Listen and read")}</h3>
+        <button class="mobile-study-arabic" type="button" data-speak="${escapeHtml(lesson.arabic)}" lang="ar">${lesson.arabic}</button>
+        <small>${t("tapArabicForAudio", "Tap the Arabic for audio.")}</small>
+      </article>
+      <article class="mobile-study-card">
+        <p class="section-label">${t("stepTwo", "Step 2")}</p>
+        <h3>${t("revealMeaning", "Reveal meaning")}</h3>
+        <details class="answer-reveal">
+          <summary><span>${t("viewAnswer", "View answer")}</span>${icon("arrow")}</summary>
+          <p class="translation">${escapeHtml(localizedText(lesson.translation))}</p>
+        </details>
+        ${examples[0] ? `<button class="example-arabic compact-arabic" type="button" data-speak="${escapeHtml(examples[0].arabic)}" lang="ar">${escapeHtml(examples[0].arabic)}</button>` : ""}
+      </article>
+      <article class="mobile-study-card">
+        <p class="section-label">${t("stepThree", "Step 3")}</p>
+        <h3>${t("wordBreakdown", "Word breakdown")}</h3>
+        ${renderArabicWordInspector(lesson.arabic, lessonVocabulary)}
+      </article>
+      <article class="mobile-study-card">
+        <p class="section-label">${t("stepFour", "Step 4")}</p>
+        <h3>${t("quickWords", "Quick words")}</h3>
+        <div class="mobile-mini-word-grid">
+          ${focusWords.map((word) => `
+            <button type="button" data-speak="${escapeHtml(word.arabic)}">
+              <span lang="ar">${escapeHtml(word.arabic)}</span>
+              <small>${escapeHtml(localizedText(word.english))}</small>
+            </button>
+          `).join("") || `<p class="empty-state">${t("noVocabularyMatches", "No vocabulary matches this selection.")}</p>`}
+        </div>
+      </article>
+      <article class="mobile-study-card action">
+        <p class="section-label">${t("stepFive", "Step 5")}</p>
+        <h3>${hasPremiumAccess() ? t("consolidatePractice", "Consolidate practice") : t("saveProgress", "Save progress")}</h3>
+        <p>${hasPremiumAccess() ? t("mobilePracticePrompt", "Move into a short exercise or quiz when this card feels familiar.") : t("mobileFreePrompt", "Mark the lesson complete, then upgrade when you want exercises and quizzes.")}</p>
+        <button class="primary-button" type="button" ${hasPremiumAccess() ? `data-open-lesson="${escapeHtml(lesson.id)}" data-open-lesson-tab="book-exercises"` : `data-complete="${escapeHtml(lesson.id)}"`}>
+          ${hasPremiumAccess() ? t("practiceNext", "Practice next") : t("markComplete", "Mark complete")} ${icon("arrow")}
+        </button>
+      </article>
     </section>
   `;
 }
@@ -3426,7 +4284,9 @@ function renderMorphologyCards(lesson) {
 
 function renderLessonLearn(lesson, lessonVocabulary, lessonGrammar, complete) {
   return `
-        ${renderLessonExamples(lesson)}
+        ${renderAchievementCard(lesson, lessonVocabulary, complete)}
+        ${renderLessonExamples(lesson, lessonVocabulary)}
+        ${renderReadingModePanel(lesson, lessonVocabulary)}
         ${renderGrammarExplanation(lesson)}
         ${renderMorphologyCards(lesson)}
         <div class="lesson-sections">
@@ -3434,14 +4294,16 @@ function renderLessonLearn(lesson, lessonVocabulary, lessonGrammar, complete) {
             <h3>${t("vocabulary", "Vocabulary")}</h3>
             <div class="word-grid">
               ${lessonVocabulary
-                .map(
-                  (word) => `
-                    <button class="word-chip" type="button" data-speak="${escapeHtml(word.arabic)}">
+                .map((word) => {
+                  const status = vocabularyStatus(word);
+                  return `
+                    <button class="word-chip status-${status}" type="button" data-speak="${escapeHtml(word.arabic)}">
                       <span lang="ar">${word.arabic}</span>
                       <small>${escapeHtml(localizedText(word.english))}</small>
+                      <em>${vocabularyStatusLabel(status)} · ${reviewScheduleText(word)}</em>
                     </button>
-                  `
-                )
+                  `;
+                })
                 .join("")}
             </div>
           </section>
@@ -3572,7 +4434,7 @@ function renderCheckedPractice(card) {
       ${feedback ? `
         <div class="feedback ${feedback.status === "correct" ? "correct" : "incorrect"}">
           ${icon(feedback.status === "correct" ? "check" : "x")}
-          <span>${feedback.status === "correct" ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(localizedOption(feedback.expected))}`}</span>
+          <span>${feedback.status === "correct" ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(feedback.expected, { arabic: card.checked.arabic || "" })}`}</span>
         </div>
       ` : ""}
     </form>
@@ -3630,7 +4492,7 @@ function renderExampleQuestions(examples) {
                 ${example.answer ? `
                   <details class="example-answer">
                     <summary>${t("checkAnswer", "Check answer")}</summary>
-                    <span ${hasArabic(example.answer) ? 'class="arabic-answer" lang="ar"' : ""}>${escapeHtml(localizedOption(example.answer))}</span>
+                    ${renderAnswerDisplay(example.answer, { arabic: example.arabic || "" }, { className: hasArabic(example.answer) ? "arabic-answer" : "" })}
                   </details>
                 ` : ""}
               </article>
@@ -3812,16 +4674,17 @@ function renderLessonQuiz(lesson, lessonVocabulary) {
             <div>
               <p class="section-label">${t("lesson", "Lesson")} ${lesson.number}</p>
               <h3>${escapeHtml(localizedText(exercise.prompt))}</h3>
+              ${renderPromptTermGlosses(exercise.prompt)}
             </div>
             <span class="pill">${localizedText("Lesson Quiz")}</span>
           </div>
-          <button class="arabic-hero exercise-prompt" type="button" data-speak="${escapeHtml(exercise.arabic)}" lang="ar">${exercise.arabic}</button>
+          ${renderExerciseArabicPrompt(exercise)}
           <div class="options">
             ${exercise.options
               .map(
                 (option) => `
                   <button class="option-button" type="button" data-answer="${escapeHtml(option)}" data-exercise-answer="${exercise.id}">
-                    ${escapeHtml(localizedOption(option))}
+                    ${renderExerciseOptionDisplay(option)}
                   </button>
                 `
               )
@@ -3917,7 +4780,7 @@ function renderSentenceBuilder(lesson) {
       ${feedback ? `
         <div class="feedback ${correct ? "correct" : "incorrect"}">
           ${icon(correct ? "check" : "x")}
-          <span>${correct ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(feedback.expected)}`}</span>
+          <span>${correct ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(feedback.expected)}`}</span>
         </div>
       ` : ""}
     </section>
@@ -4006,8 +4869,8 @@ function renderCumulativeQuestion(lessonId, question, feedback, number) {
       <div class="vocab-test-prompt">
         <span>${String(number).padStart(2, "0")}</span>
         <div>
-          <p>${escapeHtml(localizedText(question.prompt))}</p>
-          ${question.arabic ? `<button class="example-arabic" type="button" data-speak="${escapeHtml(question.arabic)}" lang="ar">${question.arabic}</button>` : question.display ? `<strong>${escapeHtml(localizedOption(question.display))}</strong>` : ""}
+          ${renderPromptText(question.prompt)}
+          ${question.answerKey === "exercise" ? renderExerciseArabicPrompt(question, "example-arabic") : question.arabic ? `<button class="example-arabic" type="button" data-speak="${escapeHtml(question.arabic)}" lang="ar">${question.arabic}</button>` : question.display ? `<strong>${escapeHtml(localizedOption(question.display))}</strong>` : ""}
         </div>
       </div>
       <div class="vocab-test-options">
@@ -4017,12 +4880,12 @@ function renderCumulativeQuestion(lessonId, question, feedback, number) {
           const isWrong = answered && option === feedback.answer && option !== question.answer;
           return `
             <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-cumulative-lesson="${lessonId}" data-cumulative-question="${escapeHtml(question.id)}" data-cumulative-answer="${escapeHtml(option)}">
-              <span ${hasArabic(option) ? 'class="arabic-option" lang="ar"' : ""}>${escapeHtml(localizedOption(option))}</span>
+              ${question.answerKey === "exercise" ? renderExerciseOptionDisplay(option) : `<span ${hasArabic(option) ? 'class="arabic-option" lang="ar"' : ""}>${escapeHtml(localizedOption(option))}</span>`}
             </button>
           `;
         }).join("")}
       </div>
-      ${feedback ? `<p class="answer-explanation">${escapeHtml(window.MadinahLearningCore.createQuizExplanation(question, feedback.answer))}</p>` : ""}
+      ${feedback ? renderQuestionExplanation(question, feedback.answer) : ""}
     </article>
   `;
 }
@@ -4183,7 +5046,7 @@ function renderVocabularyPage() {
           )
           .join("")}
       </div>
-      ${state.vocabularyTab === "tester" ? renderVocabTester() : `${renderVocabularyReviewStrip(selectedBook.slug)}${renderVocabularyTable(words)}${renderVocabularyCards(words)}`}
+      ${state.vocabularyTab === "tester" ? renderVocabTester() : `${renderMobileVocabularyFlashcards(words, selectedBook)}${renderVocabularyReviewStrip(selectedBook.slug)}${renderVocabularyTable(words)}${renderVocabularyCards(words)}`}
     </section>
   `;
 }
@@ -4377,9 +5240,9 @@ function renderVocabTesterQuestion(question) {
       ${feedback ? `
         <div class="feedback ${feedback.status === "correct" ? "correct" : "incorrect"}">
           ${icon(feedback.status === "correct" ? "check" : "x")}
-          <span>${feedback.status === "correct" ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(localizedOption(question.answer))}`}</span>
+          <span>${feedback.status === "correct" ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(question.answer, { answerArabic: question.answerArabic || "", arabic: question.arabic || "" })}`}</span>
         </div>
-        <p class="answer-explanation">${escapeHtml(window.MadinahLearningCore.createQuizExplanation(question, feedback.answer))}</p>
+        ${renderQuestionExplanation(question, feedback.answer)}
       ` : ""}
     </article>
   `;
@@ -4391,16 +5254,74 @@ function renderVocabularyReviewStrip(bookSlug) {
   }
 
   const due = dueVocabularyItems().filter((word) => word.bookSlug === bookSlug);
+  const words = getVocabularyWordsForBook(bookSlug);
+  const counts = vocabularyStatusCounts(words);
   return `
     <section class="card vocabulary-review-strip">
       <div>
         <p class="section-label">${t("spacedRepetition", "Spaced Repetition")}</p>
         <h2>${due.length} ${t("wordsDue", "words due")}</h2>
       </div>
+      <div class="vocab-status-summary">
+        ${["new", "learning", "known", "weak"].map((status) => `
+          <span class="vocab-status status-${status}">${vocabularyStatusLabel(status)} <strong>${counts[status]}</strong></span>
+        `).join("")}
+      </div>
       <div class="chip-row">
         ${due.slice(0, 10).map((word) => `<button type="button" data-speak="${escapeHtml(word.arabic)}" lang="ar">${word.arabic}</button>`).join("") || `<span class="empty-state">${t("noDueWords", "No due words right now.")}</span>`}
       </div>
       <button class="ghost-button compact-button" type="button" data-route="review">${t("reviewQueue", "Review queue")}</button>
+    </section>
+  `;
+}
+
+function renderMobileVocabularyFlashcards(words, selectedBook) {
+  const due = dueVocabularyItems().filter((word) => word.bookSlug === selectedBook.slug);
+  const weak = weakVocabularyItems(8).filter((word) => word.bookSlug === selectedBook.slug);
+  const flashcards = uniqueValues([...weak.map((word) => word.id), ...due.map((word) => word.id), ...words.map((word) => word.id)])
+    .map((id) => state.data.vocabulary.find((word) => word.id === id))
+    .filter(Boolean)
+    .slice(0, 10);
+
+  if (!flashcards.length) {
+    return `
+      <section class="mobile-flashcard-panel">
+        <div class="mobile-empty-state">
+          <span class="quick-icon">${icon("words")}</span>
+          <h3>${t("noVocabularyMatches", "No vocabulary matches this selection.")}</h3>
+          <p>${t("tryAnotherBookOrSearch", "Try another book or clear your search.")}</p>
+        </div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="mobile-flashcard-panel" aria-label="${t("flashcardReview", "Flashcard review")}">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("phoneFirstReview", "Phone-first review")}</p>
+          <h3>${t("flashcards", "Flashcards")}</h3>
+        </div>
+        <span class="pill">${flashcards.length} ${t("cards", "cards")}</span>
+      </div>
+      <div class="mobile-flashcard-row">
+        ${flashcards.map((word) => {
+          const status = vocabularyStatus(word);
+          return `
+            <article class="mobile-flashcard status-${status}">
+              <button class="mobile-flashcard-arabic" type="button" data-speak="${escapeHtml(word.arabic)}" lang="ar">${escapeHtml(word.arabic)}</button>
+              <details class="answer-reveal">
+                <summary><span>${t("revealMeaning", "Reveal meaning")}</span>${icon("arrow")}</summary>
+                <p class="translation">${escapeHtml(localizedText(word.english))}</p>
+              </details>
+              <div class="mobile-flashcard-meta">
+                <span class="vocab-status status-${status}">${vocabularyStatusLabel(status)}</span>
+                <span>${escapeHtml(reviewScheduleText(word))}</span>
+              </div>
+            </article>
+          `;
+        }).join("")}
+      </div>
     </section>
   `;
 }
@@ -4427,6 +5348,8 @@ function renderVocabularyTable(words) {
               <th>${t("arabic", "Arabic")}</th>
               <th>${t("transliteration", "Transliteration")}</th>
               <th>${isBengali() ? t("meaning", "Meaning") : t("english", "English")}</th>
+              <th>${t("status", "Status")}</th>
+              <th>${t("nextReview", "Next review")}</th>
               <th>${t("book", "Book")}</th>
               <th>${t("lesson", "Lesson")}</th>
               <th>${t("audio", "Audio")}</th>
@@ -4435,17 +5358,21 @@ function renderVocabularyTable(words) {
           <tbody>
             ${page.words
               .map(
-                (word) => `
+                (word) => {
+                  const status = vocabularyStatus(word);
+                  return `
                   <tr>
                     <td class="arabic-cell" lang="ar">${word.arabic}</td>
                     <td>${escapeHtml(word.transliteration || "—")}</td>
                     <td>${escapeHtml(localizedText(word.english))}</td>
+                    <td><span class="vocab-status status-${status}">${vocabularyStatusLabel(status)}</span></td>
+                    <td>${escapeHtml(reviewScheduleText(word))}</td>
                     <td>${escapeHtml(localizedBookTitle(getBook(word.bookSlug) || word.bookSlug))}</td>
                     <td>${word.lessonNumber}</td>
                     <td><button class="icon-button" type="button" data-speak="${escapeHtml(word.arabic)}" aria-label="${t("playAudio", "Play audio")}">${icon("speaker")}</button></td>
                   </tr>
-                `
-              )
+                  `;
+                })
               .join("")}
           </tbody>
         </table>
@@ -4460,14 +5387,29 @@ function renderVocabularyTable(words) {
 }
 
 function renderVocabularyCards(words) {
+  if (!words.length) {
+    return `
+      <section class="vocab-mobile-list" aria-label="${t("vocabulary", "Vocabulary")}">
+        <div class="mobile-empty-state">
+          <span class="quick-icon">${icon("search")}</span>
+          <h3>${t("noVocabularyMatches", "No vocabulary matches this selection.")}</h3>
+          <p>${t("tryAnotherBookOrSearch", "Try another book or clear your search.")}</p>
+        </div>
+      </section>
+    `;
+  }
+
   return `
     <section class="vocab-mobile-list" aria-label="${t("vocabulary", "Vocabulary")}">
       ${words
-        .map((word) => `
+        .map((word) => {
+          const status = vocabularyStatus(word);
+          return `
           <article class="vocab-mobile-card">
             <div>
               <button class="vocab-mobile-arabic" type="button" data-speak="${escapeHtml(word.arabic)}" lang="ar">${word.arabic}</button>
               <p>${escapeHtml(localizedText(word.english))}</p>
+              <span class="vocab-status status-${status}">${vocabularyStatusLabel(status)} · ${escapeHtml(reviewScheduleText(word))}</span>
             </div>
             <div class="vocab-mobile-meta">
               <span>${escapeHtml(localizedBookTitle(getBook(word.bookSlug) || word.bookSlug))}</span>
@@ -4476,7 +5418,8 @@ function renderVocabularyCards(words) {
             </div>
             <button class="icon-button" type="button" data-speak="${escapeHtml(word.arabic)}" aria-label="${t("playAudio", "Play audio")}">${icon("speaker")}</button>
           </article>
-        `)
+          `;
+        })
         .join("")}
     </section>
   `;
@@ -4539,16 +5482,17 @@ function renderExercisesPage() {
           <div>
             <p class="section-label">${t("exercises", "Exercise")}</p>
             <h2>${escapeHtml(localizedText(selected.prompt))}</h2>
+            ${renderPromptTermGlosses(selected.prompt)}
           </div>
           <span class="pill">${escapeHtml(localizedBookTitle(selectedBook))}</span>
         </div>
-        <button class="arabic-hero exercise-prompt" type="button" data-speak="${escapeHtml(selected.arabic)}" lang="ar">${selected.arabic}</button>
+        ${renderExerciseArabicPrompt(selected)}
         <div class="options">
           ${selected.options
             .map(
               (option) => `
                 <button class="option-button" type="button" data-answer="${escapeHtml(option)}" data-exercise-answer="${selected.id}">
-                  ${escapeHtml(localizedOption(option))}
+                  ${renderExerciseOptionDisplay(option)}
                 </button>
               `
             )
@@ -4567,9 +5511,9 @@ function renderExerciseFeedback(exercise) {
   return `
     <div class="feedback ${correct ? "correct" : "incorrect"}">
       ${icon(correct ? "check" : "x")}
-      <span>${correct ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(localizedOption(exercise.answer))}`}</span>
+      <span>${correct ? t("correct", "Correct") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(exercise.answer, { arabic: exercise.arabic || "" })}`}</span>
     </div>
-    <p class="answer-explanation">${escapeHtml(exercise.explanation || `Model answer: ${localizedOption(exercise.answer)}.`)}</p>
+    ${renderModelAnswerExplanation(exercise.answer, { arabic: exercise.arabic || "" })}
   `;
 }
 
@@ -4580,9 +5524,9 @@ function renderVocabularyQuizFeedback(lessonId, quiz) {
   return `
     <div class="feedback ${correct ? "correct" : "incorrect"}">
       ${icon(correct ? "check" : "x")}
-      <span>${correct ? t("correctSaved", "Correct. Vocabulary saved to progress.") : `${t("notQuite", "Not quite. Correct answer:")} ${escapeHtml(localizedOption(quiz.answer))}`}</span>
+      <span>${correct ? t("correctSaved", "Correct. Vocabulary saved to progress.") : `${t("notQuite", "Not quite. Correct answer:")} ${renderAnswerDisplay(quiz.answer, { arabic: quiz.arabic || "" })}`}</span>
     </div>
-    <p class="answer-explanation">${escapeHtml(window.MadinahLearningCore.createQuizExplanation(quiz, feedback.answer))}</p>
+    ${renderQuestionExplanation(quiz, feedback.answer)}
   `;
 }
 
@@ -4662,8 +5606,8 @@ function renderMistakeList(mistakes) {
                 ${mistake.arabic ? `<button class="arabic-example compact-arabic" type="button" data-speak="${escapeHtml(mistake.arabic)}" lang="ar">${mistake.arabic}</button>` : ""}
               </div>
               <div class="mistake-answer-grid">
-                <span><small>${t("yourAnswer", "Your answer")}</small>${escapeHtml(localizedOption(mistake.given || "Blank"))}</span>
-                <span><small>${t("correctAnswer", "Correct answer")}</small>${escapeHtml(localizedOption(mistake.expected || ""))}</span>
+                <span><small>${t("yourAnswer", "Your answer")}</small>${renderAnswerDisplay(mistake.given || "Blank", { arabic: mistake.given === mistake.expected ? mistake.arabic || "" : "" }, { includeSourceContext: false })}</span>
+                <span><small>${t("correctAnswer", "Correct answer")}</small>${renderAnswerDisplay(mistake.expected || "", { arabic: mistake.arabic || "" })}</span>
               </div>
             </article>
           `
@@ -4770,6 +5714,7 @@ function renderBookProgressMap() {
 
 function renderAccountPage() {
   const currentLesson = getCurrentLesson();
+  const preferences = learningPreferences();
   const databaseMode = state.data.databaseMode === "mongodb" ? "MongoDB Atlas" : "Local JSON";
   const planKey = currentPlanKey();
   const planName = localizedPlanLabel(planKey);
@@ -4830,6 +5775,46 @@ function renderAccountPage() {
           <span class="pill">${navigator.onLine ? t("online", "Online") : t("offline", "Offline")}</span>
         </div>
         <div class="preference-grid">
+          <div class="preference-choice wide">
+            <span>${t("studyProfile", "Study profile")}</span>
+            <div class="filter-chip-row">
+              ${[
+                ["guided-books", t("guidedBooks", "Guided books")],
+                ["quran-grammar", t("quranGrammar", "Qur'an grammar")],
+                ["vocabulary", t("vocabulary", "Vocabulary")],
+                ["exam-revision", t("examRevision", "Exam revision")]
+              ].map(([value, label]) => `
+                <button class="filter-chip ${preferences.studyGoal === value ? "active" : ""}" type="button" data-study-pref-key="studyGoal" data-study-pref-value="${value}">
+                  ${escapeHtml(label)}
+                </button>
+              `).join("")}
+            </div>
+          </div>
+          <div class="preference-choice wide">
+            <span>${t("skillFocus", "Skill focus")}</span>
+            <div class="filter-chip-row">
+              ${[
+                ["balanced", t("balanced", "Balanced")],
+                ["reading", t("reading", "Reading")],
+                ["vocabulary", t("vocabulary", "Vocabulary")],
+                ["grammar", t("grammar", "Grammar")]
+              ].map(([value, label]) => `
+                <button class="filter-chip ${preferences.skillFocus === value ? "active" : ""}" type="button" data-study-pref-key="skillFocus" data-study-pref-value="${value}">
+                  ${escapeHtml(label)}
+                </button>
+              `).join("")}
+            </div>
+          </div>
+          <div class="preference-choice wide">
+            <span>${t("dailyTime", "Daily time")}</span>
+            <div class="filter-chip-row">
+              ${[5, 10, 15, 25].map((value) => `
+                <button class="filter-chip ${Number(preferences.dailyMinutes) === value ? "active" : ""}" type="button" data-study-pref-key="dailyMinutes" data-study-pref-value="${value}">
+                  ${value}m
+                </button>
+              `).join("")}
+            </div>
+          </div>
           <label class="range-control">
             <span>${t("audioSpeed", "Arabic audio speed")} <strong>${state.audioRate.toFixed(2)}x</strong></span>
             <input type="range" min="0.55" max="1.1" step="0.05" value="${state.audioRate}" data-audio-rate />
@@ -5115,6 +6100,24 @@ document.addEventListener("click", (event) => {
   const sendVerificationButton = event.target.closest("[data-send-verification]");
   if (sendVerificationButton) {
     sendEmailVerification();
+    return;
+  }
+
+  const studyPrefButton = event.target.closest("[data-study-pref-key]");
+  if (studyPrefButton) {
+    updateStudyPreference(studyPrefButton.dataset.studyPrefKey, studyPrefButton.dataset.studyPrefValue);
+    return;
+  }
+
+  const onboardingCompleteButton = event.target.closest("[data-onboarding-complete]");
+  if (onboardingCompleteButton) {
+    completeOnboarding();
+    return;
+  }
+
+  const openLessonTabButton = event.target.closest("[data-open-lesson]");
+  if (openLessonTabButton) {
+    openLessonTab(openLessonTabButton.dataset.openLesson, openLessonTabButton.dataset.openLessonTab || "learn");
     return;
   }
 

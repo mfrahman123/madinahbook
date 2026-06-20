@@ -54,6 +54,17 @@
     return items[Math.floor(random() * items.length)];
   }
 
+  function hasArabic(value) {
+    return /[\u0600-\u06FF]/.test(String(value || ""));
+  }
+
+  function answerWithArabic(answer, question = {}) {
+    const value = String(answer || "");
+    if (!value || hasArabic(value)) return value;
+    const arabic = question.answerArabic || (question.answerKey === "english" ? question.arabic : "") || "";
+    return arabic ? `${value} (${arabic})` : value;
+  }
+
   function buildVocabularyOptions(optionPool, targetWord, answerKey, allVocabulary = [], random = Math.random) {
     const answer = targetWord[answerKey];
     const lessonOptions = optionPool
@@ -143,7 +154,8 @@
     if (!question) return "";
     const answer = question.answer || "";
     const selected = selectedAnswer || "";
-    const prefix = selected === answer ? "Correct." : `Not quite. Correct answer: ${answer}.`;
+    const answerText = answerWithArabic(answer, question);
+    const prefix = selected === answer ? "Correct." : `Not quite. Correct answer: ${answerText}.`;
 
     if (question.explanation) return `${prefix} ${question.explanation}`;
     if (question.arabic && question.answerKey === "english") return `${prefix} ${question.arabic} means ${answer}.`;
@@ -282,10 +294,11 @@
         lessonId: exercise.lessonId,
         prompt: exercise.prompt,
         arabic: exercise.arabic || "",
+        answerArabic: exercise.arabic || "",
         answer: exercise.answer,
         answerKey: "exercise",
         options: shuffle(exercise.options || [exercise.answer], random),
-        explanation: `Model answer: ${exercise.answer}.`
+        explanation: `Model answer: ${answerWithArabic(exercise.answer, { answerArabic: exercise.arabic || "" })}.`
       }));
 
     return {

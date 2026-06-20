@@ -64,13 +64,21 @@ describe("Madinah Arabic Selenium flows", () => {
       assert.equal(await driver.findElement(By.css(".mobile-bottom-nav")).isDisplayed(), true);
       assert.equal(await driver.findElement(By.css(".mobile-appbar")).isDisplayed(), true);
       assert.equal(await driver.findElement(By.css(".sidebar")).isDisplayed(), false);
+      assert.equal(await driver.findElement(By.css(".mobile-today-screen")).isDisplayed(), true);
+      assert.equal(await driver.findElement(By.css(".mobile-sticky-action")).isDisplayed(), true);
+      await waitForText(driver, "Daily Study Mission");
       assert.equal(await hasHorizontalOverflow(driver), false);
 
       await driver.findElement(By.css('.mobile-bottom-nav [data-route="book-1"]')).click();
       await waitForText(driver, "Lesson 1 of 23");
       assert.equal(await driver.findElement(By.css(".mobile-lesson-picker")).isDisplayed(), true);
+      assert.equal(await driver.findElement(By.css(".mobile-study-deck")).isDisplayed(), true);
       assert.equal(await driver.findElement(By.css(".lesson-list")).isDisplayed(), false);
       assert.equal(await hasHorizontalOverflow(driver), false);
+
+      await driver.findElement(By.css('.mobile-bottom-nav [data-route="vocabulary"]')).click();
+      await waitForText(driver, "Flashcards");
+      assert.equal(await driver.findElement(By.css(".mobile-flashcard-panel")).isDisplayed(), true);
     } finally {
       await driver.manage().window().setRect({ width: 1440, height: 1100 });
     }
@@ -115,6 +123,22 @@ describe("Madinah Arabic Selenium flows", () => {
     const visibleCookies = await driver.executeScript("return document.cookie;");
     assert.equal(storedToken, null);
     assert.doesNotMatch(visibleCookies, /madinah_session/);
+  });
+
+  it("shows daily mission onboarding and saves learner profile choices", async () => {
+    await login(driver, server.baseUrl);
+
+    await waitForText(driver, "Daily Study Mission");
+    await waitForText(driver, "Shape your daily path");
+
+    await driver.findElement(By.css('[data-study-pref-key="skillFocus"][data-study-pref-value="grammar"]')).click();
+    await waitForText(driver, "Grammar");
+    await driver.findElement(By.css("[data-onboarding-complete]")).click();
+    await driver.wait(async () => {
+      const bodyText = await driver.findElement(By.css("body")).getText();
+      return !bodyText.includes("Shape your daily path");
+    }, 8000, "Timed out waiting for onboarding panel to close");
+    await waitForText(driver, "Study profile");
   });
 
   it("locks premium content for the free plan", async () => {
@@ -224,6 +248,8 @@ describe("Madinah Arabic Selenium flows", () => {
     await driver.get(`${server.baseUrl}/?route=vocabulary&vocabBook=book-3`);
 
     await waitForText(driver, "Book 3 Vocabulary");
+    await waitForText(driver, "Status");
+    await waitForText(driver, "Next review");
     await waitForText(driver, "تَغَيَّرَ / يَتَغَيَّرُ");
 
     const bodyText = await driver.findElement(By.css("body")).getText();
@@ -237,9 +263,12 @@ describe("Madinah Arabic Selenium flows", () => {
 
     await waitForText(driver, "Lesson Path");
     await waitForText(driver, "Lesson Pattern");
+    await waitForText(driver, "Reading mode");
+    await waitForText(driver, "Tap words to inspect");
     await waitForText(driver, "مَا هٰذَا؟ هٰذَا كِتَابٌ.");
     const learnExamples = await driver.findElements(By.css(".lesson-example-card"));
     assert.equal(learnExamples.length, 3);
+    assert.ok((await driver.findElements(By.css(".arabic-token"))).length > 0);
     const firstExampleText = await learnExamples[0].getText();
     assert.match(firstExampleText, /View answer/);
     assert.doesNotMatch(firstExampleText, /This is a pen\./);
@@ -250,13 +279,19 @@ describe("Madinah Arabic Selenium flows", () => {
       return text.includes("This is a pen.");
     }, 5000);
 
-    await driver.findElement(By.css('[data-lesson-tab="book-exercises"]')).click();
+    await driver.findElement(By.css('.lesson-tabs [data-lesson-tab="book-exercises"]')).click();
     await waitForText(driver, "Book Exercises");
 
     const exerciseSections = await driver.findElements(By.css(".book-exercise-item"));
     assert.ok(exerciseSections.length >= 5);
+    const firstExerciseAnswer = await driver.findElement(By.css(".book-exercise-item[open] .example-answer"));
+    await firstExerciseAnswer.findElement(By.css("summary")).click();
+    await driver.wait(async () => {
+      const answerText = await firstExerciseAnswer.getText();
+      return answerText.includes("What is this?") && answerText.includes("مَا هٰذَا؟");
+    }, 5000, "Timed out waiting for Arabic-enriched exercise answer");
 
-    await driver.findElement(By.css('[data-lesson-tab="quiz"]')).click();
+    await driver.findElement(By.css('.lesson-tabs [data-lesson-tab="quiz"]')).click();
     await waitForText(driver, "Vocabulary Quiz");
     await waitForText(driver, "Random Vocabulary Quiz");
     await waitForText(driver, "Sentence Builder");
@@ -300,7 +335,7 @@ describe("Madinah Arabic Selenium flows", () => {
     assert.doesNotMatch(lockedText, /Coming Soon/);
     assert.doesNotMatch(lockedText, /Upgrade to Premium/);
 
-    await driver.findElement(By.css('[data-lesson-tab="quiz"]')).click();
+    await driver.findElement(By.css('.lesson-tabs [data-lesson-tab="quiz"]')).click();
     await waitForText(driver, "Random Vocabulary Quiz");
   });
 
@@ -314,12 +349,39 @@ describe("Madinah Arabic Selenium flows", () => {
     const lockedText = await driver.findElement(By.css("body")).getText();
     assert.doesNotMatch(lockedText, /Coming Soon\\s+Locked until released/);
 
-    await driver.findElement(By.css('[data-lesson-tab="book-exercises"]')).click();
+    await driver.findElement(By.css('.lesson-tabs [data-lesson-tab="book-exercises"]')).click();
     const exerciseSections = await driver.findElements(By.css(".book-exercise-item"));
     assert.ok(exerciseSections.length >= 5);
 
-    await driver.findElement(By.css('[data-lesson-tab="quiz"]')).click();
+    await driver.findElement(By.css('.lesson-tabs [data-lesson-tab="quiz"]')).click();
     await waitForText(driver, "Random Vocabulary Quiz");
+
+    await driver.get(`${server.baseUrl}/?route=book-3&lesson=book-3-lesson-12&tab=quiz`);
+    await waitForText(driver, "What kind of word is");
+    await waitForText(driver, "ظَرْفُ زَمَانٍ");
+    await waitForText(driver, "اسْمُ الْمَفْعُولِ");
+    await waitForText(driver, "اسْمُ الْآلَةِ");
+
+    await driver.get(`${server.baseUrl}/?route=book-1&lesson=lesson-8&tab=quiz`);
+    await waitForText(driver, "Which phrase means");
+    assert.equal((await driver.findElements(By.css(".lesson-quiz-card .exercise-prompt"))).length, 0);
+
+    await driver.get(`${server.baseUrl}/?route=book-1&lesson=lesson-17&tab=quiz`);
+    await waitForText(driver, "Which are plural forms of");
+    assert.equal((await driver.findElements(By.css(".lesson-quiz-card .exercise-prompt"))).length, 0);
+
+    await driver.get(`${server.baseUrl}/?route=exercises`);
+    await waitForText(driver, "Exercises");
+    await driver.findElement(By.xpath("//button[contains(@class, 'exercise-link') and contains(., 'plural forms')]")).click();
+    await waitForText(driver, "Which are plural forms of");
+    assert.equal((await driver.findElements(By.css(".exercise-card .exercise-prompt"))).length, 0);
+
+    await driver.get(`${server.baseUrl}/?route=book-3&lesson=book-3-lesson-8&tab=quiz`);
+    await waitForText(driver, "Which noun is definite in the model sentence?");
+    await waitForText(driver, "مَعْرِفَةٌ");
+    const modelPrompt = await driver.findElement(By.css(".lesson-quiz-card .exercise-prompt")).getText();
+    assert.equal(modelPrompt, "جَاءَ رَجُلٌ، فَسَأَلْتُ الرَّجُلَ.");
+    assert.notEqual(modelPrompt, "الرَّجُلَ");
   });
 });
 

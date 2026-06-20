@@ -346,6 +346,12 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(created.body.progress.currentLessonId, "lesson-1");
     assert.deepEqual(created.body.progress.completedLessonIds, []);
     assert.deepEqual(created.body.progress.learnedVocabularyIds, []);
+    assert.deepEqual(created.body.progress.learningPreferences, {
+      studyGoal: "guided-books",
+      skillFocus: "balanced",
+      dailyMinutes: 10,
+      onboardingComplete: false
+    });
   });
 
   it("normalizes account email and rejects duplicate registrations", async () => {
@@ -867,6 +873,35 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(secondSave.body.progress.vocabularyStats["v-baytun"].attempts, 1);
   });
 
+  it("persists bounded learner profile preferences", async () => {
+    const email = uniqueEmail("preferences");
+    const created = await api(server.baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ displayName: "Preference Learner", email, password: "test123" })
+    });
+
+    const saved = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      headers: authHeaders(created),
+      body: JSON.stringify({
+        learningPreferences: {
+          studyGoal: "vocabulary",
+          skillFocus: "grammar",
+          dailyMinutes: 999,
+          onboardingComplete: true,
+          unexpectedField: "ignore me"
+        }
+      })
+    });
+
+    assert.equal(saved.response.status, 200);
+    assert.equal(saved.body.progress.learningPreferences.studyGoal, "vocabulary");
+    assert.equal(saved.body.progress.learningPreferences.skillFocus, "grammar");
+    assert.equal(saved.body.progress.learningPreferences.dailyMinutes, 45);
+    assert.equal(saved.body.progress.learningPreferences.onboardingComplete, true);
+    assert.equal(saved.body.progress.learningPreferences.unexpectedField, undefined);
+  });
+
   it("persists adaptive practice progress keys safely", async () => {
     const email = uniqueEmail("adaptive");
     const created = await api(server.baseUrl, "/api/auth/register", {
@@ -944,13 +979,13 @@ describe("Madinah Arabic API and static app", () => {
 
   it("serves the account page code and cache-busted assets", async () => {
     const page = await fetch(`${server.baseUrl}/`).then((response) => response.text());
-    const app = await fetch(`${server.baseUrl}/app.js?v=20260522-book-3-content`).then((response) => response.text());
-    const core = await fetch(`${server.baseUrl}/learning-core.js?v=20260612-production-hardening`).then((response) => response.text());
+    const app = await fetch(`${server.baseUrl}/app.js?v=20260620-answer-leak-fix`).then((response) => response.text());
+    const core = await fetch(`${server.baseUrl}/learning-core.js?v=20260620-answer-leak-fix`).then((response) => response.text());
     const manifestResponse = await fetch(`${server.baseUrl}/manifest.webmanifest`);
     const manifest = await manifestResponse.json();
     const serviceWorker = await fetch(`${server.baseUrl}/service-worker.js`).then((response) => response.text());
 
-    assert.match(page, /20260522-book-3-content/);
+    assert.match(page, /20260620-answer-leak-fix/);
     assert.match(page, /learning-core\.js/);
     assert.match(page, /manifest\.webmanifest/);
     assert.match(app, /renderAccountPage/);

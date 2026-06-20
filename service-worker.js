@@ -1,10 +1,10 @@
-const CACHE_NAME = "madinah-arabic-shell-v2";
+const CACHE_NAME = "madinah-arabic-shell-v3-answer-leak-fix";
 const SHELL_ASSETS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260522-book-3-content",
-  "/learning-core.js?v=20260612-production-hardening",
-  "/app.js?v=20260522-book-3-content",
+  "/styles.css?v=20260620-answer-leak-fix",
+  "/learning-core.js?v=20260620-answer-leak-fix",
+  "/app.js?v=20260620-answer-leak-fix",
   "/manifest.webmanifest",
   "/assets/madinah-icon.svg"
 ];

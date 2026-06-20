@@ -1695,6 +1695,7 @@ function sanitizeProgressPatch(patch, current, curriculum, user) {
   sanitized.exerciseAnswers = sanitizeStatusMap(patch.exerciseAnswers, context, new Set(["correct", "incorrect"]));
   sanitized.vocabularyStats = sanitizeVocabularyStats(patch.vocabularyStats, context);
   sanitized.mistakes = sanitizeMistakes(patch.mistakes, context);
+  sanitized.learningPreferences = sanitizeLearningPreferences(patch.learningPreferences);
 
   return Object.fromEntries(
     Object.entries(sanitized).filter(([, value]) => {
@@ -1702,6 +1703,20 @@ function sanitizeProgressPatch(patch, current, curriculum, user) {
       return value !== undefined;
     })
   );
+}
+
+function sanitizeLearningPreferences(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const allowedGoals = new Set(["guided-books", "quran-grammar", "vocabulary", "exam-revision"]);
+  const allowedFocus = new Set(["balanced", "reading", "vocabulary", "grammar"]);
+  const sanitized = {};
+
+  if (allowedGoals.has(value.studyGoal)) sanitized.studyGoal = value.studyGoal;
+  if (allowedFocus.has(value.skillFocus)) sanitized.skillFocus = value.skillFocus;
+  if (value.dailyMinutes !== undefined) sanitized.dailyMinutes = boundedInteger(value.dailyMinutes, 5, 45);
+  if (value.onboardingComplete !== undefined) sanitized.onboardingComplete = Boolean(value.onboardingComplete);
+
+  return sanitized;
 }
 
 function sanitizeStatusMap(map, context, allowedValues) {
@@ -1798,7 +1813,13 @@ function defaultProgressForUser(curriculum, user) {
     vocabularyStats: {},
     mistakes: {},
     writingAttempts: {},
-    exerciseAnswers: {}
+    exerciseAnswers: {},
+    learningPreferences: {
+      studyGoal: "guided-books",
+      skillFocus: "balanced",
+      dailyMinutes: 10,
+      onboardingComplete: false
+    }
   };
 }
 
@@ -2562,6 +2583,10 @@ function mergeProgress(current, patch) {
     ...(current.exerciseAnswers || {}),
     ...(patch.exerciseAnswers || {})
   };
+  const learningPreferences = {
+    ...(current.learningPreferences || {}),
+    ...(patch.learningPreferences || {})
+  };
 
   return {
     ...current,
@@ -2573,6 +2598,7 @@ function mergeProgress(current, patch) {
     mistakes,
     writingAttempts,
     exerciseAnswers,
+    learningPreferences,
     xp: Math.max(Number(current.xp || 0), Number(patch.xp || current.xp || 0)),
     updatedAt: new Date().toISOString()
   };

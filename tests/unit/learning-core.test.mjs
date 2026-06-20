@@ -102,6 +102,17 @@ describe("learning-core adaptive practice helpers", () => {
     assert.ok(stats.dueAt);
   });
 
+  it("includes Arabic source text when explaining non-Arabic exercise answers", () => {
+    const explanation = core.createQuizExplanation({
+      answer: "marfu, mansub, majzum",
+      answerArabic: "مَرْفُوعٌ، مَنْصُوبٌ، مَجْزُومٌ",
+      answerKey: "exercise"
+    }, "wrong");
+
+    assert.match(explanation, /marfu, mansub, majzum/);
+    assert.match(explanation, /مَرْفُوعٌ، مَنْصُوبٌ، مَجْزُومٌ/);
+  });
+
   it("prioritises weak vocabulary from mistakes and incorrect reviews", () => {
     const weak = core.weakVocabulary(vocabulary, {
       learnedVocabularyIds: ["w1"],
