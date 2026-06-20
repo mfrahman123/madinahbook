@@ -218,6 +218,7 @@ const uiText = {
     checkedPractice: "যাচাই করা অনুশীলন",
     yourAnswer: "আপনার উত্তর",
     checkAnswer: "উত্তর যাচাই করুন",
+    revealAnswer: "উত্তর দেখুন",
     correct: "সঠিক",
     notQuite: "পুরোপুরি নয়। সঠিক উত্তর:",
     correctSaved: "সঠিক। শব্দটি অগ্রগতিতে সংরক্ষিত হয়েছে।",
@@ -1344,14 +1345,18 @@ function vocabularyArabicForAnswer(answer) {
 
 function answerArabicMatches(answer, context = {}, options = {}) {
   if (!answer || hasArabic(answer)) return [];
-  const directMatches = uniqueValues([
+  const excludedArabic = (Array.isArray(options.excludeArabic) ? options.excludeArabic : [options.excludeArabic])
+    .filter(Boolean);
+  const removeExcluded = (matches) => uniqueValues(matches)
+    .filter((candidate) => !excludedArabic.some((excluded) => isSameArabicText(candidate, excluded)));
+  const directMatches = removeExcluded([
     ...vocabularyArabicForAnswer(answer),
     ...glossaryArabicForAnswer(answer),
     ...(context.answerArabic ? [context.answerArabic] : [])
   ].filter(Boolean));
 
   if (directMatches.length || options.includeSourceContext === false) return directMatches;
-  return context.arabic ? [context.arabic] : [];
+  return removeExcluded(context.arabic ? [context.arabic] : []);
 }
 
 function renderAnswerDisplay(answer, context = {}, options = {}) {
@@ -4491,8 +4496,15 @@ function renderExampleQuestions(examples) {
                 ${example.arabic ? `<button class="example-arabic" type="button" data-speak="${escapeHtml(example.arabic)}" lang="ar">${example.arabic}</button>` : ""}
                 ${example.answer ? `
                   <details class="example-answer">
-                    <summary>${t("checkAnswer", "Check answer")}</summary>
-                    ${renderAnswerDisplay(example.answer, { arabic: example.arabic || "" }, { className: hasArabic(example.answer) ? "arabic-answer" : "" })}
+                    <summary><span>${t("revealAnswer", "Reveal answer")}</span>${icon("arrow")}</summary>
+                    <div class="example-answer-content">
+                      <span class="answer-kicker">${t("answer", "Answer")}</span>
+                      ${renderAnswerDisplay(example.answer, { answerArabic: example.answerArabic || "" }, {
+                        includeSourceContext: false,
+                        excludeArabic: example.arabic || "",
+                        className: hasArabic(example.answer) ? "arabic-answer" : ""
+                      })}
+                    </div>
                   </details>
                 ` : ""}
               </article>

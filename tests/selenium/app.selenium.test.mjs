@@ -288,8 +288,17 @@ describe("Madinah Arabic Selenium flows", () => {
     await firstExerciseAnswer.findElement(By.css("summary")).click();
     await driver.wait(async () => {
       const answerText = await firstExerciseAnswer.getText();
-      return answerText.includes("What is this?") && answerText.includes("مَا هٰذَا؟");
-    }, 5000, "Timed out waiting for Arabic-enriched exercise answer");
+      return answerText.includes("What is this?");
+    }, 5000, "Timed out waiting for example answer reveal");
+    assert.doesNotMatch(await firstExerciseAnswer.getText(), /مَا هٰذَا؟/);
+
+    await driver.get(`${server.baseUrl}/?route=book-2&lesson=book-2-lesson-8&tab=book-exercises`);
+    await waitForText(driver, "Example questions");
+    const translationAnswer = await driver.findElement(By.xpath("//article[contains(@class, 'example-question')][.//p[contains(., 'Translate this sentence into English.')]]//details[contains(@class, 'example-answer')]"));
+    await translationAnswer.findElement(By.css("summary")).click();
+    await waitForText(driver, "We went to the university.");
+    const translationAnswerText = await translationAnswer.getText();
+    assert.doesNotMatch(translationAnswerText, /ذَهَبْنَا إِلَى الْجَامِعَةِ/);
 
     await driver.findElement(By.css('.lesson-tabs [data-lesson-tab="quiz"]')).click();
     await waitForText(driver, "Vocabulary Quiz");
