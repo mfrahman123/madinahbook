@@ -25,6 +25,7 @@ const port = Number(process.env.PORT || 4173);
 let authStateStore = createMemoryAuthStateStore();
 const jwksCache = new Map();
 const sessionCookieName = "madinah_session";
+const adminEmail = "99muhammad.r@gmail.com";
 const sessionTtlMs = Number(process.env.SESSION_TTL_MS || 7 * 24 * 60 * 60 * 1000);
 const authWindowMs = Number(process.env.AUTH_RATE_WINDOW_MS || 15 * 60 * 1000);
 const authMaxByIdentity = Number(process.env.AUTH_RATE_MAX_IDENTITY || 8);
@@ -1533,7 +1534,7 @@ async function completeOAuthCallback(request, response, store, provider, params)
 }
 
 function isAdminUser(user) {
-  return user && !user.isDemo && user.role === "admin";
+  return user && !user.isDemo && normalizeEmail(user.email) === adminEmail;
 }
 
 function planKeyForUser(user) {

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { after, before, describe, it } from "node:test";
 import { Builder, By, until } from "selenium-webdriver";
 import chrome from "selenium-webdriver/chrome.js";
-import { paidTestUser, startTestServer, testUser } from "../helpers/test-server.mjs";
+import { otherAdminUser, paidTestUser, startTestServer, testUser } from "../helpers/test-server.mjs";
 
 describe("Madinah Arabic Selenium flows", () => {
   let server;
@@ -75,6 +75,11 @@ describe("Madinah Arabic Selenium flows", () => {
       assert.equal(await driver.findElement(By.css(".mobile-study-deck")).isDisplayed(), true);
       assert.equal(await driver.findElement(By.css(".lesson-list")).isDisplayed(), false);
       assert.equal(await hasHorizontalOverflow(driver), false);
+      const moreText = await driver.executeScript("return document.querySelector('.mobile-more-panel')?.textContent || '';");
+      assert.match(moreText, /Books/);
+      assert.doesNotMatch(moreText, /Grammar/);
+      assert.doesNotMatch(moreText, /Exercises/);
+      assert.doesNotMatch(moreText, /Progress/);
 
       await driver.findElement(By.css('.mobile-bottom-nav [data-route="vocabulary"]')).click();
       await waitForText(driver, "Flashcards");
@@ -154,7 +159,22 @@ describe("Madinah Arabic Selenium flows", () => {
   it("locks premium content for the free plan", async () => {
     await login(driver, server.baseUrl);
 
-    await driver.findElement(By.css('.sidebar [data-route="book-2"]')).click();
+    assert.equal((await driver.findElements(By.css('.sidebar [data-route="books"]'))).length, 1);
+    assert.equal((await driver.findElements(By.css('.sidebar [data-route="book-1"]'))).length, 0);
+    assert.equal((await driver.findElements(By.css('.sidebar [data-route="book-2"]'))).length, 0);
+    assert.equal((await driver.findElements(By.css('.sidebar [data-route="book-3"]'))).length, 0);
+    assert.equal((await driver.findElements(By.css('.sidebar [data-route="grammar"]'))).length, 0);
+    assert.equal((await driver.findElements(By.css('.sidebar [data-route="exercises"]'))).length, 0);
+    assert.equal((await driver.findElements(By.css('.sidebar [data-route="progress"]'))).length, 0);
+
+    await driver.findElement(By.css('.sidebar [data-route="books"]')).click();
+    await waitForText(driver, "Madinah Arabic Books");
+    await waitForText(driver, "Book 1");
+    await waitForText(driver, "Book 2");
+    await waitForText(driver, "Book 3");
+    await waitForText(driver, "Premium");
+
+    await driver.get(`${server.baseUrl}/?route=book-2`);
     await waitForText(driver, "Upgrade to Premium");
     await waitForText(driver, "Book 2");
 
@@ -165,7 +185,7 @@ describe("Madinah Arabic Selenium flows", () => {
     assert.notEqual(await book2.getAttribute("disabled"), null);
     assert.notEqual(await due.getAttribute("disabled"), null);
 
-    await driver.findElement(By.css('.sidebar [data-route="progress"]')).click();
+    await driver.findElement(By.css('.sidebar [data-route="review"]')).click();
     await waitForText(driver, "Upgrade to Premium");
   });
 
@@ -179,6 +199,17 @@ describe("Madinah Arabic Selenium flows", () => {
 
     const editors = await driver.findElements(By.css("[data-admin-content-form]"));
     assert.ok(editors.length > 0);
+  });
+
+  it("hides admin tools from role-admin accounts that are not the owner email", async () => {
+    await login(driver, server.baseUrl, otherAdminUser);
+
+    assert.equal((await driver.findElements(By.css('.sidebar [data-route="admin"]'))).length, 0);
+    await driver.findElement(By.css(".auth-avatar")).click();
+    await waitForText(driver, "Profile Details");
+    const bodyText = await driver.findElement(By.css("body")).getText();
+    assert.doesNotMatch(bodyText, /Content Management/);
+    assert.equal((await driver.findElements(By.css('[data-route="admin"]'))).length, 0);
   });
 
   it("signs out from the account details page", async () => {
@@ -392,7 +423,7 @@ describe("Madinah Arabic Selenium flows", () => {
 
   it("opens Book 2 lessons as available course content", async () => {
     await login(driver, server.baseUrl, paidTestUser);
-    await driver.findElement(By.css('.sidebar [data-route="book-2"]')).click();
+    await driver.get(`${server.baseUrl}/?route=book-2`);
 
     await waitForText(driver, "Book 2");
     await waitForText(driver, "إِنَّ, لَعَلَّ, ذُو and Large Numbers");
@@ -444,11 +475,9 @@ describe("Madinah Arabic Selenium flows", () => {
     await waitForText(driver, "Which are plural forms of");
     assert.equal((await driver.findElements(By.css(".lesson-quiz-card .exercise-prompt"))).length, 0);
 
-    await driver.get(`${server.baseUrl}/?route=exercises`);
-    await waitForText(driver, "Exercises");
-    await driver.findElement(By.xpath("//button[contains(@class, 'exercise-link') and contains(., 'plural forms')]")).click();
+    await driver.get(`${server.baseUrl}/?route=book-1&lesson=lesson-17&tab=quiz`);
     await waitForText(driver, "Which are plural forms of");
-    assert.equal((await driver.findElements(By.css(".exercise-card .exercise-prompt"))).length, 0);
+    assert.equal((await driver.findElements(By.css(".lesson-quiz-card .exercise-prompt"))).length, 0);
 
     await driver.get(`${server.baseUrl}/?route=book-3&lesson=book-3-lesson-8&tab=quiz`);
     await waitForText(driver, "Which noun is definite in the model sentence?");

@@ -96,14 +96,9 @@ const iconPaths = {
 
 const routes = [
   { id: "home", label: "Home", icon: "home" },
-  { id: "book-1", label: "Book 1", icon: "book" },
-  { id: "book-2", label: "Book 2", icon: "book" },
-  { id: "book-3", label: "Book 3", icon: "book" },
+  { id: "books", label: "Books", icon: "book" },
   { id: "vocabulary", label: "Vocabulary", icon: "words" },
-  { id: "grammar", label: "Grammar", icon: "grammar" },
-  { id: "exercises", label: "Exercises", icon: "exercises" },
-  { id: "review", label: "Mistakes", icon: "target" },
-  { id: "progress", label: "Progress", icon: "progress" },
+  { id: "review", label: "Review", icon: "target" },
   { id: "subscription", label: "Subscription", icon: "spark" },
   { id: "admin", label: "Admin", icon: "target" },
   { id: "account", label: "Account", icon: "user" }
@@ -945,6 +940,10 @@ function currentViewportMode() {
   return window.matchMedia("(max-width: 820px)").matches ? "mobile" : "desktop";
 }
 
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 function icon(name) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${iconPaths[name] || iconPaths.home}</svg>`;
 }
@@ -1671,11 +1670,41 @@ function isAuthenticated() {
 }
 
 function isAdmin() {
-  return isAuthenticated() && state.user.role === "admin";
+  return isAuthenticated() && normalizeEmail(state.user.email) === "99muhammad.r@gmail.com";
 }
 
 function isPublicRoute(routeId) {
   return publicRouteIds.has(routeId);
+}
+
+function isHiddenLaunchRoute(routeId) {
+  return ["grammar", "exercises", "progress"].includes(routeId);
+}
+
+function applyLaunchRouteRedirect(routeId) {
+  if (routeId === "exercises") {
+    const lesson = getCurrentLesson();
+    state.selectedLessonId = lesson.id;
+    state.route = lesson.bookSlug;
+    state.lessonTab = hasPremiumAccess() ? "book-exercises" : "learn";
+    return true;
+  }
+
+  if (routeId === "grammar") {
+    const lesson = getCurrentLesson();
+    state.selectedLessonId = lesson.id;
+    state.route = lesson.bookSlug;
+    state.lessonTab = "learn";
+    return true;
+  }
+
+  if (routeId === "progress") {
+    state.route = "home";
+    state.lessonTab = "learn";
+    return true;
+  }
+
+  return false;
 }
 
 function currentPlanKey() {
@@ -1978,6 +2007,7 @@ async function loadApp() {
     state.user = payload.user;
     state.selectedLessonId = new URLSearchParams(window.location.search).get("lesson") || payload.progress.currentLessonId;
     state.route = new URLSearchParams(window.location.search).get("route") || state.route;
+    if (isHiddenLaunchRoute(state.route)) applyLaunchRouteRedirect(state.route);
     state.selectedExerciseId = payload.exercises[0]?.id || null;
     render();
   } catch (error) {
@@ -2415,6 +2445,12 @@ function setRoute(route) {
 
   if (route === "admin" && !isAdmin()) {
     state.route = "account";
+    render();
+    return;
+  }
+
+  if (isHiddenLaunchRoute(route)) {
+    applyLaunchRouteRedirect(route);
     render();
     return;
   }
@@ -2966,9 +3002,7 @@ function mobileLearningRoute() {
 function renderMobileAppbar() {
   const initial = state.user?.displayName?.slice(0, 1).toUpperCase() || "M";
   const moreRoutes = [
-    { id: "exercises", label: t("exercises", "Exercises"), icon: "exercises" },
-    { id: "grammar", label: t("grammar", "Grammar"), icon: "grammar" },
-    { id: "progress", label: t("progress", "Progress"), icon: "progress" },
+    { id: "books", label: t("books", "Books"), icon: "book" },
     { id: "subscription", label: t("subscription", "Subscription"), icon: "spark" },
     ...(isAdmin() ? [{ id: "admin", label: t("admin", "Admin"), icon: "target" }] : [])
   ];
@@ -3108,9 +3142,9 @@ function renderSidebar() {
       </nav>
       <div class="sidebar-card">
         ${isAuthenticated() ? `
-          <p>${escapeHtml(localizedBookTitle(getBook(state.progress.activeBookSlug)))} ${t("bookProgress", "progress")}</p>
-          <strong>${lessonProgressPercent(state.progress.activeBookSlug)}%</strong>
-          <div class="mini-bar"><span style="width:${lessonProgressPercent(state.progress.activeBookSlug)}%"></span></div>
+          <p>${t("nextLesson", "Next lesson")}</p>
+          <strong>${t("lesson", "Lesson")} ${escapeHtml(getCurrentLesson().number)}</strong>
+          <button class="ghost-button compact-button sidebar-signin" type="button" data-lesson="${escapeHtml(getCurrentLesson().id)}">${t("openLesson", "Open lesson")}</button>
         ` : `
           <p>${t("privateProgress", "Private progress")}</p>
           <strong>${t("signIn", "Sign in")}</strong>
@@ -3297,6 +3331,7 @@ function renderRoute() {
   if (state.route === "about") return renderAboutPage();
   if (state.route === "curriculum") return renderCurriculumPage();
   if (state.route === "subscription") return renderSubscriptionPage();
+  if (state.route === "books") return renderBooksPage();
   if (isBookRoute(state.route)) {
     const book = getBook(state.route);
     return book?.status === "available" ? renderBook(state.route) : renderLockedBook();
@@ -3449,9 +3484,6 @@ function renderAuthenticatedHome() {
       </div>
       <aside class="side-stack">
         ${renderStudyProfileCard()}
-        ${renderContentChangelogPanel()}
-        ${renderProgressPanel()}
-        ${renderBooksPanel()}
       </aside>
     </section>
   `;
@@ -3609,7 +3641,10 @@ function renderContentChangelogPanel() {
   const items = [
     ...state.data.lessons.map((item) => ({ ...item, type: t("lesson", "Lesson"), title: localizedLessonTitle(item), route: item.bookSlug })),
     ...state.data.vocabulary.map((item) => ({ ...item, type: t("vocabulary", "Vocabulary"), title: `${item.arabic} - ${localizedText(item.english)}`, route: "vocabulary" })),
-    ...state.data.exercises.map((item) => ({ ...item, type: t("exercise", "Exercise"), title: localizedText(item.prompt), route: "exercises" }))
+    ...state.data.exercises.map((item) => {
+      const lesson = byId(state.data.lessons, item.lessonId);
+      return { ...item, type: t("exercise", "Exercise"), title: localizedText(item.prompt), route: lesson?.bookSlug || "book-1" };
+    })
   ]
     .filter((item) => item.updatedAt || item.contentStatus || item.sourceRef)
     .sort((a, b) => Date.parse(b.updatedAt || 0) - Date.parse(a.updatedAt || 0))
@@ -3879,6 +3914,49 @@ function renderCurriculumPage() {
               <button class="${accessible ? "primary-button" : "ghost-button"}" type="button" data-route="${freeBook || accessible ? book.slug : "subscription"}">
                 ${accessible ? t("continueLearning", "Continue learning") : freeBook ? t("signInToStart", "Sign in to start") : t("viewPlan", "View plan")}
                 ${icon("arrow")}
+              </button>
+            </article>
+          `;
+        }).join("")}
+      </section>
+    </section>
+  `;
+}
+
+function renderBooksPage() {
+  const availableCount = state.data.books.filter((book) => book.status === "available" && canAccessBookSlug(book.slug)).length;
+  const currentLesson = getCurrentLesson();
+
+  return `
+    <section class="page-stack books-page">
+      <div class="page-heading">
+        <div>
+          <p class="section-label">${t("books", "Books")}</p>
+          <h2>${t("madinahArabicBooks", "Madinah Arabic Books")}</h2>
+        </div>
+        <span class="pill">${availableCount}/${state.data.books.length} ${t("available", "available")}</span>
+      </div>
+      <section class="curriculum-grid">
+        ${state.data.books.map((book, index) => {
+          const accessible = book.status === "available" && canAccessBookSlug(book.slug);
+          const current = book.slug === currentLesson.bookSlug;
+          const lessonCount = lessonsForBook(book.slug).length || book.lessonCount || 0;
+          const wordCount = getVocabularyWordsForBook(book.slug).length;
+          return `
+            <article class="card curriculum-card ${accessible ? "available" : "locked"} ${current ? "current" : ""}">
+              <div class="card-heading">
+                <span class="book-number">${index + 1}</span>
+                <span class="pill ${accessible ? "" : "muted"}">${accessible ? (current ? t("current", "Current") : t("available", "Available")) : t("lockedPremium", "Premium")}</span>
+              </div>
+              <h3>${escapeHtml(localizedBookTitle(book))}</h3>
+              <p>${escapeHtml(localizedBookSummary(book))}</p>
+              <div class="curriculum-meta">
+                <span>${lessonCount} ${t("lessons", "lessons")}</span>
+                ${wordCount ? `<span>${wordCount} ${t("words", "words")}</span>` : ""}
+              </div>
+              <button class="${accessible ? "primary-button" : "ghost-button"}" type="button" data-route="${accessible ? book.slug : "subscription"}">
+                ${accessible ? (current ? t("continueLearning", "Continue learning") : t("openBook", "Open book")) : t("viewPlan", "View plan")}
+                ${icon(accessible ? "arrow" : "lock")}
               </button>
             </article>
           `;
@@ -4173,12 +4251,12 @@ function renderContinueCard(lesson) {
 
 function renderQuickAccess() {
   const visibleVocabulary = state.data.vocabulary.filter((word) => canAccessBookSlug(word.bookSlug));
-  const visibleGrammar = state.data.grammar.filter((rule) => canAccessBookSlug(rule.bookSlug));
+  const currentLesson = getCurrentLesson();
   const cards = [
+    { route: currentLesson.bookSlug, label: t("nextLesson", "Next lesson"), icon: "book", value: `${t("lesson", "Lesson")} ${currentLesson.number}` },
     { route: "vocabulary", label: t("vocabulary", "Vocabulary"), icon: "words", value: `${visibleVocabulary.length} ${t("words", "words")}` },
-    { route: "grammar", label: t("grammar", "Grammar"), icon: "grammar", value: `${visibleGrammar.length} ${t("rules", "rules")}` },
-    { route: "exercises", label: t("exercises", "Exercises"), icon: "exercises", value: `${state.data.exercises.length} ${t("drills", "drills")}` },
-    { route: "review", label: t("review", "Review"), icon: "target", value: `${mistakeItems().length} ${t("mistakes", "mistakes")}` }
+    { route: "review", label: t("review", "Review"), icon: "target", value: `${mistakeItems().length} ${t("mistakes", "mistakes")}` },
+    { route: "subscription", label: t("subscription", "Subscription"), icon: "spark", value: hasPremiumAccess() ? t("premiumPlan", "Premium") : t("freePlan", "Free") }
   ];
 
   return `
@@ -5392,8 +5470,8 @@ function renderVocabularyPage() {
   const testerPoolCount = getVocabTesterPool().length;
   const shownCount = state.vocabularyTab === "tester" ? testerPoolCount : words.length;
   const listMarkup = state.viewportMode === "mobile"
-    ? `${renderMobileVocabularyFlashcards(words, selectedBook)}${renderVocabularyReviewStrip(selectedBook.slug)}${renderVocabularyCards(words)}`
-    : `${renderVocabularyReviewStrip(selectedBook.slug)}${renderVocabularyTable(words)}`;
+    ? `${renderMobileVocabularyFlashcards(words, selectedBook)}${renderVocabularyCards(words)}`
+    : renderVocabularyTable(words);
 
   return `
     <section class="page-stack">

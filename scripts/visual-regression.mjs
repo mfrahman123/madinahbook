@@ -22,14 +22,16 @@ async function main() {
 
     const freePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
     await login(freePage, server.baseUrl, testUser);
-    await freePage.locator('.sidebar [data-route="book-2"]').click();
+    await gotoRoute(freePage, server.baseUrl, "?route=book-2", "text=Upgrade to Premium");
     await freePage.waitForSelector("text=Upgrade to Premium");
     await capture(freePage, server.baseUrl, "free-upgrade-gate");
 
     const paidPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
     await login(paidPage, server.baseUrl, paidTestUser);
     await capture(paidPage, server.baseUrl, "premium-dashboard-desktop");
-    await paidPage.locator('.sidebar [data-route="book-2"]').click();
+    await gotoRoute(paidPage, server.baseUrl, "?route=books", ".books-page");
+    await capture(paidPage, server.baseUrl, "premium-books-desktop");
+    await gotoRoute(paidPage, server.baseUrl, "?route=book-2", "text=إِنَّ, لَعَلَّ, ذُو and Large Numbers");
     await paidPage.waitForSelector("text=إِنَّ, لَعَلَّ, ذُو and Large Numbers");
     await capture(paidPage, server.baseUrl, "premium-book-2");
     await gotoRoute(paidPage, server.baseUrl, "?route=vocabulary", ".vocabulary-tabs");

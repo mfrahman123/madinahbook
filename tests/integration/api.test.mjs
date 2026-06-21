@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import http from "node:http";
 import { after, before, describe, it } from "node:test";
-import { api, authHeaders, paidTestUser, startTestServer, testUser } from "../helpers/test-server.mjs";
+import { api, authHeaders, otherAdminUser, paidTestUser, startTestServer, testUser } from "../helpers/test-server.mjs";
 
 describe("Madinah Arabic API and static app", () => {
   let server;
@@ -285,6 +285,20 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(content.response.status, 403);
     assert.equal(patched.response.status, 403);
     assert.equal(exported.response.status, 403);
+  });
+
+  it("blocks role-admin users unless they are the configured owner account", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: otherAdminUser.email, password: otherAdminUser.password })
+    });
+    const content = await api(server.baseUrl, "/api/admin/content", {
+      headers: authHeaders(login)
+    });
+
+    assert.equal(login.body.user.role, "admin");
+    assert.equal(login.body.user.email, otherAdminUser.email);
+    assert.equal(content.response.status, 403);
   });
 
   it("never returns password hashes in public auth responses", async () => {

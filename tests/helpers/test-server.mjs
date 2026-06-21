@@ -25,6 +25,14 @@ export const paidTestUser = {
   passwordHash: testUser.passwordHash
 };
 
+export const otherAdminUser = {
+  displayName: "Content Admin",
+  email: "content.admin@example.com",
+  password: "test123",
+  userId: "user-test-content-admin",
+  passwordHash: testUser.passwordHash
+};
+
 export async function startTestServer(envOverrides = {}) {
   const port = await getFreePort();
   const dataDir = await createDataFixture();
@@ -147,6 +155,18 @@ async function createDataFixture() {
             role: "admin",
             emailVerified: true,
             createdAt: "2026-06-11T12:00:00.000Z"
+          },
+          {
+            userId: otherAdminUser.userId,
+            displayName: otherAdminUser.displayName,
+            email: otherAdminUser.email,
+            passwordHash: otherAdminUser.passwordHash,
+            subscriptionPlan: "paid",
+            subscriptionStatus: "active",
+            subscriptionEndsAt: null,
+            role: "admin",
+            emailVerified: true,
+            createdAt: "2026-06-12T12:00:00.000Z"
           }
         ]
       },
