@@ -415,6 +415,40 @@ describe("Madinah Arabic API and static app", () => {
     assert.doesNotMatch(server.logs(), /super-secret-token/);
   });
 
+  it("answers support chat and accepts anonymous issue reports", async () => {
+    const chat = await api(server.baseUrl, "/api/support/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        message: "How does vocabulary tester work?",
+        context: { route: "vocabulary" }
+      })
+    });
+    const report = await api(server.baseUrl, "/api/support/report", {
+      method: "POST",
+      body: JSON.stringify({
+        kind: "bug",
+        route: "home",
+        contact: "learner@example.test",
+        message: "The support bubble test report should reach the admin inbox."
+      })
+    });
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: paidTestUser.email, password: paidTestUser.password })
+    });
+    const content = await api(server.baseUrl, "/api/admin/content", {
+      headers: authHeaders(login)
+    });
+
+    assert.equal(chat.response.status, 200);
+    assert.match(chat.body.reply, /Vocabulary|Vocab Tester|tester/i);
+    assert.equal(report.response.status, 200);
+    assert.equal(report.body.report.userId, "anonymous");
+    assert.equal(report.body.report.kind, "bug");
+    assert.equal(report.body.report.contact, "learner@example.test");
+    assert.ok(content.body.reports.some((item) => item.id === report.body.report.id));
+  });
+
   it("requires sign-in and Stripe config before creating billing checkout", async () => {
     const anonymous = await api(server.baseUrl, "/api/billing/checkout", { method: "POST" });
     const login = await api(server.baseUrl, "/api/auth/login", {
@@ -1126,13 +1160,13 @@ describe("Madinah Arabic API and static app", () => {
 
   it("serves the account page code and cache-busted assets", async () => {
     const page = await fetch(`${server.baseUrl}/`).then((response) => response.text());
-    const app = await fetch(`${server.baseUrl}/app.js?v=20260621-mobile-native-life`).then((response) => response.text());
-    const core = await fetch(`${server.baseUrl}/learning-core.js?v=20260621-mobile-native-life`).then((response) => response.text());
+    const app = await fetch(`${server.baseUrl}/app.js?v=20260622-report-only`).then((response) => response.text());
+    const core = await fetch(`${server.baseUrl}/learning-core.js?v=20260622-report-only`).then((response) => response.text());
     const manifestResponse = await fetch(`${server.baseUrl}/manifest.webmanifest`);
     const manifest = await manifestResponse.json();
     const serviceWorker = await fetch(`${server.baseUrl}/service-worker.js`).then((response) => response.text());
 
-    assert.match(page, /20260621-mobile-native-life/);
+    assert.match(page, /20260622-report-only/);
     assert.match(page, /learning-core\.js/);
     assert.match(page, /manifest\.webmanifest/);
     assert.match(app, /renderAccountPage/);
@@ -1152,12 +1186,16 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(app, /routeRequiresPremium/);
     assert.match(app, /data-route="account"/);
     assert.match(app, /renderPublicHeader/);
+    assert.match(app, /renderSupportWidget/);
+    assert.match(app, /SUPPORT_CHAT_ENABLED = false/);
+    assert.match(app, /data-support-panel="report"/);
+    assert.match(app, /\/api\/support\/chat/);
     assert.match(app, /renderSubscriptionPage/);
     assert.match(app, /data-route="subscription"/);
     assert.match(app, /membership-table/);
     assert.match(app, /\/api\/auth\/\$\{escapeHtml\(provider\)\}/);
     assert.match(core, /createVocabularyQuestion/);
-    assert.equal(manifest.name, "Madinah Arabic");
+    assert.equal(manifest.name, "al-wadih learning · التعليم الواضح");
     assert.equal(manifest.display, "standalone");
     assert.ok(manifest.shortcuts.some((shortcut) => shortcut.url.includes("vocabTab=listen")));
     assert.ok(manifest.shortcuts.some((shortcut) => shortcut.url.includes("route=review")));

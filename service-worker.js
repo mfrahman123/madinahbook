@@ -1,12 +1,14 @@
-const CACHE_NAME = "madinah-arabic-shell-v12-mobile-native-life";
+const CACHE_NAME = "madinah-arabic-shell-v17-report-only";
 const SHELL_ASSETS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260621-mobile-native-life",
-  "/learning-core.js?v=20260621-mobile-native-life",
-  "/app.js?v=20260621-mobile-native-life",
+  "/styles.css?v=20260622-report-only",
+  "/learning-core.js?v=20260622-report-only",
+  "/app.js?v=20260622-report-only",
   "/manifest.webmanifest",
-  "/assets/madinah-icon.svg"
+  "/assets/alwadih-icon.svg",
+  "/assets/alwadih-logo.svg",
+  "/assets/alwadih-logo-dark.svg"
 ];
 
 self.addEventListener("install", (event) => {

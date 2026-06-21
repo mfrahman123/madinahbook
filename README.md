@@ -1,6 +1,6 @@
-# Madinah Arabic
+# al-wadih learning
 
-A modern Arabic learning platform for the Madinah Arabic book series. The app currently includes curated Book 1, Book 2, and Book 3 lesson data, book-aware vocabulary, grammar notes, lesson exercises, random vocabulary quizzes, learner progress, and a clean premium dashboard UI.
+A modern Arabic learning platform for the Madinah Arabic book series, branded as al-wadih learning (التعليم الواضح). The app currently includes curated Book 1, Book 2, and Book 3 lesson data, book-aware vocabulary, grammar notes, lesson exercises, random vocabulary quizzes, learner progress, and a clean premium dashboard UI.
 
 ## Features
 
@@ -88,7 +88,7 @@ SendGrid:
 ```sh
 EMAIL_PROVIDER="sendgrid"
 EMAIL_FROM="no-reply@example.com"
-EMAIL_FROM_NAME="Madinah Arabic"
+EMAIL_FROM_NAME="al-wadih learning"
 SENDGRID_API_KEY=""
 AUTH_BASE_URL="https://madinahbook-71ce82c26733.herokuapp.com"
 ```
@@ -98,7 +98,7 @@ Resend:
 ```sh
 EMAIL_PROVIDER="resend"
 EMAIL_FROM="no-reply@example.com"
-EMAIL_FROM_NAME="Madinah Arabic"
+EMAIL_FROM_NAME="al-wadih learning"
 RESEND_API_KEY=""
 AUTH_BASE_URL="https://madinahbook-71ce82c26733.herokuapp.com"
 ```

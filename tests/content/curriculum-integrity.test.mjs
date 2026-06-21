@@ -135,14 +135,14 @@ describe("curriculum content integrity", () => {
 describe("mobile app configuration", () => {
   it("keeps Capacitor pointed at the mobile shell and configured app id", () => {
     assert.equal(capacitorConfig.appId, "com.madinaharabic.app");
-    assert.equal(capacitorConfig.appName, "Madinah Arabic");
+    assert.equal(capacitorConfig.appName, "al-wadih learning");
     assert.equal(capacitorConfig.webDir, "mobile/www");
     assert.equal(capacitorConfig.server.cleartext, true);
   });
 
   it("includes fallback mobile shell assets", () => {
     assert.ok(fs.existsSync(path.join(root, "mobile", "www", "index.html")));
-    assert.ok(fs.existsSync(path.join(root, "mobile", "www", "assets", "madinah-icon.svg")));
+    assert.ok(fs.existsSync(path.join(root, "mobile", "www", "assets", "alwadih-icon.svg")));
     assert.ok(fs.existsSync(path.join(root, "ios", "App", "App.xcodeproj", "project.pbxproj")));
     assert.ok(fs.existsSync(path.join(root, "android", "settings.gradle")));
   });

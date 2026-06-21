@@ -105,7 +105,9 @@ const publicStaticFiles = new Set([
   "/styles.css",
   "/manifest.webmanifest",
   "/service-worker.js",
-  "/assets/madinah-icon.svg",
+  "/assets/alwadih-icon.svg",
+  "/assets/alwadih-logo.svg",
+  "/assets/alwadih-logo-dark.svg",
   "/design/font-comparison-home.svg",
   "/design/font-comparison-home.svg.png"
 ]);
@@ -300,7 +302,7 @@ function createStripeClient() {
   return new StripeSdk(stripeSecretKey, {
     apiVersion: stripeApiVersion,
     appInfo: {
-      name: "Madinah Arabic",
+      name: "al-wadih learning",
       version: "1.0.0"
     }
   });
@@ -1085,7 +1087,7 @@ function createEmailService() {
   if (!provider) return null;
 
   const from = String(process.env.EMAIL_FROM || "").trim();
-  const fromName = String(process.env.EMAIL_FROM_NAME || "Madinah Arabic").trim();
+  const fromName = String(process.env.EMAIL_FROM_NAME || "al-wadih learning").trim();
   const replyTo = String(process.env.EMAIL_REPLY_TO || "").trim();
 
   if (provider === "sendgrid") {
@@ -1239,16 +1241,16 @@ async function sendAuthEmail(request, type, tokenRecord) {
 function authEmailMessage(request, type, tokenRecord) {
   const config = {
     reset: {
-      subject: "Reset your Madinah Arabic password",
+      subject: "Reset your al-wadih learning password",
       heading: "Reset your password",
-      intro: "Use the secure link below to reset your Madinah Arabic password.",
+      intro: "Use the secure link below to reset your al-wadih learning password.",
       cta: "Reset password",
       fallback: "If you did not request a password reset, you can ignore this email."
     },
     verify: {
-      subject: "Verify your Madinah Arabic email",
+      subject: "Verify your al-wadih learning email",
       heading: "Verify your email",
-      intro: "Confirm this email address so your Madinah Arabic account stays protected.",
+      intro: "Confirm this email address so your al-wadih learning account stays protected.",
       cta: "Verify email",
       fallback: "If you did not create this account, you can ignore this email."
     }
@@ -1270,7 +1272,7 @@ function authEmailMessage(request, type, tokenRecord) {
     `This link expires at ${expiry}.`,
     config.fallback,
     "",
-    "Madinah Arabic"
+    "al-wadih learning · التعليم الواضح"
   ].join("\n");
   const html = [
     `<p>${escapeHtml(config.intro)}</p>`,
@@ -1941,11 +1943,12 @@ function sanitizeContentReport(report, userId) {
     throw requestError("Report must be an object.", 400);
   }
 
-  const allowedKinds = new Set(["lesson", "vocabulary", "exercise", "example", "audio", "translation", "diacritics", "other"]);
+  const allowedKinds = new Set(["lesson", "vocabulary", "exercise", "example", "audio", "translation", "diacritics", "bug", "billing", "account", "support", "other"]);
   const kind = allowedKinds.has(report.kind) ? report.kind : "other";
   const itemId = boundedString(report.itemId, 160).trim();
   const message = boundedString(report.message, 700).trim();
   if (!itemId || !message) throw requestError("Report item and message are required.", 400);
+  const contact = normalizeSupportContact(report.contact);
 
   return {
     id: `report-${crypto.randomUUID()}`,
@@ -1956,9 +1959,104 @@ function sanitizeContentReport(report, userId) {
     lessonId: boundedString(report.lessonId, 160),
     bookSlug: boundedString(report.bookSlug, 40),
     message,
+    contact,
     status: "new",
     createdAt: new Date().toISOString()
   };
+}
+
+function normalizeSupportContact(value) {
+  const contact = boundedString(value, 160).trim().toLowerCase();
+  if (!contact) return "";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact) ? contact : "";
+}
+
+function createSupportChatResponse(body, bootstrap) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw requestError("Support message must be an object.", 400);
+  }
+  const message = boundedString(body.message, 800).trim();
+  if (!message) throw requestError("Support message is required.", 400);
+  const context = body.context && typeof body.context === "object" && !Array.isArray(body.context) ? body.context : {};
+  const reply = supportReplyForMessage(message, context, bootstrap);
+  return {
+    reply,
+    suggestions: [
+      "How do I continue my next lesson?",
+      "How does vocabulary review work?",
+      "How do I report a wrong translation?"
+    ]
+  };
+}
+
+function supportReplyForMessage(message, context, bootstrap) {
+  const lower = message.toLowerCase();
+  const route = boundedString(context.route, 80).trim();
+  const lessonTitle = boundedString(context.lessonTitle, 120).trim();
+  const lessonContext = lessonTitle ? ` You are currently around ${lessonTitle}.` : "";
+  const availableBooks = (bootstrap.books || []).filter((book) => book.status === "available").length;
+  const lessonCount = (bootstrap.lessons || []).length;
+  const vocabularyCount = (bootstrap.vocabulary || []).length;
+  const plan = bootstrap.user?.subscriptionPlan === "paid" ? "Premium" : "Free";
+  if (/(premium|paid|subscribe|subscription|price|pricing|upgrade|book 2|book 3|locked|billing|stripe|cancel)/i.test(lower)) {
+    return `Your current visible plan is ${plan}. Premium unlocks Books 1-3, full lesson tabs, review, mistakes, progress tools, and wider vocabulary tester filters. Open Pricing to upgrade, or Account to manage billing if you already subscribed. If a Premium account is still blocked, sign out and back in so the latest entitlement is reloaded.`;
+  }
+
+  if (/(login|log in|sign in|account|password|forgot|reset|verify|email|google|microsoft)/i.test(lower)) {
+    return "Use Sign in for email/password or the social login buttons. Forgotten password is available from the sign-in modal, and email verification can be resent from Account once you are signed in.";
+  }
+
+  if (/(vocab|vocabulary|word|tester|quiz|review|spaced|due|flashcard|audio|listen)/i.test(lower)) {
+    return `Vocabulary is split by book and lesson. The list contains ${vocabularyCount} visible words for your current access, and Vocab Tester generates short random tests from selected content. Premium adds Books 2-3, due words, mistakes, and broader review filters.`;
+  }
+
+  const vocabularyMatches = looksLikeVocabularyLookup(message) ? supportVocabularyMatches(message, bootstrap.vocabulary || []) : [];
+
+  if (vocabularyMatches.length) {
+    return `I found ${vocabularyMatches.length} matching vocabulary item${vocabularyMatches.length === 1 ? "" : "s"}: ${vocabularyMatches.map((word) => `${word.arabic} means ${word.english} (${word.bookSlug || "book"} lesson ${word.lessonNumber || "?"})`).join("; ")}. You can open Vocabulary and use the filters or Vocab Tester to revise related words.`;
+  }
+
+  if (/(lesson|learn|exercise|quiz|answer|mistake|mastery|bookmark|progress|study queue|today)/i.test(lower)) {
+    return `The guided path has ${lessonCount} visible lessons across ${availableBooks} available book${availableBooks === 1 ? "" : "s"} for your current access.${lessonContext} Start from Today's Study Queue, then use Learn, exercises, quizzes, review, and bookmarks to consolidate the lesson.`;
+  }
+
+  if (/(report|wrong|issue|bug|broken|translation|diacritic|harakah|audio note|pronunciation)/i.test(lower)) {
+    return "Use the flag button in this support bubble, or the report links beside lesson items, to send the exact page, category, and issue. Reports go to the admin content inbox for review.";
+  }
+
+  if (/(mobile|app|phone|offline|push|reminder|install)/i.test(lower)) {
+    return "The mobile experience is planned as a phone-first companion with daily study, flashcards, listening review, offline packs, and reminders. The web app also works in a mobile browser, but the native app is intended to feel more focused and swipe-friendly.";
+  }
+
+  return `I can help with lessons, vocabulary, quizzes, subscriptions, account access, mobile plans, and issue reports. You are on ${route || "the site"} with ${availableBooks} available book${availableBooks === 1 ? "" : "s"}, ${lessonCount} visible lessons, and ${vocabularyCount} visible vocabulary records.`;
+}
+
+function looksLikeVocabularyLookup(message) {
+  return /[\u0600-\u06ff]/.test(message)
+    || /(what does|meaning of|means|arabic for|arabic word for|choose an arabic word|translate)\s+/i.test(message);
+}
+
+function supportVocabularyMatches(message, vocabulary) {
+  const lower = message.toLowerCase();
+  const arabicQuery = (message.match(/[\u0600-\u06ff][\u0600-\u06ff\s\u064B-\u0652\u0670]*/g) || []).join(" ").trim();
+  const words = lower
+    .replace(/["“”'.,?!:;()[\]]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length >= 3 && !["what", "does", "mean", "word", "arabic", "choose", "lesson"].includes(word));
+
+  return vocabulary
+    .filter((item) => {
+      const english = String(item.english || "").toLowerCase();
+      const arabic = String(item.arabic || "");
+      return (arabicQuery && arabic.includes(arabicQuery)) || words.some((word) => english.includes(word));
+    })
+    .slice(0, 3)
+    .map((item) => ({
+      arabic: item.arabic,
+      english: item.english,
+      bookSlug: item.bookSlug,
+      lessonNumber: item.lessonNumber
+    }));
 }
 
 function patchContentArray(items, id, patch) {
@@ -2932,6 +3030,34 @@ async function start() {
           userId: await authenticatedUserFromRequest(request) || "anonymous"
         });
         sendJson(response, 200, { ok: true });
+        return;
+      }
+
+      if (request.method === "POST" && parsedUrl.pathname === "/api/support/chat") {
+        const userId = await userFromRequest(request);
+        const body = await readBody(request);
+        const bootstrap = await store.bootstrap(userId);
+        const answer = createSupportChatResponse(body, bootstrap);
+        structuredLog("info", "support.chat_answered", {
+          requestId,
+          userId,
+          route: boundedString(body.context?.route, 80),
+          messageLength: boundedString(body.message, 800).length
+        });
+        sendJson(response, 200, answer);
+        return;
+      }
+
+      if (request.method === "POST" && parsedUrl.pathname === "/api/support/report") {
+        const userId = await authenticatedUserFromRequest(request) || "anonymous";
+        const body = await readBody(request);
+        const report = await store.submitContentReport(userId, {
+          ...body,
+          kind: body.kind || "support",
+          itemId: body.itemId || `support:${boundedString(body.route, 80).trim() || "site"}`,
+          route: body.route || parsedUrl.pathname
+        });
+        sendJson(response, 200, { report });
         return;
       }
 

@@ -1,6 +1,6 @@
 {
   "appId": "com.madinaharabic.app",
-  "appName": "Madinah Arabic",
+  "appName": "al-wadih learning",
   "webDir": "mobile/www",
   "server": {
     "url": "http://localhost:4173",

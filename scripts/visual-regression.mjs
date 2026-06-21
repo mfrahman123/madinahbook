@@ -82,6 +82,15 @@ async function main() {
     const nativeMobilePage = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 3 });
     await login(nativeMobilePage, `${server.baseUrl}/?native=1`, paidTestUser);
     await capture(nativeMobilePage, server.baseUrl, "native-mobile-today", { nativeShell: true, viewportOnly: true });
+    await nativeMobilePage.locator("[data-native-tools-open]").click();
+    await nativeMobilePage.waitForSelector(".native-tools-sheet");
+    await capture(nativeMobilePage, server.baseUrl, "native-mobile-tools-sheet", { nativeShell: true, viewportOnly: true });
+    await nativeMobilePage.locator("[data-native-tools-close]").click();
+    await nativeMobilePage.waitForSelector(".native-tools-sheet", { state: "detached" });
+    await nativeMobilePage.locator("[data-native-session-start]").click();
+    await nativeMobilePage.waitForSelector(".native-daily-session-card");
+    await nativeMobilePage.waitForTimeout(450);
+    await capture(nativeMobilePage, server.baseUrl, "native-mobile-daily-five", { nativeShell: true, viewportOnly: true });
     await gotoRoute(nativeMobilePage, server.baseUrl, "?native=1&route=vocabulary", ".native-vocabulary-app");
     await capture(nativeMobilePage, server.baseUrl, "native-mobile-flashcards", { nativeShell: true, viewportOnly: true });
     await gotoRoute(nativeMobilePage, server.baseUrl, "?native=1&route=vocabulary&vocabTab=listen", ".native-audio-review-app");

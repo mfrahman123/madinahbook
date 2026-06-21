@@ -1,6 +1,6 @@
-# Madinah Arabic Mobile
+# al-wadih learning Mobile
 
-This mobile app uses Capacitor to wrap the existing Madinah Arabic web platform in native iOS and Android shells.
+This mobile app uses Capacitor to wrap the existing al-wadih learning web platform in native iOS and Android shells.
 
 The mobile app intentionally reuses the same server, UI, auth, premium gating, vocabulary tester, admin tools, email verification, and progress APIs. That keeps web and mobile behaviour consistent.
 

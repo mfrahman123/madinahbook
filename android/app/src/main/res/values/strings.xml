@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Madinah Arabic</string>
-    <string name="title_activity_main">Madinah Arabic</string>
+    <string name="app_name">al-wadih learning</string>
+    <string name="title_activity_main">al-wadih learning</string>
     <string name="package_name">com.madinaharabic.app</string>
     <string name="custom_url_scheme">com.madinaharabic.app</string>
 </resources>

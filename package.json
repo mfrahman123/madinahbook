@@ -2,7 +2,7 @@
   "name": "madinah-arabic-platform",
   "version": "1.0.0",
   "private": true,
-  "description": "Madinah Arabic learning platform for Books 1, 2, and 3.",
+  "description": "al-wadih learning Arabic learning platform for Madinah Arabic Books 1, 2, and 3.",
   "engines": {
     "node": "22.x"
   },

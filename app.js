@@ -1,5 +1,9 @@
 const initialParams = new URLSearchParams(window.location.search);
 const initialAuthMode = ["reset", "verify"].includes(initialParams.get("auth")) ? initialParams.get("auth") : null;
+const BRAND_NAME = "al-wadih learning";
+const BRAND_ARABIC = "التعليم الواضح";
+const BRAND_DISPLAY = `${BRAND_NAME} · ${BRAND_ARABIC}`;
+const SUPPORT_CHAT_ENABLED = false;
 
 const state = {
   route: "home",
@@ -61,11 +65,23 @@ const state = {
   adminImportError: "",
   contentReportStatus: "",
   contentReportError: "",
+  supportPanel: "",
+  supportChatMessages: [
+    {
+      role: "assistant",
+      text: "Hi, I can help with lessons, vocabulary review, account access, subscriptions, and reporting content issues."
+    }
+  ],
+  supportChatLoading: false,
+  supportChatError: "",
+  supportReportStatus: "",
+  supportReportError: "",
   audioRate: Number(localStorage.getItem("madinah-audio-rate") || 0.82),
   arabicFontScale: Number(localStorage.getItem("madinah-arabic-scale") || 1),
   reminderNotice: localStorage.getItem("madinah-reminders") || "",
   offlineNotice: "",
   mobileFilterSheetOpen: false,
+  nativeToolsSheetOpen: false,
   viewportMode: currentViewportMode(),
   motion: {
     view: false,
@@ -100,7 +116,8 @@ const iconPaths = {
   moon: '<path d="M20 14.6A8.5 8.5 0 0 1 9.4 4 7 7 0 1 0 20 14.6z"/>',
   star: '<path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9z"/>',
   flag: '<path d="M5 22V4"/><path d="M5 4h11l-1 4 1 4H5"/>',
-  download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>'
+  download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+  chat: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8"/><path d="M8 13h5"/>'
 };
 
 const routes = [
@@ -2075,7 +2092,8 @@ async function loadApp() {
   } catch (error) {
     document.getElementById("app").innerHTML = `
       <main class="load-error">
-        <h1>Madinah Arabic</h1>
+        <h1>${BRAND_NAME}</h1>
+        <p lang="ar" dir="rtl">${BRAND_ARABIC}</p>
         <p>${t("loadError", "The app needs the local server to load lesson data.")}</p>
         <code>npm run dev</code>
       </main>
@@ -2287,7 +2305,7 @@ async function requestReminderPermission() {
     try {
       const registration = await navigator.serviceWorker?.ready;
       if (registration?.showNotification) {
-        registration.showNotification("Madinah Arabic", {
+        registration.showNotification(BRAND_DISPLAY, {
           body: dueCount ? `${dueCount} words are due today.` : "Study reminder is ready.",
           tag: "madinah-due-vocab",
           data: { url: "/?native=1&route=vocabulary&vocabTab=listen" }
@@ -2310,13 +2328,13 @@ async function refreshOfflineCache() {
   try {
     const cache = await caches.open("madinah-arabic-user-cache-v1");
     await cache.addAll([
-	      "/",
-	      "/index.html",
-	      "/app.js?v=20260621-mobile-native-life",
-	      "/learning-core.js?v=20260621-mobile-native-life",
-	      "/styles.css?v=20260621-mobile-native-life",
-	      "/api/bootstrap"
-	    ]);
+      "/",
+      "/index.html",
+      "/app.js?v=20260622-report-only",
+      "/learning-core.js?v=20260622-report-only",
+      "/styles.css?v=20260622-report-only",
+      "/api/bootstrap"
+    ]);
     state.offlineNotice = t("offlineReady", "Offline cache refreshed for core lessons and vocabulary.");
     localStorage.setItem(userScopedLocalKey("offline-ready"), todayKey());
   } catch {
@@ -2457,6 +2475,74 @@ async function submitContentReport(form) {
   render();
 }
 
+async function submitSupportChat(form) {
+  const formData = new FormData(form);
+  const message = String(formData.get("message") || "").trim();
+  if (!message) return;
+
+  state.supportPanel = "chat";
+  state.supportChatError = "";
+  state.supportChatLoading = true;
+  state.supportChatMessages = [
+    ...state.supportChatMessages,
+    { role: "user", text: message }
+  ].slice(-8);
+  render();
+  scrollSupportMessagesToEnd();
+
+  try {
+    const response = await fetch("/api/support/chat", authFetchOptions({
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message, context: supportContext() })
+    }));
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || t("supportChatError", "Unable to answer right now."));
+    state.supportChatMessages = [
+      ...state.supportChatMessages,
+      { role: "assistant", text: data.reply || t("supportFallback", "I can help with lessons, vocabulary, account access, subscriptions, and reports.") }
+    ].slice(-9);
+  } catch (error) {
+    state.supportChatError = error.message || t("supportChatError", "Unable to answer right now.");
+  } finally {
+    state.supportChatLoading = false;
+    render();
+    scrollSupportMessagesToEnd();
+  }
+}
+
+async function submitSupportReport(form) {
+  const formData = new FormData(form);
+  state.supportReportStatus = "";
+  state.supportReportError = "";
+  const context = supportContext();
+  const payload = {
+    kind: formData.get("kind"),
+    itemId: `support:${context.route || "site"}`,
+    route: formData.get("route") || context.route,
+    lessonId: formData.get("lessonId") || context.lessonId,
+    bookSlug: formData.get("bookSlug") || context.bookSlug,
+    contact: formData.get("contact"),
+    message: formData.get("message")
+  };
+
+  const response = await fetch("/api/support/report", authFetchOptions({
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  }));
+  const data = await response.json();
+  if (!response.ok) {
+    state.supportReportError = data.error || t("reportIssueError", "Unable to send report.");
+    render();
+    return;
+  }
+
+  state.supportReportStatus = t("reportIssueSent", "Thanks, this report has been sent for review.");
+  form.reset();
+  render();
+}
+
 function toggleBookmark(type, id) {
   if (!isAuthenticated()) return;
   saveProgress(bookmarkPatch(type, id, !isBookmarked(type, id)));
@@ -2514,6 +2600,7 @@ function reportFrontendError(error, source = "window") {
 
 function setRoute(route) {
   state.motion.view = true;
+  state.nativeToolsSheetOpen = false;
 
   if (!isPublicRoute(route) && !isAuthenticated()) {
     state.route = "home";
@@ -2547,6 +2634,7 @@ function setRoute(route) {
 
 function setLesson(id) {
   state.motion.view = true;
+  state.nativeToolsSheetOpen = false;
 
   if (!isAuthenticated()) {
     state.route = "home";
@@ -3148,11 +3236,13 @@ function render() {
       ${renderMobileBottomNav()}
       ${renderMobileStickyAction()}
       ${renderCelebrationToast()}
+      ${renderSupportWidget()}
       ${renderAuthModal()}
     `
     : `
       ${renderPublicHeader()}
       <main class="public-view ${state.motion.view ? "view-enter" : ""}">${renderGlobalNotices()}${renderPublicRoute()}</main>
+      ${renderSupportWidget()}
       ${renderAuthModal()}
     `;
   state.motion.view = false;
@@ -3168,15 +3258,146 @@ function renderGlobalNotices() {
   `;
 }
 
+function supportContext() {
+  const lesson = state.data?.lessons ? byId(state.data.lessons, state.selectedLessonId) : null;
+  const book = lesson && state.data?.books ? byId(state.data.books, lesson.bookSlug) : null;
+  return {
+    route: state.route,
+    lessonId: lesson?.id || "",
+    lessonTitle: lesson?.title || "",
+    bookSlug: lesson?.bookSlug || "",
+    bookTitle: book?.title || "",
+    vocabularyTab: state.vocabularyTab,
+    subscriptionPlan: state.user?.subscriptionPlan || "guest"
+  };
+}
+
+function scrollSupportMessagesToEnd() {
+  window.requestAnimationFrame(() => {
+    const messages = document.querySelector(".support-messages");
+    if (messages) messages.scrollTop = messages.scrollHeight;
+  });
+}
+
+function renderSupportWidget() {
+  if (state.authMode) return "";
+  const activePanel = SUPPORT_CHAT_ENABLED || state.supportPanel !== "chat" ? state.supportPanel : "";
+  return `
+    <section class="support-widget ${activePanel ? "open" : ""}" aria-label="${t("support", "Support")}">
+      ${SUPPORT_CHAT_ENABLED && activePanel === "chat" ? renderSupportChatPanel() : ""}
+      ${activePanel === "report" ? renderSupportReportPanel() : ""}
+      <div class="support-actions" role="group" aria-label="${t("supportActions", "Support actions")}">
+        ${SUPPORT_CHAT_ENABLED ? `
+          <button class="support-fab ${activePanel === "chat" ? "active" : ""}" type="button" data-support-panel="chat" aria-label="${t("openAiSupport", "Open AI support")}">
+            ${icon("chat")}
+            <span>${t("support", "Support")}</span>
+          </button>
+        ` : ""}
+        <button class="support-fab report ${SUPPORT_CHAT_ENABLED ? "" : "report-only"} ${activePanel === "report" ? "active" : ""}" type="button" data-support-panel="report" aria-label="${t("reportAnIssue", "Report an issue")}">
+          ${icon("flag")}
+          ${SUPPORT_CHAT_ENABLED ? "" : `<span>${t("reportIssue", "Report issue")}</span>`}
+        </button>
+      </div>
+    </section>
+  `;
+}
+
+function renderSupportChatPanel() {
+  const quickPrompts = [
+    t("supportPromptLessons", "How do I continue my next lesson?"),
+    t("supportPromptVocab", "How does vocabulary review work?"),
+    t("supportPromptPremium", "What is included in Premium?")
+  ];
+  return `
+    <aside class="support-panel support-chat-panel" role="dialog" aria-modal="false" aria-label="${t("aiSupport", "AI Support")}">
+      <div class="support-panel-header">
+        <div>
+          <p class="section-label">${t("aiSupport", "AI Support")}</p>
+          <h3>${t("askAboutSite", "Ask about the site")}</h3>
+        </div>
+        <button class="icon-button" type="button" data-support-close aria-label="${t("close", "Close")}">${icon("x")}</button>
+      </div>
+      <div class="support-messages" aria-live="polite">
+        ${state.supportChatMessages.map((message) => `
+          <article class="support-message ${message.role === "user" ? "user" : "assistant"}">
+            <span>${escapeHtml(message.role === "user" ? t("you", "You") : t("assistant", "Assistant"))}</span>
+            <p>${escapeHtml(message.text)}</p>
+          </article>
+        `).join("")}
+        ${state.supportChatLoading ? `
+          <article class="support-message assistant thinking">
+            <span>${t("assistant", "Assistant")}</span>
+            <p>${t("thinking", "Thinking...")}</p>
+          </article>
+        ` : ""}
+      </div>
+      <div class="support-quick-row">
+        ${quickPrompts.map((prompt) => `<button type="button" data-support-quick="${escapeHtml(prompt)}">${escapeHtml(prompt)}</button>`).join("")}
+      </div>
+      ${state.supportChatError ? `<div class="feedback incorrect">${icon("x")}<span>${escapeHtml(state.supportChatError)}</span></div>` : ""}
+      <form class="support-chat-form" data-support-chat>
+        <label class="form-field">
+          <span>${t("message", "Message")}</span>
+          <textarea name="message" maxlength="800" required placeholder="${escapeHtml(t("supportChatPlaceholder", "Ask about lessons, vocabulary, subscriptions, login, audio, or progress."))}"></textarea>
+        </label>
+        <button class="primary-button" type="submit" ${state.supportChatLoading ? "disabled" : ""}>${icon("chat")} ${t("send", "Send")}</button>
+      </form>
+    </aside>
+  `;
+}
+
+function renderSupportReportPanel() {
+  const context = supportContext();
+  const reportKinds = [
+    ["bug", t("bugOrBrokenPage", "Bug or broken page")],
+    ["translation", t("translationIssue", "Translation issue")],
+    ["diacritics", t("diacriticIssue", "Diacritic issue")],
+    ["audio", t("audioIssue", "Audio issue")],
+    ["billing", t("billingIssue", "Billing issue")],
+    ["account", t("accountIssue", "Account issue")],
+    ["other", t("other", "Other")]
+  ];
+  return `
+    <aside class="support-panel support-report-panel" role="dialog" aria-modal="false" aria-label="${t("reportAnIssue", "Report an issue")}">
+      <div class="support-panel-header">
+        <div>
+          <p class="section-label">${t("reportAnIssue", "Report an issue")}</p>
+          <h3>${t("sendAReport", "Send a report")}</h3>
+        </div>
+        <button class="icon-button" type="button" data-support-close aria-label="${t("close", "Close")}">${icon("x")}</button>
+      </div>
+      ${state.supportReportStatus ? `<div class="feedback correct">${icon("check")}<span>${escapeHtml(state.supportReportStatus)}</span></div>` : ""}
+      ${state.supportReportError ? `<div class="feedback incorrect">${icon("x")}<span>${escapeHtml(state.supportReportError)}</span></div>` : ""}
+      <form class="support-report-form" data-support-report>
+        <input type="hidden" name="route" value="${escapeHtml(context.route)}" />
+        <input type="hidden" name="lessonId" value="${escapeHtml(context.lessonId)}" />
+        <input type="hidden" name="bookSlug" value="${escapeHtml(context.bookSlug)}" />
+        <label class="form-field">
+          <span>${t("issueType", "Issue type")}</span>
+          <select name="kind">
+            ${reportKinds.map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join("")}
+          </select>
+        </label>
+        <label class="form-field">
+          <span>${t("replyEmailOptional", "Reply email (optional)")}</span>
+          <input name="contact" type="email" maxlength="160" value="${escapeHtml(isAuthenticated() ? state.user.email : "")}" placeholder="name@example.com" />
+        </label>
+        <label class="form-field">
+          <span>${t("whatHappened", "What happened?")}</span>
+          <textarea name="message" maxlength="900" required placeholder="${escapeHtml(t("supportReportPlaceholder", "Tell us what you expected, what happened, and the page or Arabic item involved."))}"></textarea>
+        </label>
+        <button class="primary-button" type="submit">${icon("flag")} ${t("sendReport", "Send report")}</button>
+      </form>
+    </aside>
+  `;
+}
+
 function renderPublicHeader() {
   return `
     <header class="public-header">
-      <button class="public-brand" type="button" data-route="home" aria-label="Madinah Arabic home">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span>
-          <strong>Madinah Arabic</strong>
-          <small>${t("guidedArabicPlatform", "Guided Arabic learning")}</small>
-        </span>
+      <button class="public-brand" type="button" data-route="home" aria-label="${BRAND_NAME} home">
+        <span class="brand-lockup" aria-hidden="true"></span>
+        <span class="sr-only">${BRAND_DISPLAY}</span>
       </button>
       <nav class="public-nav" aria-label="${t("publicNavigation", "Public navigation")}">
         ${publicRoutes.map((route) => `
@@ -3378,12 +3599,9 @@ function renderSidebar() {
   return `
     <aside class="sidebar">
       <button class="mobile-menu" type="button" aria-label="${t("openNavigation", "Open navigation")}">${icon("menu")}</button>
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <div>
-          <p class="brand-title">Madinah Arabic</p>
-          <p class="brand-subtitle">${t("booksActive", "Books 1-3 active")}</p>
-        </div>
+      <div class="brand" aria-label="${BRAND_DISPLAY}">
+        <span class="brand-lockup" aria-hidden="true"></span>
+        <span class="sr-only">${BRAND_DISPLAY}</span>
       </div>
       <nav class="nav" aria-label="${t("primaryNavigation", "Primary navigation")}">
         ${routes
@@ -3574,12 +3792,12 @@ function renderOAuthIcon(provider) {
 }
 
 function routeTitle() {
-  if (state.route === "home") return "Madinah Arabic";
+  if (state.route === "home") return BRAND_NAME;
   if (isBookRoute(state.route)) return localizedBookTitle(getBook(state.route));
   const route = routes.find((item) => item.id === state.route);
   if (route) return routeLabel(route);
   const publicRoute = publicRoutes.find((item) => item.id === state.route);
-  return publicRoute ? publicRouteLabel(publicRoute) : "Madinah Arabic";
+  return publicRoute ? publicRouteLabel(publicRoute) : BRAND_NAME;
 }
 
 function renderRoute() {
@@ -3621,7 +3839,7 @@ function renderHome() {
     <section class="landing-page">
       <div class="landing-hero card">
         <div class="landing-copy">
-          <p class="section-label">${t("landingLabel", "Madinah Arabic Books 1-3")}</p>
+          <p class="section-label">${BRAND_NAME} · <span lang="ar" dir="rtl">${BRAND_ARABIC}</span></p>
           <h2>${t("landingTitle", "Learn Arabic through a guided, premium study workspace.")}</h2>
           <p class="landing-text">${t("landingText", "Structured lessons, vocabulary review, checked exercises, writing practice, quizzes, and progress tracking for Madinah Arabic Books 1, 2, and 3.")}</p>
           <div class="landing-actions">
@@ -3955,44 +4173,26 @@ function renderNativeTodayApp(currentLesson) {
   const preferences = learningPreferences();
   const dueWords = dueVocabularyItems().filter((word) => canAccessBookSlug(word.bookSlug));
   const mistakes = mistakeItems();
-  const lessonVocabulary = getLessonVocabulary(currentLesson);
-  const reviewWord = nativePriorityWords(1)[0] || lessonVocabulary[0];
-  const mastery = lessonMasteryStatus(currentLesson);
   const sessionDoneToday = nativeDailySessionCompletedToday();
-  const queueItems = [
-    {
-      label: t("nextLesson", "Next lesson"),
-      title: `${t("lesson", "Lesson")} ${currentLesson.number}`,
-      detail: localizedLessonTitle(currentLesson),
-      iconName: "book",
-      attrs: `data-lesson="${escapeHtml(currentLesson.id)}"`
-    },
-    {
-      label: t("dueVocabulary", "Due vocabulary"),
-      title: `${dueWords.length} ${t("words", "words")}`,
-      detail: dueWords[0]?.arabic || t("flashcardReview", "Flashcard review"),
-      iconName: "words",
-      attrs: 'data-route="vocabulary"'
-    },
-    {
-      label: t("mistakeReview", "Mistake review"),
-      title: `${mistakes.length} ${t("items", "items")}`,
-      detail: mistakes[0]?.prompt || t("reviewQueueClear", "Review queue clear"),
-      iconName: "target",
-      attrs: hasPremiumAccess() ? 'data-route="review"' : 'data-route="subscription"'
-    },
-    {
-      label: t("quickExercise", "Quick exercise"),
-      title: hasPremiumAccess() ? t("practice", "Practice") : t("premiumPlan", "Premium"),
-      detail: hasPremiumAccess() ? t("lessonDrill", "Lesson drill") : t("unlockPractice", "Unlock practice"),
-      iconName: "exercises",
-      attrs: hasPremiumAccess() ? `data-open-lesson="${escapeHtml(currentLesson.id)}" data-open-lesson-tab="book-exercises"` : 'data-route="subscription"'
-    }
-  ];
+
+  if (state.nativeDailySession) {
+    return `
+      <section class="native-today-app native-session-focus" aria-label="${t("dailyFiveSession", "Daily 5 session")}">
+        <div class="native-focus-header">
+          <div>
+            <p class="section-label">${t("phoneSession", "Phone session")}</p>
+            <h2>${t("dailyFive", "Daily 5")}</h2>
+          </div>
+          <button class="ghost-button compact-button" type="button" data-native-session-close>${t("close", "Close")}</button>
+        </div>
+        ${renderNativeDailySessionPanel()}
+      </section>
+    `;
+  }
 
   return `
-    <section class="native-today-app" aria-label="${t("todaysStudyQueue", "Today's Study Queue")}">
-      <article class="native-hero-card">
+    <section class="native-today-app native-today-compact" aria-label="${t("todaysStudyQueue", "Today's Study Queue")}">
+      <article class="native-hero-card native-daily-card">
         <div class="native-hero-copy">
           <p class="section-label">${t("phoneSession", "Phone session")}</p>
           <h2>${t("dailyFive", "Daily 5")}</h2>
@@ -4004,65 +4204,126 @@ function renderNativeTodayApp(currentLesson) {
           </div>
         </div>
         <button class="primary-button native-start-button" type="button" data-native-session-start>
-          ${state.nativeDailySession ? t("resume", "Resume") : sessionDoneToday ? t("reviewAgain", "Review again") : t("start", "Start")} ${icon("arrow")}
+          ${sessionDoneToday ? t("reviewAgain", "Review again") : t("start", "Start")} ${icon("arrow")}
         </button>
       </article>
 
-      ${state.nativeDailySession ? renderNativeDailySessionPanel() : renderNativeSessionPreview(currentLesson, dueWords, mistakes)}
+      ${renderNativeDueStrip(currentLesson, dueWords, mistakes)}
       ${nativeStreakRecoveryAvailable() ? renderNativeStreakRecoveryCard() : ""}
+      ${renderNativeContinueLessonRow(currentLesson)}
+      ${renderNativeToolsLauncher(dueWords, mistakes)}
+      ${renderNativeToolsSheet(dueWords)}
+    </section>
+  `;
+}
 
-      <article class="native-next-lesson-card">
-        <div>
-          <p class="section-label">${escapeHtml(localizedBookTitle(getBook(currentLesson.bookSlug)))}</p>
-          <h3>${escapeHtml(localizedLessonTitle(currentLesson))}</h3>
+function renderNativeDueStrip(currentLesson, dueWords, mistakes) {
+  return `
+    <section class="native-due-strip" aria-label="${t("todayAtAGlance", "Today at a glance")}">
+      <button class="native-due-chip primary" type="button" data-lesson="${escapeHtml(currentLesson.id)}">
+        ${icon("book")}
+        <span>
+          <small>${t("continue", "Continue")}</small>
+          <strong>${t("lesson", "Lesson")} ${currentLesson.number}</strong>
+        </span>
+      </button>
+      <button class="native-due-chip" type="button" data-route="vocabulary">
+        ${icon("words")}
+        <span>
+          <small>${t("dueToday", "Due today")}</small>
+          <strong>${dueWords.length} ${t("words", "words")}</strong>
+        </span>
+      </button>
+      <button class="native-due-chip" type="button" ${hasPremiumAccess() ? 'data-route="review"' : 'data-route="subscription"'}>
+        ${icon("target")}
+        <span>
+          <small>${t("mistakes", "Mistakes")}</small>
+          <strong>${mistakes.length} ${t("items", "items")}</strong>
+        </span>
+      </button>
+    </section>
+  `;
+}
+
+function renderNativeContinueLessonRow(currentLesson) {
+  const mastery = lessonMasteryStatus(currentLesson);
+  return `
+    <article class="native-continue-row">
+      <button class="native-continue-main" type="button" data-lesson="${escapeHtml(currentLesson.id)}">
+        <span class="quick-icon">${icon("book")}</span>
+        <span>
+          <small>${escapeHtml(localizedBookTitle(getBook(currentLesson.bookSlug)))}</small>
+          <strong>${escapeHtml(localizedLessonTitle(currentLesson))}</strong>
+          <em>${escapeHtml(mastery.label)} · ${mastery.score}%</em>
+        </span>
+      </button>
+      <button class="native-continue-audio" type="button" data-speak="${escapeHtml(currentLesson.arabic)}" lang="ar" aria-label="${t("playLessonSentence", "Play lesson sentence")}">
+        ${currentLesson.arabic}
+      </button>
+    </article>
+  `;
+}
+
+function renderNativeToolsLauncher(dueWords, mistakes) {
+  const toolSummary = [
+    escapeHtml(nativeOfflineStatusText()),
+    dueWords.length ? `${dueWords.length} ${t("wordsDueToday", "words due today")}` : t("reminders", "Reminders"),
+    mistakes.length ? `${mistakes.length} ${t("mistakes", "mistakes")}` : t("quickTools", "Quick tools")
+  ].join(" · ");
+
+  return `
+    <button class="native-tools-launcher" type="button" data-native-tools-open>
+      <span class="quick-icon">${icon("spark")}</span>
+      <span>
+        <strong>${t("studyTools", "Study tools")}</strong>
+        <small>${toolSummary}</small>
+      </span>
+      ${icon("arrow")}
+    </button>
+  `;
+}
+
+function renderNativeToolsSheet(dueWords) {
+  if (!state.nativeToolsSheetOpen) return "";
+  return `
+    <div class="native-tools-overlay" role="presentation" data-native-tools-backdrop>
+      <section class="native-tools-sheet" role="dialog" aria-modal="true" aria-label="${t("studyTools", "Study tools")}">
+        <div class="native-sheet-handle" aria-hidden="true"></div>
+        <div class="native-card-topline">
+          <div>
+            <p class="section-label">${t("phoneTools", "Phone tools")}</p>
+            <h3>${t("studyTools", "Study tools")}</h3>
+          </div>
+          <button class="ghost-button compact-button" type="button" data-native-tools-close>${t("close", "Close")}</button>
         </div>
-        <span class="mastery-chip ${mastery.key}">${escapeHtml(mastery.label)} · ${mastery.score}%</span>
-        <button class="native-lesson-arabic" type="button" data-speak="${escapeHtml(currentLesson.arabic)}" lang="ar">${currentLesson.arabic}</button>
-        <span class="native-offline-badge">${icon("download")} ${escapeHtml(nativeOfflineStatusText())}</span>
-      </article>
-
-      ${reviewWord ? renderNativeFlashcardCard(reviewWord, { featured: true }) : ""}
-
-      <section class="native-study-queue" aria-label="${t("todaysStudyQueue", "Today's Study Queue")}">
-        ${queueItems.map((item) => `
-          <button class="native-queue-card" type="button" ${item.attrs}>
-            <span class="quick-icon">${icon(item.iconName)}</span>
+        <div class="native-tools-list">
+          <button class="native-tool-button" type="button" data-install-offline>
+            ${icon("download")}
             <span>
-              <small>${escapeHtml(item.label)}</small>
-              <strong>${escapeHtml(item.title)}</strong>
-              <em ${hasArabic(item.detail) ? 'dir="rtl" lang="ar"' : ""}>${escapeHtml(localizedText(item.detail))}</em>
+              <strong>${t("offlineLessonPack", "Offline lesson pack")}</strong>
+              <small>${escapeHtml(nativeOfflineStatusText())}</small>
             </span>
           </button>
-        `).join("")}
-      </section>
-
-      <section class="native-tools-card">
-        <button class="native-tool-button" type="button" data-install-offline>
-          ${icon("download")}
-          <span>
-            <strong>${t("offlineLessonPack", "Offline lesson pack")}</strong>
-            <small>${escapeHtml(nativeOfflineStatusText())}</small>
-          </span>
-        </button>
-        <button class="native-tool-button" type="button" data-request-reminders>
-          ${icon("flame")}
-          <span>
-            <strong>${t("studyReminders", "Study reminders")}</strong>
-            <small>${dueWords.length ? `${dueWords.length} ${t("wordsDueToday", "words due today")}` : t("enableReminders", "Enable reminders")}</small>
-          </span>
-        </button>
-        <button class="native-tool-button" type="button" data-audio-rate-toggle>
-          ${icon("speaker")}
-          <span>
-            <strong>${t("pronunciationMode", "Pronunciation mode")}</strong>
-            <small>${escapeHtml(audioModeLabel())}</small>
-          </span>
-        </button>
+          <button class="native-tool-button" type="button" data-request-reminders>
+            ${icon("flame")}
+            <span>
+              <strong>${t("studyReminders", "Study reminders")}</strong>
+              <small>${dueWords.length ? `${dueWords.length} ${t("wordsDueToday", "words due today")}` : t("enableReminders", "Enable reminders")}</small>
+            </span>
+          </button>
+          <button class="native-tool-button" type="button" data-audio-rate-toggle>
+            ${icon("speaker")}
+            <span>
+              <strong>${t("pronunciationMode", "Pronunciation mode")}</strong>
+              <small>${escapeHtml(audioModeLabel())}</small>
+            </span>
+          </button>
+        </div>
         ${renderNativeQuickActions()}
         ${state.offlineNotice ? `<p class="preference-note">${escapeHtml(state.offlineNotice)}</p>` : ""}
         ${state.reminderNotice ? `<p class="preference-note">${escapeHtml(state.reminderNotice)}</p>` : ""}
       </section>
-    </section>
+    </div>
   `;
 }
 
@@ -4219,7 +4480,7 @@ function renderNativeDailySessionComplete(total) {
 
 function renderNativeStreakRecoveryCard() {
   return `
-    <section class="native-streak-card">
+    <section class="native-streak-card compact">
       <span class="quick-icon">${icon("flame")}</span>
       <div>
         <p class="section-label">${t("streakRecovery", "Streak recovery")}</p>
@@ -4610,7 +4871,7 @@ function renderAboutPage() {
         <div>
           <p class="section-label">${t("about", "About")}</p>
           <h2>${t("aboutTitle", "A focused workspace for learning the Madinah Arabic Books.")}</h2>
-          <p>${t("aboutText", "Madinah Arabic keeps the interface calm and study-centred: authentic Arabic examples, clear English meanings, lesson exercises, vocabulary testing, and account-based progress in one place.")}</p>
+          <p>${t("aboutText", "al-wadih learning keeps the interface calm and study-centred: authentic Arabic examples, clear English meanings, lesson exercises, vocabulary testing, and account-based progress in one place.")}</p>
         </div>
         <div class="public-hero-metrics" aria-label="${t("platformSnapshot", "Platform snapshot")}">
           <span><strong>${state.data.books.length}</strong>${t("books", "Books")}</span>
@@ -7777,7 +8038,7 @@ function renderBooksPanel() {
       <div class="panel-heading inline">
         <div>
           <p class="section-label">${t("books", "Books")}</p>
-          <h2>Madinah Arabic</h2>
+          <h2>Madinah Arabic Books</h2>
         </div>
         <span class="pill muted">${availableCount} ${t("available", "available")}</span>
       </div>
@@ -7816,6 +8077,38 @@ function renderLockedBook() {
 }
 
 document.addEventListener("click", (event) => {
+  const supportPanelButton = event.target.closest("[data-support-panel]");
+  if (supportPanelButton) {
+    const panel = supportPanelButton.dataset.supportPanel;
+    if (panel === "chat" && !SUPPORT_CHAT_ENABLED) return;
+    state.supportPanel = state.supportPanel === panel ? "" : panel;
+    state.supportChatError = "";
+    state.supportReportError = "";
+    render();
+    if (state.supportPanel === "chat") scrollSupportMessagesToEnd();
+    return;
+  }
+
+  const supportCloseButton = event.target.closest("[data-support-close]");
+  if (supportCloseButton) {
+    state.supportPanel = "";
+    state.supportChatError = "";
+    state.supportReportError = "";
+    render();
+    return;
+  }
+
+  const supportQuickButton = event.target.closest("[data-support-quick]");
+  if (supportQuickButton) {
+    const form = document.querySelector("[data-support-chat]");
+    const input = form?.querySelector("textarea[name='message']");
+    if (input) {
+      input.value = supportQuickButton.dataset.supportQuick || "";
+      form.requestSubmit();
+    }
+    return;
+  }
+
   const authModeButton = event.target.closest("[data-auth-mode]");
   if (authModeButton) {
     state.authMode = authModeButton.dataset.authMode;
@@ -7886,6 +8179,7 @@ document.addEventListener("click", (event) => {
 
   const nativeOpenListenButton = event.target.closest("[data-native-open-listen]");
   if (nativeOpenListenButton) {
+    state.nativeToolsSheetOpen = false;
     state.route = "vocabulary";
     state.vocabularyTab = "listen";
     state.motion.view = true;
@@ -7983,6 +8277,19 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const nativeToolsOpenButton = event.target.closest("[data-native-tools-open]");
+  if (nativeToolsOpenButton) {
+    state.nativeToolsSheetOpen = true;
+    render();
+    return;
+  }
+
+  if (event.target.matches("[data-native-tools-backdrop]") || event.target.closest("[data-native-tools-close]")) {
+    state.nativeToolsSheetOpen = false;
+    render();
+    return;
+  }
+
   const bookExerciseButton = event.target.closest("[data-book-exercise-complete]");
   if (bookExerciseButton) {
     markBookExerciseComplete(bookExerciseButton.dataset.bookExerciseComplete);
@@ -8010,6 +8317,14 @@ document.addEventListener("click", (event) => {
   const nativeSessionFinishButton = event.target.closest("[data-native-session-finish]");
   if (nativeSessionFinishButton) {
     finishNativeDailySession();
+    return;
+  }
+
+  const nativeSessionCloseButton = event.target.closest("[data-native-session-close]");
+  if (nativeSessionCloseButton) {
+    state.nativeDailySession = null;
+    state.nativeDailyFeedback = {};
+    render();
     return;
   }
 
@@ -8286,6 +8601,20 @@ document.addEventListener("submit", (event) => {
   if (reportForm) {
     event.preventDefault();
     submitContentReport(reportForm);
+    return;
+  }
+
+  const supportChatForm = event.target.closest("[data-support-chat]");
+  if (supportChatForm) {
+    event.preventDefault();
+    submitSupportChat(supportChatForm);
+    return;
+  }
+
+  const supportReportForm = event.target.closest("[data-support-report]");
+  if (supportReportForm) {
+    event.preventDefault();
+    submitSupportReport(supportReportForm);
   }
 });
 

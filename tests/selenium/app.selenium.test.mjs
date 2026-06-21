@@ -32,7 +32,8 @@ describe("Madinah Arabic Selenium flows", () => {
     await waitForText(driver, "Free vs Premium");
 
     await driver.findElement(By.css('[data-route="curriculum"]')).click();
-    await waitForText(driver, "Madinah Arabic Books 1-3");
+    await waitForText(driver, "al-wadih learning");
+    await waitForText(driver, "التعليم الواضح");
     await driver.findElement(By.css('[data-route="book-1"]')).click();
 
     await waitForText(driver, "Please sign in to continue learning.");
@@ -53,6 +54,22 @@ describe("Madinah Arabic Selenium flows", () => {
     } finally {
       await driver.manage().window().setRect({ width: 1440, height: 1100 });
     }
+  });
+
+  it("hides AI support while keeping global issue reports available", async () => {
+    await openFreshHome(driver, server.baseUrl);
+    await waitForText(driver, "Learn Arabic through a guided, premium study workspace.");
+
+    assert.equal((await driver.findElements(By.css('[data-support-panel="chat"]'))).length, 0);
+    assert.equal((await driver.findElements(By.css("[data-support-chat]"))).length, 0);
+
+    await driver.findElement(By.css('[data-support-panel="report"]')).click();
+    await waitForText(driver, "Send a report");
+    await driver.findElement(By.css('[data-support-report] textarea[name="message"]')).sendKeys("The support bubble Selenium report should reach admins.");
+    await driver.findElement(By.css('[data-support-report] button[type="submit"]')).click();
+    await waitForText(driver, "Thanks, this report has been sent for review.");
+    await driver.findElement(By.css("[data-support-close]")).click();
+    await driver.wait(async () => (await driver.findElements(By.css(".support-panel"))).length === 0, 5000);
   });
 
   it("uses the mobile app shell for signed-in learners", async () => {
@@ -549,7 +566,15 @@ describe("Madinah Arabic Selenium flows", () => {
       assert.equal((await driver.findElements(By.css(".mobile-search"))).length, 0);
       assert.equal((await driver.findElements(By.css(".mobile-more-menu"))).length, 0);
       assert.equal((await driver.findElements(By.css(".mobile-sticky-action"))).length, 0);
+      assert.equal((await driver.findElements(By.css(".native-study-queue"))).length, 0);
+      assert.equal((await driver.findElements(By.css(".native-flashcard-card.featured"))).length, 0);
       assert.equal(await hasHorizontalOverflow(driver), false);
+
+      await driver.findElement(By.css("[data-native-tools-open]")).click();
+      await driver.wait(until.elementLocated(By.css(".native-tools-sheet")), 8000);
+      await waitForText(driver, "Study tools");
+      await driver.findElement(By.css("[data-native-tools-close]")).click();
+      await driver.wait(async () => (await driver.findElements(By.css(".native-tools-sheet"))).length === 0, 8000);
 
       await driver.findElement(By.css("[data-native-session-start]")).click();
       await driver.wait(until.elementLocated(By.css(".native-daily-session-card")), 8000);
