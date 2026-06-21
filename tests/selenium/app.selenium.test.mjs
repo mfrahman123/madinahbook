@@ -367,6 +367,32 @@ describe("Madinah Arabic Selenium flows", () => {
     }, 5000, "Timed out waiting for example answer reveal");
     assert.doesNotMatch(await firstExerciseAnswer.getText(), /مَا هٰذَا؟/);
 
+    const checkedPracticeSelector = ".book-exercise-item[open] .checked-practice";
+    assert.equal((await driver.findElements(By.css(`${checkedPracticeSelector} input:not([type="hidden"])`))).length, 0);
+    assert.ok((await driver.findElements(By.css(`${checkedPracticeSelector} .checked-word-token`))).length >= 2);
+    let checkedSubmit = await driver.findElement(By.css(`${checkedPracticeSelector} button[type="submit"]`));
+    assert.equal(await checkedSubmit.getAttribute("disabled"), "true");
+
+    await driver.findElement(By.css(`${checkedPracticeSelector} .checked-word-token:not([disabled])`)).click();
+    await driver.wait(async () => {
+      const value = await driver.findElement(By.css(`${checkedPracticeSelector} input[name="checkedAnswer"]`)).getAttribute("value");
+      return value.trim().length > 0;
+    }, 5000, "Timed out waiting for checked-practice token to populate the answer");
+
+    await driver.findElement(By.css(`${checkedPracticeSelector} [data-checked-reset]`)).click();
+    await driver.wait(async () => {
+      const value = await driver.findElement(By.css(`${checkedPracticeSelector} input[name="checkedAnswer"]`)).getAttribute("value");
+      return value.trim() === "";
+    }, 5000, "Timed out waiting for checked-practice reset");
+
+    while ((await driver.findElements(By.css(`${checkedPracticeSelector} .checked-word-token:not([disabled])`))).length) {
+      await driver.findElement(By.css(`${checkedPracticeSelector} .checked-word-token:not([disabled])`)).click();
+    }
+    checkedSubmit = await driver.findElement(By.css(`${checkedPracticeSelector} button[type="submit"]`));
+    await driver.wait(async () => (await checkedSubmit.getAttribute("disabled")) === null, 5000, "Timed out waiting for checked-practice submit to enable");
+    await checkedSubmit.click();
+    await driver.wait(until.elementLocated(By.css(`${checkedPracticeSelector} .feedback`)), 5000);
+
     await driver.get(`${server.baseUrl}/?route=book-2&lesson=book-2-lesson-8&tab=book-exercises`);
     await waitForText(driver, "Example questions");
     const translationAnswer = await driver.findElement(By.xpath("//article[contains(@class, 'example-question')][.//p[contains(., 'Translate this sentence into English.')]]//details[contains(@class, 'example-answer')]"));
@@ -390,8 +416,31 @@ describe("Madinah Arabic Selenium flows", () => {
     await waitForText(driver, "Vocabulary Quiz");
     await waitForText(driver, "Random Vocabulary Quiz");
     await waitForText(driver, "Sentence Builder");
-    const sentenceInput = await driver.findElement(By.css('.sentence-builder-form input[name="sentenceAnswer"]'));
-    assert.equal(await sentenceInput.getAttribute("placeholder"), "Type the full Arabic sentence");
+    assert.equal((await driver.findElements(By.css('.sentence-builder-form input:not([type="hidden"])'))).length, 0);
+    const sentenceTokens = await driver.findElements(By.css(".sentence-word-token"));
+    assert.ok(sentenceTokens.length >= 2);
+    let checkButton = await driver.findElement(By.css('.sentence-builder-form button[type="submit"]'));
+    assert.equal(await checkButton.getAttribute("disabled"), "true");
+
+    await sentenceTokens[0].click();
+    await driver.wait(async () => {
+      const value = await driver.findElement(By.css('.sentence-builder-form input[name="sentenceAnswer"]')).getAttribute("value");
+      return value.trim().length > 0;
+    }, 5000, "Timed out waiting for clicked sentence token to populate the answer");
+
+    await driver.findElement(By.css("[data-sentence-reset]")).click();
+    await driver.wait(async () => {
+      const value = await driver.findElement(By.css('.sentence-builder-form input[name="sentenceAnswer"]')).getAttribute("value");
+      return value.trim() === "";
+    }, 5000, "Timed out waiting for sentence builder reset");
+
+    while ((await driver.findElements(By.css(".sentence-word-token:not([disabled])"))).length) {
+      await driver.findElement(By.css(".sentence-word-token:not([disabled])")).click();
+    }
+    checkButton = await driver.findElement(By.css('.sentence-builder-form button[type="submit"]'));
+    await driver.wait(async () => (await checkButton.getAttribute("disabled")) === null, 5000, "Timed out waiting for sentence builder check to enable");
+    await checkButton.click();
+    await driver.wait(until.elementLocated(By.css(".practice-tool-card .feedback")), 5000);
   });
 
   it("shows adaptive milestone practice and account learning preferences", async () => {
@@ -485,6 +534,36 @@ describe("Madinah Arabic Selenium flows", () => {
     const modelPrompt = await driver.findElement(By.css(".lesson-quiz-card .exercise-prompt")).getText();
     assert.equal(modelPrompt, "جَاءَ رَجُلٌ، فَسَأَلْتُ الرَّجُلَ.");
     assert.notEqual(modelPrompt, "الرَّجُلَ");
+  });
+
+  it("renders a distinct native mobile study flow", async () => {
+    try {
+      await driver.manage().window().setRect({ width: 390, height: 844 });
+      await login(driver, `${server.baseUrl}/?native=1`, paidTestUser);
+
+      await driver.wait(until.elementLocated(By.css(".native-app-shell")), 8000);
+      await waitForText(driver, "Study companion");
+      await waitForText(driver, "Phone session");
+      assert.equal(await driver.findElement(By.css(".native-bottom-nav")).isDisplayed(), true);
+      assert.equal((await driver.findElements(By.css(".mobile-search"))).length, 0);
+      assert.equal((await driver.findElements(By.css(".mobile-more-menu"))).length, 0);
+      assert.equal((await driver.findElements(By.css(".mobile-sticky-action"))).length, 0);
+      assert.equal(await hasHorizontalOverflow(driver), false);
+
+      await driver.findElement(By.css('.native-bottom-nav [data-route="vocabulary"]')).click();
+      await driver.wait(until.elementLocated(By.css(".native-vocabulary-app")), 8000);
+      await waitForText(driver, "Flashcards");
+      assert.equal(await driver.findElement(By.css(".native-flashcard-card")).isDisplayed(), true);
+
+      await driver.findElement(By.css('[data-vocabulary-tab="tester"]')).click();
+      await driver.wait(until.elementLocated(By.css(".native-vocab-tester-app")), 8000);
+      await waitForText(driver, "Vocab Tester");
+      assert.equal((await driver.findElements(By.css(".native-vocab-test-question"))).length, 1);
+      assert.equal((await driver.findElements(By.css(".vocab-test-question"))).length, 0);
+      assert.equal(await hasHorizontalOverflow(driver), false);
+    } finally {
+      await driver.manage().window().setRect({ width: 1440, height: 1100 });
+    }
   });
 });
 

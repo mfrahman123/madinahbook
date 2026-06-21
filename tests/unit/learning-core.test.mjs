@@ -81,6 +81,32 @@ describe("learning-core vocabulary quizzes", () => {
     assert.deepEqual(tester.questions.map((question) => question.number), [1, 2, 3]);
     assert.equal(new Set(tester.questions.map((question) => question.wordId)).size, 3);
   });
+
+  it("keeps low-value proper-name style targets out of random vocabulary tests", () => {
+    const pool = [
+      ...vocabulary,
+      { id: "w-yugoslavia", bookSlug: "book-1", lessonNumber: "PDF", arabic: "يُوغُوسْلَافِيَا", english: "Yugoslavia" },
+      { id: "w-washington", bookSlug: "book-1", lessonNumber: "PDF", arabic: "وَاشِنْطُنُ", english: "Washington" },
+      { id: "w-musa", bookSlug: "book-2", lessonNumber: "14", arabic: "مُوسَى", english: "Musa (proper name)" }
+    ];
+    const tester = core.createVocabTester({
+      pool,
+      allVocabulary: pool,
+      lessons,
+      size: 3,
+      filterKey: "all",
+      now: () => 1770000000000,
+      random: seededRandom([0.98, 0.88, 0.78, 0.68, 0.58, 0.48, 0.38, 0.28, 0.18, 0.08])
+    });
+
+    assert.equal(tester.questions.length, 3);
+    assert.ok(!tester.questions.some((question) => question.wordId === "w-yugoslavia"));
+    assert.ok(!tester.questions.some((question) => question.wordId === "w-washington"));
+    assert.ok(!tester.questions.some((question) => question.wordId === "w-musa"));
+    assert.ok(!tester.questions.some((question) => question.options.includes("Yugoslavia")));
+    assert.ok(!tester.questions.some((question) => question.options.includes("Washington")));
+    assert.ok(tester.questions.every((question) => !question.prompt.includes(question.display || "__missing__")));
+  });
 });
 
 describe("learning-core adaptive practice helpers", () => {

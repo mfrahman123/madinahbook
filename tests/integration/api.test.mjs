@@ -1101,13 +1101,13 @@ describe("Madinah Arabic API and static app", () => {
 
   it("serves the account page code and cache-busted assets", async () => {
     const page = await fetch(`${server.baseUrl}/`).then((response) => response.text());
-    const app = await fetch(`${server.baseUrl}/app.js?v=20260620-study-queue`).then((response) => response.text());
-    const core = await fetch(`${server.baseUrl}/learning-core.js?v=20260620-study-queue`).then((response) => response.text());
+    const app = await fetch(`${server.baseUrl}/app.js?v=20260621-vocab-prompt-dedupe`).then((response) => response.text());
+    const core = await fetch(`${server.baseUrl}/learning-core.js?v=20260621-vocab-prompt-dedupe`).then((response) => response.text());
     const manifestResponse = await fetch(`${server.baseUrl}/manifest.webmanifest`);
     const manifest = await manifestResponse.json();
     const serviceWorker = await fetch(`${server.baseUrl}/service-worker.js`).then((response) => response.text());
 
-    assert.match(page, /20260620-study-queue/);
+    assert.match(page, /20260621-vocab-prompt-dedupe/);
     assert.match(page, /learning-core\.js/);
     assert.match(page, /manifest\.webmanifest/);
     assert.match(app, /renderAccountPage/);
@@ -1119,6 +1119,8 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(app, /renderReviewSessionPanel/);
     assert.match(app, /renderBookmarkButton/);
     assert.match(app, /renderReportIssueForm/);
+    assert.match(app, /normalizedQuizPrompt/);
+    assert.doesNotMatch(app, /localizedText\((quiz|question)\.prompt\)/);
     assert.match(app, /forgot-password/);
     assert.match(app, /send-verification/);
     assert.match(app, /planEntitlements/);

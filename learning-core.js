@@ -67,16 +67,27 @@
 
   function buildVocabularyOptions(optionPool, targetWord, answerKey, allVocabulary = [], random = Math.random) {
     const answer = targetWord[answerKey];
+    const canUseAsOption = (word) => word.id === targetWord.id || !isLowValueQuizTarget(word);
     const lessonOptions = optionPool
+      .filter(canUseAsOption)
       .map((word) => word[answerKey])
       .filter(Boolean);
     const globalOptions = allVocabulary
-      .filter((word) => word.id !== targetWord.id)
+      .filter((word) => word.id !== targetWord.id && !isLowValueQuizTarget(word))
       .map((word) => word[answerKey])
       .filter(Boolean);
     const distractors = uniqueValues([...shuffle(lessonOptions, random), ...shuffle(globalOptions, random)])
       .filter((option) => option !== answer);
     return shuffle([answer, ...distractors.slice(0, 3)], random);
+  }
+
+  function isLowValueQuizTarget(word) {
+    const english = String(word?.english || "").trim();
+    if (!english) return true;
+    if (/\bproper name\b/i.test(english)) return true;
+    const allowedTitleCaseTerms = new Set(["Arabic", "Japanese", "Muslim", "Muslims", "Christians", "Prophet", "Saturday", "Umrah", "Zoroastrian"]);
+    if (/^[A-Z][A-Za-z' -]+$/.test(english) && !allowedTitleCaseTerms.has(english)) return true;
+    return new Set(["yugoslavia"]).has(english.toLowerCase());
   }
 
   function createVocabularyQuestion({
@@ -95,7 +106,7 @@
         answerKey: "english"
       },
       {
-        prompt: `Choose the Arabic word for "${word.english}".`,
+        prompt: "Choose an Arabic word for:",
         display: word.english,
         answerKey: "arabic"
       }
@@ -127,7 +138,9 @@
     now = Date.now,
     random = Math.random
   }) {
-    const words = shuffle(pool, random).slice(0, Math.min(size, pool.length));
+    const preferredTargets = pool.filter((word) => !isLowValueQuizTarget(word));
+    const targetPool = preferredTargets.length ? preferredTargets : pool;
+    const words = shuffle(targetPool, random).slice(0, Math.min(size, targetPool.length));
     const optionPool = pool.length >= 4 ? pool : allVocabulary;
 
     return {

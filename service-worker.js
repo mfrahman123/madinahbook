@@ -1,10 +1,10 @@
-const CACHE_NAME = "madinah-arabic-shell-v8-study-queue";
+const CACHE_NAME = "madinah-arabic-shell-v11-vocab-prompt-dedupe";
 const SHELL_ASSETS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260620-study-queue",
-  "/learning-core.js?v=20260620-study-queue",
-  "/app.js?v=20260620-study-queue",
+  "/styles.css?v=20260621-vocab-prompt-dedupe",
+  "/learning-core.js?v=20260621-vocab-prompt-dedupe",
+  "/app.js?v=20260621-vocab-prompt-dedupe",
   "/manifest.webmanifest",
   "/assets/madinah-icon.svg"
 ];

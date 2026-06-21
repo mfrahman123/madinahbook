@@ -78,6 +78,14 @@ async function main() {
     await capture(mobilePaidPage, server.baseUrl, "mobile-subscription", { mobileShell: true, viewportOnly: true });
     await gotoRoute(mobilePaidPage, server.baseUrl, "?route=account", ".account-hero");
     await capture(mobilePaidPage, server.baseUrl, "mobile-account", { mobileShell: true, viewportOnly: true });
+
+    const nativeMobilePage = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 3 });
+    await login(nativeMobilePage, `${server.baseUrl}/?native=1`, paidTestUser);
+    await capture(nativeMobilePage, server.baseUrl, "native-mobile-today", { nativeShell: true, viewportOnly: true });
+    await gotoRoute(nativeMobilePage, server.baseUrl, "?native=1&route=vocabulary", ".native-vocabulary-app");
+    await capture(nativeMobilePage, server.baseUrl, "native-mobile-flashcards", { nativeShell: true, viewportOnly: true });
+    await gotoRoute(nativeMobilePage, server.baseUrl, "?native=1&route=vocabulary&vocabTab=tester", ".native-vocab-tester-app");
+    await capture(nativeMobilePage, server.baseUrl, "native-mobile-vocab-tester", { nativeShell: true, viewportOnly: true });
   } finally {
     await browser?.close();
     await server.stop();
@@ -126,6 +134,32 @@ async function capture(page, baseUrl, name, options = {}) {
     if (!mobileState.mobileAppbarVisible) throw new Error(`${name} is missing the mobile app bar`);
     if (!mobileState.mobileBottomNavVisible) throw new Error(`${name} is missing the mobile bottom navigation`);
     if (mobileState.viewTop > 190) throw new Error(`${name} pushes content too far below the mobile app bar`);
+  }
+
+  if (options.nativeShell) {
+    const nativeState = await page.evaluate(() => {
+      const visible = (selector) => {
+        const element = document.querySelector(selector);
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      };
+      return {
+        appMode: document.documentElement.dataset.appMode,
+        nativeShellVisible: visible(".native-app-shell"),
+        nativeBottomVisible: visible(".native-bottom-nav"),
+        mobileSearchVisible: visible(".mobile-search"),
+        mobileMoreVisible: visible(".mobile-more-menu"),
+        stickyVisible: visible(".mobile-sticky-action")
+      };
+    });
+    if (nativeState.appMode !== "native") throw new Error(`${name} did not render in native app mode`);
+    if (!nativeState.nativeShellVisible) throw new Error(`${name} is missing the native shell`);
+    if (!nativeState.nativeBottomVisible) throw new Error(`${name} is missing the native bottom navigation`);
+    if (nativeState.mobileSearchVisible) throw new Error(`${name} shows the mobile web search bar`);
+    if (nativeState.mobileMoreVisible) throw new Error(`${name} shows the mobile web overflow menu`);
+    if (nativeState.stickyVisible) throw new Error(`${name} shows the mobile web sticky action`);
   }
 
   const screenshotPath = path.join(artifactDir, `${name}.png`);
