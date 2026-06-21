@@ -47,11 +47,17 @@ const state = {
   adminStatus: "",
   adminTab: "vocabulary",
   adminSearch: "",
+  adminImportText: "",
+  adminImportStatus: "",
+  adminImportError: "",
+  contentReportStatus: "",
+  contentReportError: "",
   audioRate: Number(localStorage.getItem("madinah-audio-rate") || 0.82),
   arabicFontScale: Number(localStorage.getItem("madinah-arabic-scale") || 1),
   reminderNotice: localStorage.getItem("madinah-reminders") || "",
   offlineNotice: "",
   mobileFilterSheetOpen: false,
+  viewportMode: currentViewportMode(),
   motion: {
     view: false,
     tester: false,
@@ -82,7 +88,10 @@ const iconPaths = {
   target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3"/><path d="M22 12h-3"/><path d="M12 22v-3"/><path d="M2 12h3"/>',
   menu: '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
-  moon: '<path d="M20 14.6A8.5 8.5 0 0 1 9.4 4 7 7 0 1 0 20 14.6z"/>'
+  moon: '<path d="M20 14.6A8.5 8.5 0 0 1 9.4 4 7 7 0 1 0 20 14.6z"/>',
+  star: '<path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9z"/>',
+  flag: '<path d="M5 22V4"/><path d="M5 4h11l-1 4 1 4H5"/>',
+  download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>'
 };
 
 const routes = [
@@ -932,6 +941,10 @@ const bengaliVerbMeanings = {
   "translate": "অনুবাদ করা"
 };
 
+function currentViewportMode() {
+  return window.matchMedia("(max-width: 820px)").matches ? "mobile" : "desktop";
+}
+
 function icon(name) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${iconPaths[name] || iconPaths.home}</svg>`;
 }
@@ -1598,6 +1611,61 @@ function progressRecord(name) {
   return state.progress?.[name] || {};
 }
 
+function bookmarkRecord() {
+  return {
+    lessons: [],
+    vocabulary: [],
+    examples: [],
+    exercises: [],
+    ...(state.progress?.bookmarks || {})
+  };
+}
+
+function isBookmarked(type, id) {
+  return (bookmarkRecord()[type] || []).includes(id);
+}
+
+function bookmarkPatch(type, id, enabled) {
+  const bookmarks = bookmarkRecord();
+  const values = new Set(bookmarks[type] || []);
+  if (enabled) values.add(id);
+  else values.delete(id);
+  return {
+    bookmarks: {
+      ...bookmarks,
+      [type]: Array.from(values)
+    }
+  };
+}
+
+function renderBookmarkButton(type, id, label = "") {
+  const active = isBookmarked(type, id);
+  return `
+    <button class="bookmark-button ${active ? "active" : ""}" type="button" data-bookmark-type="${escapeHtml(type)}" data-bookmark-id="${escapeHtml(id)}" aria-pressed="${active}" aria-label="${active ? t("removeBookmark", "Remove bookmark") : t("bookmark", "Bookmark")}">
+      ${icon("star")} ${label ? `<span>${escapeHtml(label)}</span>` : ""}
+    </button>
+  `;
+}
+
+function renderReportIssueForm({ kind, itemId, lessonId = "", bookSlug = "", label = "" }) {
+  return `
+    <details class="report-issue">
+      <summary>${icon("flag")} <span>${escapeHtml(label || t("reportIssue", "Report issue"))}</span></summary>
+      <form class="report-issue-form" data-content-report>
+        <input type="hidden" name="kind" value="${escapeHtml(kind)}" />
+        <input type="hidden" name="itemId" value="${escapeHtml(itemId)}" />
+        <input type="hidden" name="lessonId" value="${escapeHtml(lessonId)}" />
+        <input type="hidden" name="bookSlug" value="${escapeHtml(bookSlug)}" />
+        <label class="form-field">
+          <span>${t("whatNeedsFixing", "What needs fixing?")}</span>
+          <textarea name="message" maxlength="700" required placeholder="${escapeHtml(t("reportIssuePlaceholder", "Mention the translation, diacritic, audio note, or exercise wording that looks wrong."))}"></textarea>
+        </label>
+        <button class="ghost-button compact-button" type="submit">${icon("flag")} ${t("sendReport", "Send report")}</button>
+      </form>
+    </details>
+  `;
+}
+
 function isAuthenticated() {
   return Boolean(state.user && !state.user.isDemo);
 }
@@ -1816,6 +1884,23 @@ function lessonMastery(lesson) {
   const completedScore = state.progress.completedLessonIds.includes(lesson.id) ? 1 : 0;
 
   return Math.round((vocabularyScore * 0.3 + exerciseScore * 0.25 + quizScore * 0.2 + writingScore * 0.15 + completedScore * 0.1) * 100);
+}
+
+function lessonMasteryStatus(lesson) {
+  const score = lessonMastery(lesson);
+  const due = dueVocabularyItems(lesson).length;
+  const openMistakes = mistakeItems(lesson).length;
+  const complete = state.progress.completedLessonIds.includes(lesson.id);
+
+  if (!complete && score === 0) return { key: "not-started", label: t("notStarted", "Not started"), score };
+  if (openMistakes || due > 2 || (complete && score < 75)) return { key: "needs-review", label: t("needsReview", "Needs review"), score };
+  if (complete && score >= 90 && due === 0) return { key: "mastered", label: t("mastered", "Mastered"), score };
+  return { key: "learning", label: t("learning", "Learning"), score };
+}
+
+function renderMasteryChip(lesson) {
+  const mastery = lessonMasteryStatus(lesson);
+  return `<span class="mastery-chip ${mastery.key}">${escapeHtml(mastery.label)} · ${mastery.score}%</span>`;
 }
 
 function normalizeArabicLookup(value) {
@@ -2116,13 +2201,13 @@ async function refreshOfflineCache() {
   try {
     const cache = await caches.open("madinah-arabic-user-cache-v1");
     await cache.addAll([
-      "/",
-      "/index.html",
-      "/app.js?v=20260620-answer-reveal-fix",
-      "/learning-core.js?v=20260620-answer-reveal-fix",
-      "/styles.css?v=20260620-answer-reveal-fix",
-      "/api/bootstrap"
-    ]);
+	      "/",
+	      "/index.html",
+	      "/app.js?v=20260620-study-queue",
+	      "/learning-core.js?v=20260620-study-queue",
+	      "/styles.css?v=20260620-study-queue",
+	      "/api/bootstrap"
+	    ]);
     state.offlineNotice = t("offlineReady", "Offline cache refreshed for core lessons and vocabulary.");
   } catch {
     state.offlineNotice = t("offlineRefreshFailed", "Offline cache could not be refreshed right now.");
@@ -2196,6 +2281,110 @@ async function saveAdminContent(form) {
   state.adminStatus = `${collection} ${id} saved.`;
   state.adminError = "";
   render();
+}
+
+async function importAdminContent(form) {
+  const formData = new FormData(form);
+  const collection = formData.get("collection");
+  let items = [];
+  state.adminImportStatus = "";
+  state.adminImportError = "";
+
+  try {
+    const parsed = JSON.parse(String(formData.get("items") || "[]"));
+    items = Array.isArray(parsed) ? parsed : parsed.items;
+    if (!Array.isArray(items)) throw new Error("Paste an array of content items, or an object with an items array.");
+  } catch (error) {
+    state.adminImportError = error.message || "Import JSON is invalid.";
+    render();
+    return;
+  }
+
+  const response = await fetch("/api/admin/import", authFetchOptions({
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ collection, items })
+  }));
+  const data = await response.json();
+  if (!response.ok) {
+    state.adminImportError = data.error || t("adminImportError", "Unable to import content.");
+    render();
+    return;
+  }
+
+  state.adminImportText = "";
+  state.adminImportStatus = `${data.updated}/${data.requested} ${collection} items imported.`;
+  await loadAdminContent();
+}
+
+async function submitContentReport(form) {
+  const formData = new FormData(form);
+  state.contentReportStatus = "";
+  state.contentReportError = "";
+  const payload = {
+    kind: formData.get("kind"),
+    itemId: formData.get("itemId"),
+    lessonId: formData.get("lessonId"),
+    bookSlug: formData.get("bookSlug"),
+    route: state.route,
+    message: formData.get("message")
+  };
+
+  const response = await fetch("/api/content/report", authFetchOptions({
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  }));
+  const data = await response.json();
+  if (!response.ok) {
+    state.contentReportError = data.error || t("reportIssueError", "Unable to send report.");
+    render();
+    return;
+  }
+
+  state.contentReportStatus = t("reportIssueSent", "Thanks, this content report has been sent for review.");
+  form.reset();
+  render();
+}
+
+function toggleBookmark(type, id) {
+  if (!isAuthenticated()) return;
+  saveProgress(bookmarkPatch(type, id, !isBookmarked(type, id)));
+}
+
+function markReviewWord(wordId, correct) {
+  const word = byId(state.data.vocabulary, wordId);
+  if (!word) return;
+  const gainedXp = correct ? 8 : 0;
+  markMotionXp(gainedXp);
+  saveProgress({
+    learnedVocabularyIds: correct ? [word.id] : [],
+    vocabularyStats: { [word.id]: reviewStatsFor(word.id, correct) },
+    xp: state.progress.xp + gainedXp
+  });
+}
+
+function resolveMistake(id) {
+  if (!progressRecord("mistakes")[id]) return;
+  saveProgress(resolvedMistakePatch(id));
+}
+
+function updateReminderTime(value) {
+  saveProgress({
+    learningPreferences: {
+      ...learningPreferences(),
+      reminderTime: value
+    }
+  });
+}
+
+function updateOfflinePack(value) {
+  saveProgress({
+    learningPreferences: {
+      ...learningPreferences(),
+      offlinePack: value
+    }
+  });
 }
 
 function reportFrontendError(error, source = "window") {
@@ -2691,6 +2880,7 @@ function checkSentenceBuilder(form) {
 }
 
 function render() {
+  state.viewportMode = currentViewportMode();
   document.documentElement.dataset.theme = state.theme;
   document.documentElement.lang = isBengali() ? "bn" : "en";
   document.documentElement.style.setProperty("--arabic-scale", String(Math.min(1.2, Math.max(0.9, state.arabicFontScale))));
@@ -2703,7 +2893,7 @@ function render() {
       ${renderSidebar()}
       <div class="main-shell">
         ${renderTopbar()}
-        <main class="${viewClass}">${renderRoute()}</main>
+        <main class="${viewClass}">${renderGlobalNotices()}${renderRoute()}</main>
       </div>
       ${renderMobileBottomNav()}
       ${renderMobileStickyAction()}
@@ -2712,13 +2902,20 @@ function render() {
     `
     : `
       ${renderPublicHeader()}
-      <main class="public-view ${state.motion.view ? "view-enter" : ""}">${renderPublicRoute()}</main>
+      <main class="public-view ${state.motion.view ? "view-enter" : ""}">${renderGlobalNotices()}${renderPublicRoute()}</main>
       ${renderAuthModal()}
     `;
   state.motion.view = false;
   state.motion.tester = false;
   state.motion.xpBurst = null;
   state.motion.celebration = "";
+}
+
+function renderGlobalNotices() {
+  return `
+    ${state.contentReportStatus ? `<div class="global-notice success">${icon("check")}<span>${escapeHtml(state.contentReportStatus)}</span></div>` : ""}
+    ${state.contentReportError ? `<div class="global-notice error">${icon("x")}<span>${escapeHtml(state.contentReportError)}</span></div>` : ""}
+  `;
 }
 
 function renderPublicHeader() {
@@ -2769,6 +2966,7 @@ function mobileLearningRoute() {
 function renderMobileAppbar() {
   const initial = state.user?.displayName?.slice(0, 1).toUpperCase() || "M";
   const moreRoutes = [
+    { id: "exercises", label: t("exercises", "Exercises"), icon: "exercises" },
     { id: "grammar", label: t("grammar", "Grammar"), icon: "grammar" },
     { id: "progress", label: t("progress", "Progress"), icon: "progress" },
     { id: "subscription", label: t("subscription", "Subscription"), icon: "spark" },
@@ -2812,8 +3010,8 @@ function renderMobileBottomNav() {
   const items = [
     { id: "home", route: "home", label: t("home", "Home"), icon: "home", active: state.route === "home" },
     { id: "lessons", route: mobileLearningRoute(), label: t("lessons", "Lessons"), icon: "book", active: isBookRoute(state.route) },
+    { id: "review", route: "review", label: t("review", "Review"), icon: "target", active: state.route === "review" },
     { id: "vocabulary", route: "vocabulary", label: t("vocabShort", "Vocab"), icon: "words", active: state.route === "vocabulary" },
-    { id: "practice", route: "exercises", label: t("practice", "Practice"), icon: "exercises", active: state.route === "exercises" || state.route === "review" },
     { id: "account", route: "account", label: t("account", "Account"), icon: "user", active: state.route === "account" }
   ];
 
@@ -3251,6 +3449,7 @@ function renderAuthenticatedHome() {
       </div>
       <aside class="side-stack">
         ${renderStudyProfileCard()}
+        ${renderContentChangelogPanel()}
         ${renderProgressPanel()}
         ${renderBooksPanel()}
       </aside>
@@ -3275,7 +3474,7 @@ function renderMobileTodayScreen(currentLesson) {
       <article class="mobile-hero-study">
         <div>
           <p class="section-label">${t("today", "Today")}</p>
-          <h2>${t("dailyStudyMission", "Daily Study Mission")}</h2>
+          <h2>${t("todaysStudyQueue", "Today's Study Queue")}</h2>
           <span>${preferences.dailyMinutes}m · ${learningPreferenceLabel("skillFocus", preferences.skillFocus)}</span>
         </div>
         <button class="primary-button" type="button" data-lesson="${escapeHtml(currentLesson.id)}">${t("start", "Start")} ${icon("arrow")}</button>
@@ -3406,63 +3605,112 @@ function renderStudyProfileCard() {
   `;
 }
 
-function renderDailyMissionPanel(currentLesson) {
-  const preferences = learningPreferences();
+function renderContentChangelogPanel() {
+  const items = [
+    ...state.data.lessons.map((item) => ({ ...item, type: t("lesson", "Lesson"), title: localizedLessonTitle(item), route: item.bookSlug })),
+    ...state.data.vocabulary.map((item) => ({ ...item, type: t("vocabulary", "Vocabulary"), title: `${item.arabic} - ${localizedText(item.english)}`, route: "vocabulary" })),
+    ...state.data.exercises.map((item) => ({ ...item, type: t("exercise", "Exercise"), title: localizedText(item.prompt), route: "exercises" }))
+  ]
+    .filter((item) => item.updatedAt || item.contentStatus || item.sourceRef)
+    .sort((a, b) => Date.parse(b.updatedAt || 0) - Date.parse(a.updatedAt || 0))
+    .slice(0, 5);
+
+  return `
+    <section class="card changelog-card">
+      <div class="panel-heading">
+        <p class="section-label">${t("contentQuality", "Content quality")}</p>
+        <h2>${t("contentChangelog", "Content Changelog")}</h2>
+      </div>
+      <div class="changelog-list">
+        ${items.map((item) => `
+          <button type="button" data-route="${escapeHtml(item.route)}">
+            <span>${escapeHtml(item.type)}</span>
+            <strong>${escapeHtml(item.title)}</strong>
+            <small>${escapeHtml(item.contentStatus || item.sourceRef || t("updated", "Updated"))}</small>
+          </button>
+        `).join("") || `<p class="translation">${t("noRecentContentChanges", "No recent content changes to show.")}</p>`}
+      </div>
+    </section>
+  `;
+}
+
+function buildTodayStudyQueue(currentLesson) {
   const lessonVocabulary = getLessonVocabulary(currentLesson);
-  const lessonLearned = lessonVocabulary.filter((word) => state.progress.learnedVocabularyIds.includes(word.id)).length;
-  const dueWords = dueVocabularyItems().filter((word) => word.bookSlug === currentLesson.bookSlug && canAccessBookSlug(word.bookSlug));
-  const lessonCards = getLessonExerciseCards(currentLesson, lessonVocabulary);
-  const completedExerciseCount = lessonCards.filter((card) =>
-    progressRecord("exerciseAttempts")[card.id] === "complete" || progressRecord("exerciseAnswers")[card.id] === "correct"
-  ).length;
-  const complete = state.progress.completedLessonIds.includes(currentLesson.id);
-  const missions = [
+  const dueWords = dueVocabularyItems().filter((word) => canAccessBookSlug(word.bookSlug));
+  const mistakes = mistakeItems();
+  const cards = getLessonExerciseCards(currentLesson, lessonVocabulary);
+  const nextExercise = cards.find((card) => progressRecord("exerciseAttempts")[card.id] !== "complete") || cards[0];
+  const nextLesson = state.progress.completedLessonIds.includes(currentLesson.id)
+    ? byId(state.data.lessons, nextLessonId(currentLesson.id)) || currentLesson
+    : currentLesson;
+
+  return [
     {
-      iconName: "play",
-      title: t("readModelSentence", "Read model sentence"),
-      body: currentLesson.arabic,
-      done: complete,
-      lessonTab: "learn"
+      id: "lesson",
+      iconName: "book",
+      label: t("nextLesson", "Next lesson"),
+      title: `${localizedBookTitle(getBook(nextLesson.bookSlug))} · ${t("lesson", "Lesson")} ${nextLesson.number}`,
+      body: localizedLessonFocus(nextLesson),
+      meta: renderMasteryChip(nextLesson),
+      attrs: `data-lesson="${escapeHtml(nextLesson.id)}"`,
+      done: state.progress.completedLessonIds.includes(nextLesson.id)
     },
     {
+      id: "vocab",
       iconName: "words",
-      title: t("reviewThreeWords", "Review 3 words"),
-      body: dueWords.slice(0, 3).map((word) => word.arabic).join("  ") || `${lessonLearned}/${lessonVocabulary.length} ${t("lessonWords", "lesson words")}`,
-      done: lessonVocabulary.length ? lessonLearned >= Math.min(3, lessonVocabulary.length) : true,
-      route: "vocabulary"
+      label: t("dueVocabulary", "Due vocabulary"),
+      title: dueWords.length ? `${dueWords.length} ${t("wordsDue", "words due")}` : t("noDueWords", "No due words"),
+      body: dueWords.slice(0, 3).map((word) => word.arabic).join("  ") || t("reviewFreshWords", "Open vocabulary to review fresh words."),
+      attrs: hasPremiumAccess() ? 'data-route="review"' : 'data-route="vocabulary"',
+      done: dueWords.length === 0
     },
     {
+      id: "mistake",
+      iconName: "target",
+      label: t("mistakeReview", "Mistake review"),
+      title: mistakes.length ? `${mistakes.length} ${t("openMistakes", "open mistakes")}` : t("noMistakes", "No mistakes"),
+      body: mistakes[0]?.prompt || t("keepGoingClean", "Nothing needs repair right now."),
+      attrs: hasPremiumAccess() ? 'data-route="review"' : 'data-route="subscription"',
+      done: mistakes.length === 0
+    },
+    {
+      id: "exercise",
       iconName: "exercises",
-      title: t("consolidatePractice", "Consolidate practice"),
-      body: `${completedExerciseCount}/${lessonCards.length} ${t("practiceSections", "practice sections")}`,
-      done: lessonCards.length ? completedExerciseCount > 0 : true,
-      lessonTab: "book-exercises"
-    },
-    {
-      iconName: "check",
-      title: t("finishToday", "Finish today"),
-      body: `${preferences.dailyMinutes} ${t("minuteSession", "minute session")}`,
-      done: complete,
-      lessonId: currentLesson.id
+      label: t("oneExercise", "One exercise"),
+      title: nextExercise ? localizedText(nextExercise.title) : t("practice", "Practice"),
+      body: hasPremiumAccess()
+        ? (nextExercise?.bookPrompt || t("consolidatePractice", "Consolidate practice"))
+        : t("premiumPlanTextShort", "Exercises unlock with Premium."),
+      attrs: hasPremiumAccess()
+        ? `data-open-lesson="${escapeHtml(currentLesson.id)}" data-open-lesson-tab="book-exercises"`
+        : 'data-route="subscription"',
+      done: nextExercise ? progressRecord("exerciseAttempts")[nextExercise.id] === "complete" : true
     }
   ];
+}
+
+function renderDailyMissionPanel(currentLesson) {
+  const preferences = learningPreferences();
+  const missions = buildTodayStudyQueue(currentLesson);
 
   return `
     <section class="card daily-mission-panel">
       <div class="panel-heading inline">
         <div>
           <p class="section-label">${t("today", "Today")}</p>
-          <h2>${t("dailyStudyMission", "Daily Study Mission")}</h2>
+          <h2>${t("todaysStudyQueue", "Today's Study Queue")}</h2>
         </div>
         <span class="pill">${preferences.dailyMinutes}m · ${learningPreferenceLabel("skillFocus", preferences.skillFocus)}</span>
       </div>
       <div class="mission-grid">
         ${missions.map((mission) => `
-          <button class="mission-card ${mission.done ? "done" : ""}" type="button" ${mission.lessonTab ? `data-open-lesson="${currentLesson.id}" data-open-lesson-tab="${mission.lessonTab}"` : mission.route ? `data-route="${mission.route}"` : `data-lesson="${mission.lessonId}"`}>
+          <button class="mission-card ${mission.done ? "done" : ""}" type="button" ${mission.attrs}>
             <span class="quick-icon">${icon(mission.done ? "check" : mission.iconName)}</span>
             <span>
+              <em>${escapeHtml(mission.label)}</em>
               <strong>${escapeHtml(mission.title)}</strong>
               <small ${hasArabic(mission.body) ? 'dir="rtl" lang="ar"' : ""}>${escapeHtml(mission.body)}</small>
+              ${mission.meta || ""}
             </span>
           </button>
         `).join("")}
@@ -3491,10 +3739,10 @@ function renderLessonMapCard(bookSlug, currentLesson = null) {
           const complete = state.progress.completedLessonIds.includes(lesson.id);
           const active = lesson.id === selectedId;
           return `
-            <button class="lesson-map-node ${complete ? "done" : ""} ${active ? "active" : ""}" type="button" data-lesson="${lesson.id}">
+            <button class="lesson-map-node ${complete ? "done" : ""} ${active ? "active" : ""} ${lessonMasteryStatus(lesson).key}" type="button" data-lesson="${lesson.id}">
               <span>${complete ? icon("check") : escapeHtml(String(lesson.number))}</span>
               <strong>${escapeHtml(localizedLessonTitle(lesson))}</strong>
-              <small>${lessonMastery(lesson)}%</small>
+              <small>${lessonMasteryStatus(lesson).label} · ${lessonMastery(lesson)}%</small>
             </button>
           `;
         }).join("")}
@@ -3972,6 +4220,7 @@ function renderBook(bookSlug) {
               <button class="lesson-link ${lesson.id === item.id ? "active" : ""}" type="button" data-lesson="${item.id}">
                 <span>${String(item.number).padStart(2, "0")}</span>
                 <strong>${escapeHtml(localizedLessonTitle(item))}</strong>
+                ${renderMasteryChip(item)}
                 ${state.progress.completedLessonIds.includes(item.id) ? icon("check") : ""}
               </button>
             `
@@ -3984,7 +4233,11 @@ function renderBook(bookSlug) {
             <p class="section-label">${t("lesson", "Lesson")} ${lesson.number}</p>
             <h2>${escapeHtml(localizedLessonTitle(lesson))}</h2>
           </div>
-          <span class="status-chip ${complete ? "complete" : ""}">${complete ? t("completed", "Completed") : t("inProgress", "In progress")}</span>
+          <div class="lesson-heading-actions">
+            ${renderBookmarkButton("lessons", lesson.id)}
+            ${renderMasteryChip(lesson)}
+            ${renderReportIssueForm({ kind: "lesson", itemId: lesson.id, lessonId: lesson.id, bookSlug: lesson.bookSlug })}
+          </div>
         </div>
         ${renderMobileLessonPicker(book, lesson, bookLessons)}
         ${renderMobileLessonSession(lesson, lessonVocabulary, complete)}
@@ -4071,7 +4324,7 @@ function renderLessonMapStrip(bookSlug, selectedLesson) {
       ${lessons.map((lesson) => {
         const complete = state.progress.completedLessonIds.includes(lesson.id);
         return `
-          <button class="lesson-dot ${complete ? "done" : ""} ${lesson.id === selectedLesson.id ? "active" : ""}" type="button" data-lesson="${lesson.id}" aria-label="${t("lesson", "Lesson")} ${lesson.number}">
+          <button class="lesson-dot ${complete ? "done" : ""} ${lesson.id === selectedLesson.id ? "active" : ""} ${lessonMasteryStatus(lesson).key}" type="button" data-lesson="${lesson.id}" aria-label="${t("lesson", "Lesson")} ${lesson.number}">
             ${complete ? icon("check") : escapeHtml(String(lesson.number))}
           </button>
         `;
@@ -4111,7 +4364,7 @@ function renderLessonPath(lesson) {
     <section class="lesson-path" aria-label="${t("guidedLessonPath", "Guided lesson path")}">
       <div>
         <p class="section-label">${t("lessonPath", "Lesson Path")}</p>
-        <strong>${lessonMastery(lesson)}% ${t("mastery", "mastery")}</strong>
+        ${renderMasteryChip(lesson)}
       </div>
       <div class="path-steps">
         ${steps
@@ -4168,7 +4421,9 @@ function renderLessonExamples(lesson, lessonVocabulary = []) {
       </div>
       <div class="lesson-example-list">
         ${examples
-          .map((example) => `
+          .map((example, index) => {
+            const exampleId = `example-${lesson.id}-${index + 1}`;
+            return `
             <article class="lesson-example-card">
               <span class="example-step">${escapeHtml(example.label)}</span>
               <div>
@@ -4178,6 +4433,10 @@ function renderLessonExamples(lesson, lessonVocabulary = []) {
                 </div>
                 <button class="lesson-example-arabic" type="button" data-speak="${escapeHtml(example.arabic)}" lang="ar">${example.arabic}</button>
                 ${renderArabicWordInspector(example.arabic, lessonVocabulary)}
+                <div class="content-actions">
+                  ${renderBookmarkButton("examples", exampleId)}
+                  ${renderReportIssueForm({ kind: "example", itemId: exampleId, lessonId: lesson.id, bookSlug: lesson.bookSlug })}
+                </div>
                 <details class="answer-reveal">
                   <summary>
                     <span>${t("viewAnswer", "View answer")}</span>
@@ -4187,7 +4446,8 @@ function renderLessonExamples(lesson, lessonVocabulary = []) {
                 </details>
               </div>
             </article>
-          `)
+          `;
+          })
           .join("")}
       </div>
     </section>
@@ -4364,11 +4624,17 @@ function renderLessonLearn(lesson, lessonVocabulary, lessonGrammar, complete) {
                 .map((word) => {
                   const status = vocabularyStatus(word);
                   return `
-                    <button class="word-chip status-${status}" type="button" data-speak="${escapeHtml(word.arabic)}">
-                      <span lang="ar">${word.arabic}</span>
-                      <small>${escapeHtml(localizedText(word.english))}</small>
-                      <em>${vocabularyStatusLabel(status)} · ${reviewScheduleText(word)}</em>
-                    </button>
+                    <article class="word-chip-card status-${status}">
+                      <button class="word-chip status-${status}" type="button" data-speak="${escapeHtml(word.arabic)}">
+                        <span lang="ar">${word.arabic}</span>
+                        <small>${escapeHtml(localizedText(word.english))}</small>
+                        <em>${vocabularyStatusLabel(status)} · ${reviewScheduleText(word)}</em>
+                      </button>
+                      <div class="content-actions compact">
+                        ${renderBookmarkButton("vocabulary", word.id)}
+                        ${renderReportIssueForm({ kind: "vocabulary", itemId: word.id, lessonId: lesson.id, bookSlug: lesson.bookSlug })}
+                      </div>
+                    </article>
                   `;
                 })
                 .join("")}
@@ -4441,11 +4707,15 @@ function renderLessonBookExercises(lesson, lessonVocabulary) {
                   <em>${done ? `${icon("check")} ${t("done", "Done")}` : t("practice", "Practice")}</em>
                 </summary>
                 <div class="book-exercise-body">
-                  <div class="practice-task">
-                    <strong>${t("practiceTask", "Practice task")}</strong>
-                    <p>${escapeHtml(localizedText(card.practice))}</p>
-                  </div>
-                  ${renderExampleQuestions(card.examples)}
+	                  <div class="practice-task">
+	                    <strong>${t("practiceTask", "Practice task")}</strong>
+	                    <p>${escapeHtml(localizedText(card.practice))}</p>
+	                  </div>
+	                  <div class="content-actions">
+	                    ${renderBookmarkButton("exercises", card.id)}
+	                    ${renderReportIssueForm({ kind: "exercise", itemId: card.id, lessonId: lesson.id, bookSlug: lesson.bookSlug })}
+	                  </div>
+	                  ${renderExampleQuestions(card.examples)}
                   ${renderCheckedPractice(card)}
                   ${card.words.length ? `<div class="chip-row">${card.words.map((word) => `<button type="button" data-speak="${escapeHtml(word.arabic)}" lang="ar">${word.arabic}</button>`).join("")}</div>` : ""}
                   <button class="${done ? "ghost-button" : "primary-button"}" type="button" data-book-exercise-complete="${card.id}">
@@ -5121,6 +5391,9 @@ function renderVocabularyPage() {
   });
   const testerPoolCount = getVocabTesterPool().length;
   const shownCount = state.vocabularyTab === "tester" ? testerPoolCount : words.length;
+  const listMarkup = state.viewportMode === "mobile"
+    ? `${renderMobileVocabularyFlashcards(words, selectedBook)}${renderVocabularyReviewStrip(selectedBook.slug)}${renderVocabularyCards(words)}`
+    : `${renderVocabularyReviewStrip(selectedBook.slug)}${renderVocabularyTable(words)}`;
 
   return `
     <section class="page-stack">
@@ -5146,13 +5419,12 @@ function renderVocabularyPage() {
           )
           .join("")}
       </div>
-      ${state.vocabularyTab === "tester" ? renderVocabTester() : `${renderMobileVocabularyFlashcards(words, selectedBook)}${renderVocabularyReviewStrip(selectedBook.slug)}${renderVocabularyTable(words)}${renderVocabularyCards(words)}`}
+      ${state.vocabularyTab === "tester" ? renderVocabTester() : listMarkup}
     </section>
   `;
 }
 
-function paginatedVocabularyWords(words) {
-  const pageSize = 80;
+function paginatedVocabularyWords(words, pageSize = 40) {
   const totalPages = Math.max(1, Math.ceil(words.length / pageSize));
   const page = Math.min(Math.max(Number(state.vocabularyPage) || 1, 1), totalPages);
   if (page !== state.vocabularyPage) state.vocabularyPage = page;
@@ -5415,11 +5687,16 @@ function renderMobileVocabularyFlashcards(words, selectedBook) {
                 <summary><span>${t("revealMeaning", "Reveal meaning")}</span>${icon("arrow")}</summary>
                 <p class="translation">${escapeHtml(localizedText(word.english))}</p>
               </details>
-              <div class="mobile-flashcard-meta">
-                <span class="vocab-status status-${status}">${vocabularyStatusLabel(status)}</span>
-                <span>${escapeHtml(reviewScheduleText(word))}</span>
-              </div>
-            </article>
+	              <div class="mobile-flashcard-meta">
+	                <span class="vocab-status status-${status}">${vocabularyStatusLabel(status)}</span>
+	                <span>${escapeHtml(reviewScheduleText(word))}</span>
+	              </div>
+	              <div class="mobile-flashcard-actions">
+	                ${renderBookmarkButton("vocabulary", word.id)}
+	                <button class="ghost-button compact-button" type="button" data-review-word-again="${escapeHtml(word.id)}">${t("reviewAgain", "Review again")}</button>
+	                <button class="primary-button compact-button" type="button" data-review-word-known="${escapeHtml(word.id)}">${t("iKnowThis", "I know this")}</button>
+	              </div>
+	            </article>
           `;
         }).join("")}
       </div>
@@ -5453,7 +5730,7 @@ function renderVocabularyTable(words) {
               <th>${t("nextReview", "Next review")}</th>
               <th>${t("book", "Book")}</th>
               <th>${t("lesson", "Lesson")}</th>
-              <th>${t("audio", "Audio")}</th>
+              <th>${t("actions", "Actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -5470,7 +5747,13 @@ function renderVocabularyTable(words) {
                     <td>${escapeHtml(reviewScheduleText(word))}</td>
                     <td>${escapeHtml(localizedBookTitle(getBook(word.bookSlug) || word.bookSlug))}</td>
                     <td>${word.lessonNumber}</td>
-                    <td><button class="icon-button" type="button" data-speak="${escapeHtml(word.arabic)}" aria-label="${t("playAudio", "Play audio")}">${icon("speaker")}</button></td>
+	                    <td>
+	                      <div class="table-action-row">
+	                        <button class="icon-button" type="button" data-speak="${escapeHtml(word.arabic)}" aria-label="${t("playAudio", "Play audio")}">${icon("speaker")}</button>
+	                        ${renderBookmarkButton("vocabulary", word.id)}
+	                        ${renderReportIssueForm({ kind: "vocabulary", itemId: word.id, lessonId: byId(state.data.lessons, word.lessonId)?.id || "", bookSlug: word.bookSlug })}
+	                      </div>
+	                    </td>
                   </tr>
                   `;
                 })
@@ -5488,6 +5771,7 @@ function renderVocabularyTable(words) {
 }
 
 function renderVocabularyCards(words) {
+  const page = paginatedVocabularyWords(words, 20);
   if (!words.length) {
     return `
       <section class="vocab-mobile-list" aria-label="${t("vocabulary", "Vocabulary")}">
@@ -5502,7 +5786,18 @@ function renderVocabularyCards(words) {
 
   return `
     <section class="vocab-mobile-list" aria-label="${t("vocabulary", "Vocabulary")}">
-      ${words
+      <div class="table-title mobile-vocab-title">
+        <div>
+          <h3>${t("wordList", "Word List")}</h3>
+          <p>${page.start + 1}-${page.end} ${t("of", "of")} ${words.length}</p>
+        </div>
+        <div class="table-actions">
+          <button class="ghost-button compact-button" type="button" data-vocab-page="${page.page - 1}" ${page.page <= 1 ? "disabled" : ""}>${t("previous", "Previous")}</button>
+          <span class="pill">${page.page}/${page.totalPages}</span>
+          <button class="ghost-button compact-button" type="button" data-vocab-page="${page.page + 1}" ${page.page >= page.totalPages ? "disabled" : ""}>${t("next", "Next")}</button>
+        </div>
+      </div>
+      ${page.words
         .map((word) => {
           const status = vocabularyStatus(word);
           return `
@@ -5512,16 +5807,25 @@ function renderVocabularyCards(words) {
               <p>${escapeHtml(localizedText(word.english))}</p>
               <span class="vocab-status status-${status}">${vocabularyStatusLabel(status)} · ${escapeHtml(reviewScheduleText(word))}</span>
             </div>
-            <div class="vocab-mobile-meta">
-              <span>${escapeHtml(localizedBookTitle(getBook(word.bookSlug) || word.bookSlug))}</span>
-              <span>${t("lesson", "Lesson")} ${escapeHtml(word.lessonNumber)}</span>
-              ${word.transliteration ? `<span>${escapeHtml(word.transliteration)}</span>` : ""}
-            </div>
-            <button class="icon-button" type="button" data-speak="${escapeHtml(word.arabic)}" aria-label="${t("playAudio", "Play audio")}">${icon("speaker")}</button>
-          </article>
+	            <div class="vocab-mobile-meta">
+	              <span>${escapeHtml(localizedBookTitle(getBook(word.bookSlug) || word.bookSlug))}</span>
+	              <span>${t("lesson", "Lesson")} ${escapeHtml(word.lessonNumber)}</span>
+	              ${word.transliteration ? `<span>${escapeHtml(word.transliteration)}</span>` : ""}
+	            </div>
+	            <div class="content-actions compact">
+	              <button class="icon-button" type="button" data-speak="${escapeHtml(word.arabic)}" aria-label="${t("playAudio", "Play audio")}">${icon("speaker")}</button>
+	              ${renderBookmarkButton("vocabulary", word.id)}
+	              ${renderReportIssueForm({ kind: "vocabulary", itemId: word.id, bookSlug: word.bookSlug })}
+	            </div>
+	          </article>
           `;
         })
         .join("")}
+      <div class="table-pagination">
+        <button class="ghost-button compact-button" type="button" data-vocab-page="${page.page - 1}" ${page.page <= 1 ? "disabled" : ""}>${t("previous", "Previous")}</button>
+        <span>${page.start + 1}-${page.end} ${t("of", "of")} ${words.length}</span>
+        <button class="ghost-button compact-button" type="button" data-vocab-page="${page.page + 1}" ${page.page >= page.totalPages ? "disabled" : ""}>${t("next", "Next")}</button>
+      </div>
     </section>
   `;
 }
@@ -5647,6 +5951,7 @@ function renderReviewPage() {
         </div>
         <span class="pill">${mistakes.length} ${t("mistakes", "mistakes")}</span>
       </div>
+      ${renderReviewSessionPanel(dueWords, mistakes)}
       <section class="review-dashboard">
         <article class="card">
           <div class="subsection-heading">
@@ -5696,6 +6001,87 @@ function renderReviewPage() {
   `;
 }
 
+function renderReviewSessionPanel(dueWords, mistakes) {
+  const reviewWords = uniqueValues([
+    ...dueWords.map((word) => word.id),
+    ...weakVocabularyItems(8).map((word) => word.id),
+    ...Object.values(bookmarkRecord().vocabulary || [])
+  ])
+    .map((id) => byId(state.data.vocabulary, id))
+    .filter((word) => word && canAccessBookSlug(word.bookSlug))
+    .slice(0, 6);
+  const activeMistakes = mistakes.slice(0, 3);
+  const empty = !reviewWords.length && !activeMistakes.length;
+
+  return `
+    <section class="card review-session-panel">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("focusedReview", "Focused Review")}</p>
+          <h3>${t("clearYourQueue", "Clear your queue")}</h3>
+        </div>
+        <span class="pill">${reviewWords.length + activeMistakes.length} ${t("items", "items")}</span>
+      </div>
+      ${empty ? `
+        <div class="mobile-empty-state">
+          <span class="quick-icon">${icon("check")}</span>
+          <h3>${t("reviewQueueClear", "Review queue clear")}</h3>
+          <p>${t("reviewQueueClearText", "Open a lesson or generate a vocabulary test to create new review items.")}</p>
+        </div>
+      ` : `
+        <div class="review-session-grid">
+          ${reviewWords.map((word) => renderDueReviewCard(word)).join("")}
+          ${activeMistakes.map((mistake) => renderMistakeReviewCard(mistake)).join("")}
+        </div>
+      `}
+    </section>
+  `;
+}
+
+function renderDueReviewCard(word) {
+  const status = vocabularyStatus(word);
+  return `
+    <article class="review-session-card word-review-card status-${status}">
+      <div>
+        <p class="section-label">${lessonLabelForWord(word)}</p>
+        <button class="review-arabic" type="button" data-speak="${escapeHtml(word.arabic)}" lang="ar">${word.arabic}</button>
+        <details class="answer-reveal">
+          <summary><span>${t("revealMeaning", "Reveal meaning")}</span>${icon("arrow")}</summary>
+          <p class="translation">${escapeHtml(localizedText(word.english))}</p>
+        </details>
+      </div>
+      <div class="review-card-actions">
+        ${renderBookmarkButton("vocabulary", word.id)}
+        <button class="ghost-button compact-button" type="button" data-review-word-again="${escapeHtml(word.id)}">${t("reviewAgain", "Review again")}</button>
+        <button class="primary-button compact-button" type="button" data-review-word-known="${escapeHtml(word.id)}">${t("iKnowThis", "I know this")}</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderMistakeReviewCard(mistake) {
+  return `
+    <article class="review-session-card mistake-review-card">
+      <div>
+        <p class="section-label">${escapeHtml(localizedText(mistake.type || "Mistake"))}</p>
+        <strong>${escapeHtml(localizedText(mistake.prompt || "Review this item."))}</strong>
+        ${mistake.arabic ? `<button class="arabic-example compact-arabic" type="button" data-speak="${escapeHtml(mistake.arabic)}" lang="ar">${mistake.arabic}</button>` : ""}
+        <details class="answer-reveal">
+          <summary><span>${t("viewAnswer", "View answer")}</span>${icon("arrow")}</summary>
+          <div class="mistake-answer-grid">
+            <span><small>${t("yourAnswer", "Your answer")}</small>${renderAnswerDisplay(mistake.given || "Blank", {}, { includeSourceContext: false })}</span>
+            <span><small>${t("correctAnswer", "Correct answer")}</small>${renderAnswerDisplay(mistake.expected || "", { arabic: mistake.arabic || "" })}</span>
+          </div>
+        </details>
+      </div>
+      <div class="review-card-actions">
+        ${renderReportIssueForm({ kind: "exercise", itemId: mistake.id, lessonId: mistake.lessonId, bookSlug: byId(state.data.lessons, mistake.lessonId)?.bookSlug || "" })}
+        <button class="primary-button compact-button" type="button" data-resolve-mistake="${escapeHtml(mistake.id)}">${icon("check")} ${t("resolved", "Resolved")}</button>
+      </div>
+    </article>
+  `;
+}
+
 function renderMistakeList(mistakes) {
   if (!mistakes.length) return `<p class="translation">${t("noMistakes", "No mistakes to review yet.")}</p>`;
   return `
@@ -5712,6 +6098,9 @@ function renderMistakeList(mistakes) {
               <div class="mistake-answer-grid">
                 <span><small>${t("yourAnswer", "Your answer")}</small>${renderAnswerDisplay(mistake.given || "Blank", { arabic: mistake.given === mistake.expected ? mistake.arabic || "" : "" }, { includeSourceContext: false })}</span>
                 <span><small>${t("correctAnswer", "Correct answer")}</small>${renderAnswerDisplay(mistake.expected || "", { arabic: mistake.arabic || "" })}</span>
+              </div>
+              <div class="review-card-actions">
+                <button class="ghost-button compact-button" type="button" data-resolve-mistake="${escapeHtml(mistake.id)}">${icon("check")} ${t("markResolved", "Mark resolved")}</button>
               </div>
             </article>
           `
@@ -5766,10 +6155,10 @@ function renderProgressPage() {
           ${state.data.lessons
             .map(
               (lesson) => `
-              <button class="milestone ${state.progress.completedLessonIds.includes(lesson.id) ? "done" : ""}" type="button" data-lesson="${lesson.id}">
+              <button class="milestone ${state.progress.completedLessonIds.includes(lesson.id) ? "done" : ""} ${lessonMasteryStatus(lesson).key}" type="button" data-lesson="${lesson.id}">
                 <span>${lesson.number}</span>
                 <strong>${escapeHtml(localizedLessonTitle(lesson))}</strong>
-                <small>${lessonMastery(lesson)}% ${t("mastery", "mastery")}</small>
+                <small>${lessonMasteryStatus(lesson).label} · ${lessonMastery(lesson)}%</small>
               </button>
               `
             )
@@ -5803,7 +6192,7 @@ function renderBookProgressMap() {
               </div>
               <div class="lesson-dot-row" aria-label="${escapeHtml(localizedBookTitle(book))}">
                 ${lessons.map((lesson) => `
-                  <button class="lesson-dot ${state.progress.completedLessonIds.includes(lesson.id) ? "done" : ""}" type="button" data-lesson="${lesson.id}" ${locked ? "disabled" : ""} aria-label="${t("lesson", "Lesson")} ${lesson.number}">
+                  <button class="lesson-dot ${state.progress.completedLessonIds.includes(lesson.id) ? "done" : ""} ${lessonMasteryStatus(lesson).key}" type="button" data-lesson="${lesson.id}" ${locked ? "disabled" : ""} aria-label="${t("lesson", "Lesson")} ${lesson.number}">
                     ${escapeHtml(String(lesson.number))}
                   </button>
                 `).join("")}
@@ -5919,6 +6308,30 @@ function renderAccountPage() {
               `).join("")}
             </div>
           </div>
+          <div class="preference-choice wide">
+            <span>${t("reminderTime", "Reminder time")}</span>
+            <div class="filter-chip-row">
+              ${["none", "07:00", "18:00", "21:00"].map((value) => `
+                <button class="filter-chip ${String(preferences.reminderTime || "none") === value ? "active" : ""}" type="button" data-reminder-time="${value}">
+                  ${value === "none" ? t("off", "Off") : value}
+                </button>
+              `).join("")}
+            </div>
+          </div>
+          <div class="preference-choice wide">
+            <span>${t("offlineLessonPack", "Offline lesson pack")}</span>
+            <div class="filter-chip-row">
+              ${["recent", "book-1", "book-2", "book-3"].map((value) => {
+                const locked = value !== "recent" && !canAccessBookSlug(value);
+                return `
+                  <button class="filter-chip ${String(preferences.offlinePack || "recent") === value ? "active" : ""}" type="button" data-offline-pack="${value}" ${locked ? "disabled" : ""}>
+                    ${value === "recent" ? t("recentLessons", "Recent lessons") : escapeHtml(localizedBookTitle(getBook(value)))}
+                    ${locked ? `<small>${t("lockedPremium", "Premium")}</small>` : ""}
+                  </button>
+                `;
+              }).join("")}
+            </div>
+          </div>
           <label class="range-control">
             <span>${t("audioSpeed", "Arabic audio speed")} <strong>${state.audioRate.toFixed(2)}x</strong></span>
             <input type="range" min="0.55" max="1.1" step="0.05" value="${state.audioRate}" data-audio-rate />
@@ -5978,7 +6391,12 @@ function renderAdminPage() {
     ? items.filter((item) => JSON.stringify(item).toLowerCase().includes(adminQuery))
     : items;
   const visibleItems = filteredItems.slice(0, 12);
-  const reviewItems = (state.adminContent?.lessons || []).filter((item) => item.contentStatus !== "verified").slice(0, 8);
+  const reviewItems = ["lessons", "vocabulary", "exercises"].flatMap((collection) =>
+    (state.adminContent?.[collection] || [])
+      .filter((item) => !["published", "verified"].includes(item.contentStatus))
+      .map((item) => ({ ...item, collection }))
+  ).slice(0, 10);
+  const reports = state.adminContent?.reports || [];
 
   return `
     <section class="page-stack admin-page">
@@ -6006,19 +6424,23 @@ function renderAdminPage() {
           <button class="ghost-button compact-button" type="button" data-admin-search-clear ${state.adminSearch ? "" : "disabled"}>${t("clear", "Clear")}</button>
           <a class="ghost-button compact-button admin-export-link" href="/api/admin/export" download>${t("export", "Export")}</a>
         </div>
-        ${state.adminTab === "lessons" && reviewItems.length ? `
+        ${reviewItems.length ? `
           <section class="admin-review-queue">
             <div>
               <p class="section-label">${t("reviewQueue", "Review Queue")}</p>
-              <h3>${reviewItems.length} ${t("lessonsNeedReview", "lessons need review")}</h3>
+              <h3>${reviewItems.length} ${t("itemsNeedReview", "items need review")}</h3>
             </div>
             <div class="chip-row">
-              ${reviewItems.map((lesson) => `<button type="button" data-admin-search-fill="${escapeHtml(lesson.id)}">${escapeHtml(lesson.bookSlug)} ${escapeHtml(lesson.number)}</button>`).join("")}
+              ${reviewItems.map((item) => `<button type="button" data-admin-search-fill="${escapeHtml(item.id)}">${escapeHtml(item.collection)} · ${escapeHtml(item.id)}</button>`).join("")}
             </div>
           </section>
         ` : ""}
         ${state.adminStatus ? `<div class="feedback correct">${icon("check")}<span>${escapeHtml(state.adminStatus)}</span></div>` : ""}
         ${state.adminError ? `<div class="feedback incorrect">${icon("x")}<span>${escapeHtml(state.adminError)}</span></div>` : ""}
+        ${state.adminImportStatus ? `<div class="feedback correct">${icon("check")}<span>${escapeHtml(state.adminImportStatus)}</span></div>` : ""}
+        ${state.adminImportError ? `<div class="feedback incorrect">${icon("x")}<span>${escapeHtml(state.adminImportError)}</span></div>` : ""}
+        ${reports.length ? renderAdminReportInbox(reports) : ""}
+        ${renderAdminImportPanel()}
         ${state.adminLoading ? `<p class="translation">${t("loading", "Loading...")}</p>` : ""}
         ${state.adminContent ? `
           <div class="admin-list">
@@ -6030,7 +6452,52 @@ function renderAdminPage() {
   `;
 }
 
+function renderAdminReportInbox(reports) {
+  return `
+    <section class="admin-report-inbox">
+      <div class="subsection-heading">
+        <div>
+          <p class="section-label">${t("learnerReports", "Learner reports")}</p>
+          <h3>${reports.length} ${t("contentReports", "content reports")}</h3>
+        </div>
+      </div>
+      <div class="admin-report-list">
+        ${reports.slice(0, 6).map((report) => `
+          <article>
+            <span>${escapeHtml(report.kind)} · ${escapeHtml(report.itemId)}</span>
+            <strong>${escapeHtml(report.message)}</strong>
+            <small>${escapeHtml(report.bookSlug || report.route || "")}</small>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderAdminImportPanel() {
+  return `
+    <details class="admin-import-panel">
+      <summary>${icon("download")} <span>${t("bulkImport", "Bulk import")}</span></summary>
+      <form data-admin-import-form>
+        <label class="form-field">
+          <span>${t("collection", "Collection")}</span>
+          <select name="collection">
+            ${["vocabulary", "lessons", "exercises"].map((collection) => `<option value="${collection}" ${state.adminTab === collection ? "selected" : ""}>${collection}</option>`).join("")}
+          </select>
+        </label>
+        <label class="form-field">
+          <span>${t("jsonItems", "JSON items")}</span>
+          <textarea name="items" data-admin-import-text placeholder='[{"id":"lesson-1","contentStatus":"needs-review"}]'>${escapeHtml(state.adminImportText)}</textarea>
+        </label>
+        <p class="preference-note">${t("bulkImportHint", "Paste an array of existing items. The server validates IDs, allowed fields, and JSON shape before saving.")}</p>
+        <button class="primary-button compact-button" type="submit">${t("validateAndImport", "Validate and import")}</button>
+      </form>
+    </details>
+  `;
+}
+
 function renderAdminEditor(collection, item) {
+  const statusOptions = ["draft", "generated-review", "needs-review", "published", "verified"];
   if (collection === "vocabulary") {
     return `
       <form class="admin-editor" data-admin-content-form>
@@ -6044,6 +6511,12 @@ function renderAdminEditor(collection, item) {
         <label class="form-field"><span>${t("english", "English")}</span><input name="english" value="${escapeHtml(item.english)}" /></label>
         <label class="form-field"><span>${t("transliteration", "Transliteration")}</span><input name="transliteration" value="${escapeHtml(item.transliteration || "")}" /></label>
         <label class="form-field"><span>${t("audioNote", "Audio note")}</span><input name="audioNote" value="${escapeHtml(item.audioNote || "")}" /></label>
+        <label class="form-field"><span>${t("contentStatus", "Content status")}</span>
+          <select name="contentStatus">
+            ${statusOptions.map((status) => `<option value="${status}" ${item.contentStatus === status ? "selected" : ""}>${status}</option>`).join("")}
+          </select>
+        </label>
+        <label class="form-field"><span>${t("sourceRef", "Source reference")}</span><input name="sourceRef" value="${escapeHtml(item.sourceRef || "")}" /></label>
         <button class="primary-button compact-button" type="submit">${t("save", "Save")}</button>
       </form>
     `;
@@ -6063,7 +6536,7 @@ function renderAdminEditor(collection, item) {
         <label class="form-field"><span>${t("translation", "Translation")}</span><textarea name="translation">${escapeHtml(item.translation || "")}</textarea></label>
         <label class="form-field"><span>${t("contentStatus", "Content status")}</span>
           <select name="contentStatus">
-            ${["generated-review", "needs-review", "verified"].map((status) => `<option value="${status}" ${item.contentStatus === status ? "selected" : ""}>${status}</option>`).join("")}
+            ${statusOptions.map((status) => `<option value="${status}" ${item.contentStatus === status ? "selected" : ""}>${status}</option>`).join("")}
           </select>
         </label>
         <label class="form-field"><span>${t("sourceRef", "Source reference")}</span><input name="sourceRef" value="${escapeHtml(item.sourceRef || "")}" /></label>
@@ -6093,6 +6566,12 @@ function renderAdminEditor(collection, item) {
       <label class="form-field"><span>${t("arabic", "Arabic")}</span><input name="arabic" value="${escapeHtml(item.arabic || "")}" dir="rtl" /></label>
       <label class="form-field"><span>${t("correctAnswer", "Correct answer")}</span><input name="answer" value="${escapeHtml(item.answer || "")}" /></label>
       <label class="form-field"><span>${t("options", "Options")}</span><textarea name="optionsLines">${escapeHtml((item.options || []).join("\n"))}</textarea></label>
+      <label class="form-field"><span>${t("contentStatus", "Content status")}</span>
+        <select name="contentStatus">
+          ${statusOptions.map((status) => `<option value="${status}" ${item.contentStatus === status ? "selected" : ""}>${status}</option>`).join("")}
+        </select>
+      </label>
+      <label class="form-field"><span>${t("sourceRef", "Source reference")}</span><input name="sourceRef" value="${escapeHtml(item.sourceRef || "")}" /></label>
       <button class="primary-button compact-button" type="submit">${t("save", "Save")}</button>
     </form>
   `;
@@ -6210,6 +6689,24 @@ document.addEventListener("click", (event) => {
   const studyPrefButton = event.target.closest("[data-study-pref-key]");
   if (studyPrefButton) {
     updateStudyPreference(studyPrefButton.dataset.studyPrefKey, studyPrefButton.dataset.studyPrefValue);
+    return;
+  }
+
+  const reminderTimeButton = event.target.closest("[data-reminder-time]");
+  if (reminderTimeButton) {
+    updateReminderTime(reminderTimeButton.dataset.reminderTime);
+    return;
+  }
+
+  const offlinePackButton = event.target.closest("[data-offline-pack]");
+  if (offlinePackButton) {
+    updateOfflinePack(offlinePackButton.dataset.offlinePack);
+    return;
+  }
+
+  const bookmarkButton = event.target.closest("[data-bookmark-type]");
+  if (bookmarkButton) {
+    toggleBookmark(bookmarkButton.dataset.bookmarkType, bookmarkButton.dataset.bookmarkId);
     return;
   }
 
@@ -6382,6 +6879,24 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const reviewKnownButton = event.target.closest("[data-review-word-known]");
+  if (reviewKnownButton) {
+    markReviewWord(reviewKnownButton.dataset.reviewWordKnown, true);
+    return;
+  }
+
+  const reviewAgainButton = event.target.closest("[data-review-word-again]");
+  if (reviewAgainButton) {
+    markReviewWord(reviewAgainButton.dataset.reviewWordAgain, false);
+    return;
+  }
+
+  const resolveMistakeButton = event.target.closest("[data-resolve-mistake]");
+  if (resolveMistakeButton) {
+    resolveMistake(resolveMistakeButton.dataset.resolveMistake);
+    return;
+  }
+
   const speakButton = event.target.closest("[data-speak]");
   if (speakButton) {
     speakButton.classList.remove("audio-pulse");
@@ -6474,6 +6989,20 @@ document.addEventListener("submit", (event) => {
   if (adminForm) {
     event.preventDefault();
     saveAdminContent(adminForm);
+    return;
+  }
+
+  const adminImportForm = event.target.closest("[data-admin-import-form]");
+  if (adminImportForm) {
+    event.preventDefault();
+    importAdminContent(adminImportForm);
+    return;
+  }
+
+  const reportForm = event.target.closest("[data-content-report]");
+  if (reportForm) {
+    event.preventDefault();
+    submitContentReport(reportForm);
   }
 });
 
@@ -6493,6 +7022,11 @@ document.addEventListener("input", (event) => {
   if (event.target.matches("[data-admin-search]")) {
     state.adminSearch = event.target.value;
     render();
+    return;
+  }
+
+  if (event.target.matches("[data-admin-import-text]")) {
+    state.adminImportText = event.target.value;
     return;
   }
 
@@ -6535,6 +7069,16 @@ window.addEventListener("error", (event) => {
 window.addEventListener("unhandledrejection", (event) => {
   reportFrontendError(event.reason, "unhandledrejection");
 });
+
+let resizeRenderTimer = null;
+window.addEventListener("resize", () => {
+  const nextMode = currentViewportMode();
+  if (nextMode === state.viewportMode) return;
+  window.clearTimeout(resizeRenderTimer);
+  resizeRenderTimer = window.setTimeout(() => {
+    if (currentViewportMode() !== state.viewportMode) render();
+  }, 120);
+}, { passive: true });
 
 if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
   window.addEventListener("load", () => {

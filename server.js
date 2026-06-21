@@ -17,6 +17,7 @@ const dataPath = path.join(dataRoot, "curriculum.json");
 const progressPath = path.join(dataRoot, "progress.json");
 const usersPath = path.join(dataRoot, "users.json");
 const progressUsersPath = path.join(dataRoot, "progress-users.json");
+const reportsPath = path.join(dataRoot, "content-reports.json");
 
 loadLocalEnv(path.join(root, ".env"));
 
@@ -1603,7 +1604,8 @@ function filterProgressForUser(progress, curriculum, user) {
     vocabularyStats: filterProgressMap(progress.vocabularyStats, (key) => vocabularyIds.has(key)),
     mistakes: filterProgressMap(progress.mistakes, (key, mistake) => mistakeAllowed(key, mistake, context)),
     writingAttempts: filterProgressMap(progress.writingAttempts, (key) => progressKeyAllowed(key, context)),
-    exerciseAnswers: filterProgressMap(progress.exerciseAnswers, (key) => progressKeyAllowed(key, context))
+    exerciseAnswers: filterProgressMap(progress.exerciseAnswers, (key) => progressKeyAllowed(key, context)),
+    bookmarks: filterBookmarks(progress.bookmarks, context)
   };
 }
 
@@ -1620,6 +1622,7 @@ function progressKeyAllowed(key, context) {
   return context.lessons.some((lesson) =>
     normalized === `vocab-${lesson.id}` ||
     normalized.startsWith(`vocab-${lesson.id}-`) ||
+    normalized.startsWith(`example-${lesson.id}-`) ||
     normalized.startsWith(`book-${lesson.id}-`) ||
     normalized.startsWith(`write-book-${lesson.id}-`) ||
     normalized === `sentence-${lesson.id}` ||
@@ -1696,6 +1699,7 @@ function sanitizeProgressPatch(patch, current, curriculum, user) {
   sanitized.vocabularyStats = sanitizeVocabularyStats(patch.vocabularyStats, context);
   sanitized.mistakes = sanitizeMistakes(patch.mistakes, context);
   sanitized.learningPreferences = sanitizeLearningPreferences(patch.learningPreferences);
+  sanitized.bookmarks = sanitizeBookmarks(patch.bookmarks, context);
 
   return Object.fromEntries(
     Object.entries(sanitized).filter(([, value]) => {
@@ -1715,8 +1719,24 @@ function sanitizeLearningPreferences(value) {
   if (allowedFocus.has(value.skillFocus)) sanitized.skillFocus = value.skillFocus;
   if (value.dailyMinutes !== undefined) sanitized.dailyMinutes = boundedInteger(value.dailyMinutes, 5, 45);
   if (value.onboardingComplete !== undefined) sanitized.onboardingComplete = Boolean(value.onboardingComplete);
+  if (value.reminderTime !== undefined) sanitized.reminderTime = boundedString(value.reminderTime, 20);
+  if (value.offlinePack !== undefined) sanitized.offlinePack = boundedString(value.offlinePack, 40);
 
   return sanitized;
+}
+
+function filterBookmarks(bookmarks, context) {
+  return {
+    lessons: unique((bookmarks?.lessons || []).filter((id) => context.lessonIds.has(id))).slice(0, 300),
+    vocabulary: unique((bookmarks?.vocabulary || []).filter((id) => context.vocabularyIds.has(id))).slice(0, 1000),
+    examples: unique((bookmarks?.examples || []).filter((id) => progressKeyAllowed(id, context))).slice(0, 500),
+    exercises: unique((bookmarks?.exercises || []).filter((id) => progressKeyAllowed(id, context))).slice(0, 500)
+  };
+}
+
+function sanitizeBookmarks(value, context) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return filterBookmarks(value, context);
 }
 
 function sanitizeStatusMap(map, context, allowedValues) {
@@ -1814,6 +1834,12 @@ function defaultProgressForUser(curriculum, user) {
     mistakes: {},
     writingAttempts: {},
     exerciseAnswers: {},
+    bookmarks: {
+      lessons: [],
+      vocabulary: [],
+      examples: [],
+      exercises: []
+    },
     learningPreferences: {
       studyGoal: "guided-books",
       skillFocus: "balanced",
@@ -1826,7 +1852,7 @@ function defaultProgressForUser(curriculum, user) {
 const adminCollectionConfig = {
   vocabulary: {
     idField: "id",
-    fields: new Set(["arabic", "english", "transliteration", "audioKey", "audioNote"])
+    fields: new Set(["arabic", "english", "transliteration", "audioKey", "audioNote", "contentStatus", "sourceRef"])
   },
   lessons: {
     idField: "id",
@@ -1834,7 +1860,7 @@ const adminCollectionConfig = {
   },
   exercises: {
     idField: "id",
-    fields: new Set(["prompt", "arabic", "options", "answer"])
+    fields: new Set(["prompt", "arabic", "options", "answer", "contentStatus", "sourceRef"])
   }
 };
 
@@ -1850,8 +1876,13 @@ function sanitizeContentPatch(collectionName, patch) {
   }
 
   const sanitized = {};
+  const allowedContentStatuses = new Set(["draft", "generated-review", "needs-review", "published", "verified"]);
   for (const [key, value] of Object.entries(patch)) {
     if (!config.fields.has(key)) continue;
+    if (key === "contentStatus") {
+      sanitized[key] = allowedContentStatuses.has(value) ? value : "needs-review";
+      continue;
+    }
     if (Array.isArray(value)) {
       sanitized[key] = value
         .filter((item) => typeof item === "string" || (item && typeof item === "object" && !Array.isArray(item)))
@@ -1863,6 +1894,62 @@ function sanitizeContentPatch(collectionName, patch) {
 
   if (!Object.keys(sanitized).length) throw requestError("No supported content fields were provided.", 400);
   return sanitized;
+}
+
+function sanitizeContentImport(collectionName, items) {
+  const config = adminCollectionConfig[collectionName];
+  if (!config) throw requestError("Unsupported content collection.", 404);
+  if (!Array.isArray(items)) throw requestError("Import payload must include an items array.", 400);
+
+  const errors = [];
+  const sanitizedItems = [];
+  items.slice(0, 250).forEach((item, index) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      errors.push(`Item ${index + 1} must be an object.`);
+      return;
+    }
+
+    const id = boundedString(item[config.idField], 160).trim();
+    if (!id) {
+      errors.push(`Item ${index + 1} is missing ${config.idField}.`);
+      return;
+    }
+
+    try {
+      sanitizedItems.push({ id, patch: sanitizeContentPatch(collectionName, item) });
+    } catch (error) {
+      errors.push(`${id}: ${error.message}`);
+    }
+  });
+
+  if (items.length > 250) errors.push("Only the first 250 items can be imported at once.");
+  if (errors.length) throw requestError(`Import validation failed: ${errors.join(" ")}`, 400);
+  return sanitizedItems;
+}
+
+function sanitizeContentReport(report, userId) {
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    throw requestError("Report must be an object.", 400);
+  }
+
+  const allowedKinds = new Set(["lesson", "vocabulary", "exercise", "example", "audio", "translation", "diacritics", "other"]);
+  const kind = allowedKinds.has(report.kind) ? report.kind : "other";
+  const itemId = boundedString(report.itemId, 160).trim();
+  const message = boundedString(report.message, 700).trim();
+  if (!itemId || !message) throw requestError("Report item and message are required.", 400);
+
+  return {
+    id: `report-${crypto.randomUUID()}`,
+    userId,
+    kind,
+    itemId,
+    route: boundedString(report.route, 100),
+    lessonId: boundedString(report.lessonId, 160),
+    bookSlug: boundedString(report.bookSlug, 40),
+    message,
+    status: "new",
+    createdAt: new Date().toISOString()
+  };
 }
 
 function patchContentArray(items, id, patch) {
@@ -2260,15 +2347,16 @@ function createMongoStore(database, fallbackCurriculum) {
     },
     async adminContent(userId) {
       await requireAdminRecord(userId);
-      const [books, lessons, vocabulary, grammar, exercises, resources] = await Promise.all([
+      const [books, lessons, vocabulary, grammar, exercises, resources, reports] = await Promise.all([
         database.collection("books").find({}, { projection: { _id: 0 } }).sort({ slug: 1 }).toArray(),
         database.collection("lessons").find({}, { projection: { _id: 0 } }).sort({ bookSlug: 1, sequence: 1 }).toArray(),
         database.collection("vocabulary").find({}, { projection: { _id: 0 } }).sort({ bookSlug: 1, sequence: 1, id: 1 }).toArray(),
         database.collection("grammar").find({}, { projection: { _id: 0 } }).sort({ bookSlug: 1, sequence: 1 }).toArray(),
         database.collection("exercises").find({}, { projection: { _id: 0 } }).sort({ bookSlug: 1, sequence: 1 }).toArray(),
-        database.collection("resources").find({}, { projection: { _id: 0 } }).toArray()
+        database.collection("resources").find({}, { projection: { _id: 0 } }).toArray(),
+        database.collection("contentReports").find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).limit(80).toArray()
       ]);
-      return { books, lessons, vocabulary, grammar, exercises, resources };
+      return { books, lessons, vocabulary, grammar, exercises, resources, reports };
     },
     async patchContent(userId, collectionName, id, patch) {
       await requireAdminRecord(userId);
@@ -2282,6 +2370,34 @@ function createMongoStore(database, fallbackCurriculum) {
       if (!updated) throw requestError("Content item not found.", 404);
       structuredLog("info", "admin.content_updated", { userId, collectionName, id });
       return updated;
+    },
+    async importContent(userId, collectionName, items) {
+      await requireAdminRecord(userId);
+      const sanitizedItems = sanitizeContentImport(collectionName, items);
+      const ids = sanitizedItems.map((item) => item.id);
+      const existing = await database.collection(collectionName).find({ id: { $in: ids } }, { projection: { _id: 0, id: 1 } }).toArray();
+      const existingIds = new Set(existing.map((item) => item.id));
+      const missingIds = ids.filter((id) => !existingIds.has(id));
+      if (missingIds.length) throw requestError(`Import validation failed: unknown IDs ${missingIds.slice(0, 10).join(", ")}.`, 400);
+      const operations = sanitizedItems.map(({ id, patch }) => ({
+        updateOne: {
+          filter: { id },
+          update: { $set: { ...patch, updatedAt: new Date().toISOString() } }
+        }
+      }));
+      const result = operations.length ? await database.collection(collectionName).bulkWrite(operations, { ordered: false }) : { modifiedCount: 0 };
+      structuredLog("info", "admin.content_imported", { userId, collectionName, count: sanitizedItems.length });
+      return { updated: result.modifiedCount || 0, requested: sanitizedItems.length };
+    },
+    async submitContentReport(userId, report) {
+      const sanitized = sanitizeContentReport(report, userId);
+      await database.collection("contentReports").insertOne(sanitized);
+      structuredLog("info", "content.report_submitted", {
+        userId,
+        kind: sanitized.kind,
+        itemId: sanitized.itemId
+      });
+      return sanitized;
     }
   };
 }
@@ -2295,6 +2411,9 @@ function createJsonStore(curriculum) {
   }
   if (!fs.existsSync(progressUsersPath)) {
     writeJson(progressUsersPath, {});
+  }
+  if (!fs.existsSync(reportsPath)) {
+    writeJson(reportsPath, { reports: [] });
   }
 
   function readUsers() {
@@ -2323,6 +2442,14 @@ function createJsonStore(curriculum) {
     const allProgress = readJson(progressUsersPath);
     allProgress[userId] = progress;
     writeJson(progressUsersPath, allProgress);
+  }
+
+  function readReports() {
+    return readJson(reportsPath).reports || [];
+  }
+
+  function writeReports(reports) {
+    writeJson(reportsPath, { reports });
   }
 
   function findUser(userId) {
@@ -2542,7 +2669,8 @@ function createJsonStore(curriculum) {
         vocabulary: curriculum.vocabulary,
         grammar: curriculum.grammar,
         exercises: curriculum.exercises,
-        resources: curriculum.resources
+        resources: curriculum.resources,
+        reports: readReports().slice(-80).reverse()
       };
     },
     async patchContent(userId, collectionName, id, patch) {
@@ -2552,6 +2680,33 @@ function createJsonStore(curriculum) {
       writeJson(dataPath, curriculum);
       structuredLog("info", "admin.content_updated", { userId, collectionName, id });
       return updated;
+    },
+    async importContent(userId, collectionName, items) {
+      requireJsonAdmin(userId);
+      const sanitizedItems = sanitizeContentImport(collectionName, items);
+      const existingIds = new Set((curriculum[collectionName] || []).map((item) => item.id));
+      const missingIds = sanitizedItems.map((item) => item.id).filter((id) => !existingIds.has(id));
+      if (missingIds.length) throw requestError(`Import validation failed: unknown IDs ${missingIds.slice(0, 10).join(", ")}.`, 400);
+      let updated = 0;
+      sanitizedItems.forEach(({ id, patch }) => {
+        patchContentArray(curriculum[collectionName], id, patch);
+        updated += 1;
+      });
+      writeJson(dataPath, curriculum);
+      structuredLog("info", "admin.content_imported", { userId, collectionName, count: sanitizedItems.length });
+      return { updated, requested: sanitizedItems.length };
+    },
+    async submitContentReport(userId, report) {
+      const sanitized = sanitizeContentReport(report, userId);
+      const reports = readReports();
+      reports.push(sanitized);
+      writeReports(reports.slice(-500));
+      structuredLog("info", "content.report_submitted", {
+        userId,
+        kind: sanitized.kind,
+        itemId: sanitized.itemId
+      });
+      return sanitized;
     }
   };
 }
@@ -2587,6 +2742,19 @@ function mergeProgress(current, patch) {
     ...(current.learningPreferences || {}),
     ...(patch.learningPreferences || {})
   };
+  const bookmarks = patch.bookmarks
+    ? {
+        lessons: patch.bookmarks.lessons || current.bookmarks?.lessons || [],
+        vocabulary: patch.bookmarks.vocabulary || current.bookmarks?.vocabulary || [],
+        examples: patch.bookmarks.examples || current.bookmarks?.examples || [],
+        exercises: patch.bookmarks.exercises || current.bookmarks?.exercises || []
+      }
+    : {
+        lessons: current.bookmarks?.lessons || [],
+        vocabulary: current.bookmarks?.vocabulary || [],
+        examples: current.bookmarks?.examples || [],
+        exercises: current.bookmarks?.exercises || []
+      };
 
   return {
     ...current,
@@ -2599,6 +2767,7 @@ function mergeProgress(current, patch) {
     writingAttempts,
     exerciseAnswers,
     learningPreferences,
+    bookmarks,
     xp: Math.max(Number(current.xp || 0), Number(patch.xp || current.xp || 0)),
     updatedAt: new Date().toISOString()
   };
@@ -2757,6 +2926,17 @@ async function start() {
         return;
       }
 
+      if (request.method === "POST" && parsedUrl.pathname === "/api/content/report") {
+        const userId = await authenticatedUserFromRequest(request);
+        if (!userId) {
+          sendJson(response, 401, { error: "Sign in required to report a content issue." });
+          return;
+        }
+        const report = await store.submitContentReport(userId, await readBody(request));
+        sendJson(response, 200, { report });
+        return;
+      }
+
       const oauthStart = parsedUrl.pathname.match(/^\/api\/auth\/(google|microsoft|apple)$/);
       if (request.method === "GET" && oauthStart) {
         redirect(response, await oauthAuthorizationUrl(request, oauthStart[1]));
@@ -2899,6 +3079,18 @@ async function start() {
         const body = await readBody(request);
         const item = await store.patchContent(userId, body.collection, body.id, body.patch);
         sendJson(response, 200, { item });
+        return;
+      }
+
+      if (request.method === "POST" && parsedUrl.pathname === "/api/admin/import") {
+        const userId = await authenticatedUserFromRequest(request);
+        if (!userId) {
+          sendJson(response, 401, { error: "Sign in required." });
+          return;
+        }
+        const body = await readBody(request);
+        const result = await store.importContent(userId, body.collection, body.items);
+        sendJson(response, 200, result);
         return;
       }
 

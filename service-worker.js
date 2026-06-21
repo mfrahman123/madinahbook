@@ -1,10 +1,10 @@
-const CACHE_NAME = "madinah-arabic-shell-v7-answer-reveal-fix";
+const CACHE_NAME = "madinah-arabic-shell-v8-study-queue";
 const SHELL_ASSETS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260620-answer-reveal-fix",
-  "/learning-core.js?v=20260620-answer-reveal-fix",
-  "/app.js?v=20260620-answer-reveal-fix",
+  "/styles.css?v=20260620-study-queue",
+  "/learning-core.js?v=20260620-study-queue",
+  "/app.js?v=20260620-study-queue",
   "/manifest.webmanifest",
   "/assets/madinah-icon.svg"
 ];

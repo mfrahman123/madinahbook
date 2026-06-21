@@ -66,7 +66,7 @@ describe("Madinah Arabic Selenium flows", () => {
       assert.equal(await driver.findElement(By.css(".sidebar")).isDisplayed(), false);
       assert.equal(await driver.findElement(By.css(".mobile-today-screen")).isDisplayed(), true);
       assert.equal(await driver.findElement(By.css(".mobile-sticky-action")).isDisplayed(), true);
-      await waitForText(driver, "Daily Study Mission");
+      await waitForText(driver, "Today's Study Queue");
       assert.equal(await hasHorizontalOverflow(driver), false);
 
       await driver.findElement(By.css('.mobile-bottom-nav [data-route="book-1"]')).click();
@@ -128,7 +128,17 @@ describe("Madinah Arabic Selenium flows", () => {
   it("shows daily mission onboarding and saves learner profile choices", async () => {
     await login(driver, server.baseUrl);
 
-    await waitForText(driver, "Daily Study Mission");
+    await waitForText(driver, "Today's Study Queue");
+    await driver.wait(async () => {
+      const labels = await driver.executeScript(`
+        return Array.from(document.querySelectorAll(".mission-card em")).map((node) => node.innerText.trim());
+      `);
+      const normalized = labels.map((label) => label.toLowerCase());
+      return normalized.includes("next lesson")
+        && normalized.includes("due vocabulary")
+        && normalized.includes("mistake review")
+        && normalized.includes("one exercise");
+    }, 8000, "Timed out waiting for the full study queue");
     await waitForText(driver, "Shape your daily path");
 
     await driver.findElement(By.css('[data-study-pref-key="skillFocus"][data-study-pref-value="grammar"]')).click();
@@ -229,12 +239,14 @@ describe("Madinah Arabic Selenium flows", () => {
     const wrongAnswerButton = await findWrongVocabTesterAnswerButton(driver, firstQuestion);
     await wrongAnswerButton.click();
     await driver.wait(async () => {
-      [firstQuestion] = await driver.findElements(By.css(".vocab-test-question"));
-      if (!firstQuestion) return false;
-      const options = await firstQuestion.findElements(By.css("[data-vocab-tester-answer]"));
-      const disabledStates = await Promise.all(options.map((option) => option.getAttribute("disabled")));
-      return disabledStates.length > 0 && disabledStates.every((value) => value !== null);
+      const disabledStates = await driver.executeScript(`
+        const question = document.querySelector(".vocab-test-question");
+        if (!question) return [];
+        return Array.from(question.querySelectorAll("[data-vocab-tester-answer]")).map((button) => button.disabled);
+      `);
+      return disabledStates.length > 0 && disabledStates.every(Boolean);
     }, 5000, "Timed out waiting for answered tester options to lock");
+    firstQuestion = await driver.findElement(By.css(".vocab-test-question"));
 
     const feedbackText = await firstQuestion.findElement(By.css(".feedback")).getText();
     assert.doesNotMatch(feedbackText, /Correct answer:/);

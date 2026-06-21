@@ -899,7 +899,115 @@ describe("Madinah Arabic API and static app", () => {
     assert.equal(saved.body.progress.learningPreferences.skillFocus, "grammar");
     assert.equal(saved.body.progress.learningPreferences.dailyMinutes, 45);
     assert.equal(saved.body.progress.learningPreferences.onboardingComplete, true);
+    assert.equal(saved.body.progress.learningPreferences.reminderTime, undefined);
     assert.equal(saved.body.progress.learningPreferences.unexpectedField, undefined);
+  });
+
+  it("persists learner bookmarks and allows categories to be toggled off", async () => {
+    const email = uniqueEmail("bookmarks");
+    const created = await api(server.baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ displayName: "Bookmark Learner", email, password: "test123" })
+    });
+    const headers = authHeaders(created);
+
+    const saved = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        bookmarks: {
+          lessons: ["lesson-1", "book-2-lesson-1"],
+          vocabulary: ["v-hadha", "v2-l1-inna"],
+          examples: ["example-lesson-1-1"],
+          exercises: ["book-lesson-1-1"]
+        }
+      })
+    });
+    const removed = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        bookmarks: {
+          lessons: [],
+          vocabulary: ["v-hadha"],
+          examples: [],
+          exercises: []
+        }
+      })
+    });
+
+    assert.equal(saved.response.status, 200);
+    assert.deepEqual(saved.body.progress.bookmarks.lessons, ["lesson-1"]);
+    assert.deepEqual(saved.body.progress.bookmarks.vocabulary, ["v-hadha"]);
+    assert.deepEqual(saved.body.progress.bookmarks.examples, ["example-lesson-1-1"]);
+    assert.deepEqual(saved.body.progress.bookmarks.exercises, ["book-lesson-1-1"]);
+    assert.deepEqual(removed.body.progress.bookmarks.lessons, []);
+    assert.deepEqual(removed.body.progress.bookmarks.vocabulary, ["v-hadha"]);
+  });
+
+  it("accepts learner content reports and exposes them to admins", async () => {
+    const login = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: testUser.email, password: testUser.password })
+    });
+    const report = await api(server.baseUrl, "/api/content/report", {
+      method: "POST",
+      headers: authHeaders(login),
+      body: JSON.stringify({
+        kind: "vocabulary",
+        itemId: "v-hadha",
+        lessonId: "lesson-1",
+        bookSlug: "book-1",
+        route: "vocabulary",
+        message: "Please review the audio note."
+      })
+    });
+    const admin = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: paidTestUser.email, password: paidTestUser.password })
+    });
+    const content = await api(server.baseUrl, "/api/admin/content", {
+      headers: authHeaders(admin)
+    });
+
+    assert.equal(report.response.status, 200);
+    assert.equal(report.body.report.status, "new");
+    assert.equal(content.response.status, 200);
+    assert.ok(content.body.reports.some((item) => item.itemId === "v-hadha" && item.message.includes("audio note")));
+  });
+
+  it("validates admin bulk imports before patching content", async () => {
+    const admin = await api(server.baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: paidTestUser.email, password: paidTestUser.password })
+    });
+    const headers = authHeaders(admin);
+
+    const blocked = await api(server.baseUrl, "/api/admin/import", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        collection: "lessons",
+        items: [{ id: "missing-lesson", contentStatus: "published" }]
+      })
+    });
+    const imported = await api(server.baseUrl, "/api/admin/import", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        collection: "lessons",
+        items: [{ id: "lesson-1", contentStatus: "published", sourceRef: "Book 1 p.1" }]
+      })
+    });
+    const content = await api(server.baseUrl, "/api/admin/content", { headers });
+    const lesson = content.body.lessons.find((item) => item.id === "lesson-1");
+
+    assert.equal(blocked.response.status, 400);
+    assert.match(blocked.body.error, /unknown IDs/);
+    assert.equal(imported.response.status, 200);
+    assert.equal(imported.body.updated, 1);
+    assert.equal(lesson.contentStatus, "published");
+    assert.equal(lesson.sourceRef, "Book 1 p.1");
   });
 
   it("persists adaptive practice progress keys safely", async () => {
@@ -979,13 +1087,13 @@ describe("Madinah Arabic API and static app", () => {
 
   it("serves the account page code and cache-busted assets", async () => {
     const page = await fetch(`${server.baseUrl}/`).then((response) => response.text());
-    const app = await fetch(`${server.baseUrl}/app.js?v=20260620-answer-reveal-fix`).then((response) => response.text());
-    const core = await fetch(`${server.baseUrl}/learning-core.js?v=20260620-answer-reveal-fix`).then((response) => response.text());
+    const app = await fetch(`${server.baseUrl}/app.js?v=20260620-study-queue`).then((response) => response.text());
+    const core = await fetch(`${server.baseUrl}/learning-core.js?v=20260620-study-queue`).then((response) => response.text());
     const manifestResponse = await fetch(`${server.baseUrl}/manifest.webmanifest`);
     const manifest = await manifestResponse.json();
     const serviceWorker = await fetch(`${server.baseUrl}/service-worker.js`).then((response) => response.text());
 
-    assert.match(page, /20260620-answer-reveal-fix/);
+    assert.match(page, /20260620-study-queue/);
     assert.match(page, /learning-core\.js/);
     assert.match(page, /manifest\.webmanifest/);
     assert.match(app, /renderAccountPage/);
@@ -994,6 +1102,9 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(app, /google-icon/);
     assert.match(app, /microsoft-icon/);
     assert.match(app, /renderAdminPage/);
+    assert.match(app, /renderReviewSessionPanel/);
+    assert.match(app, /renderBookmarkButton/);
+    assert.match(app, /renderReportIssueForm/);
     assert.match(app, /forgot-password/);
     assert.match(app, /send-verification/);
     assert.match(app, /planEntitlements/);
