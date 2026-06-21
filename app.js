@@ -1932,6 +1932,35 @@ function renderMasteryChip(lesson) {
   return `<span class="mastery-chip ${mastery.key}">${escapeHtml(mastery.label)} · ${mastery.score}%</span>`;
 }
 
+function lessonListStatusLabel(mastery) {
+  if (mastery.key === "needs-review") return t("review", "Review");
+  return mastery.label;
+}
+
+function renderLessonListItem(item, selectedLessonId) {
+  const mastery = lessonMasteryStatus(item);
+  const score = Math.max(0, Math.min(100, Number(mastery.score) || 0));
+  const complete = state.progress.completedLessonIds.includes(item.id);
+  const active = selectedLessonId === item.id;
+
+  return `
+    <button class="lesson-link ${active ? "active" : ""} ${mastery.key}" type="button" data-lesson="${item.id}" ${active ? 'aria-current="page"' : ""}>
+      <span class="lesson-number">${String(item.number).padStart(2, "0")}</span>
+      <span class="lesson-link-main">
+        <strong>${escapeHtml(localizedLessonTitle(item))}</strong>
+      </span>
+      <span class="lesson-link-meta">
+        <span class="lesson-progress-track" aria-hidden="true"><span style="width:${score}%"></span></span>
+        <span class="lesson-status ${mastery.key}" aria-label="${escapeHtml(mastery.label)} ${score}%">
+          <span class="lesson-status-label">${escapeHtml(lessonListStatusLabel(mastery))}</span>
+          <span class="lesson-status-score">${score}%</span>
+        </span>
+        ${complete ? `<span class="lesson-complete-icon" aria-label="${t("completed", "Completed")}">${icon("check")}</span>` : ""}
+      </span>
+    </button>
+  `;
+}
+
 function normalizeArabicLookup(value) {
   return String(value || "")
     .replace(/[ـ]/g, "")
@@ -4293,16 +4322,7 @@ function renderBook(bookSlug) {
           <h2>${t("lessons", "Lessons")}</h2>
         </div>
         ${bookLessons
-          .map(
-            (item) => `
-              <button class="lesson-link ${lesson.id === item.id ? "active" : ""}" type="button" data-lesson="${item.id}">
-                <span>${String(item.number).padStart(2, "0")}</span>
-                <strong>${escapeHtml(localizedLessonTitle(item))}</strong>
-                ${renderMasteryChip(item)}
-                ${state.progress.completedLessonIds.includes(item.id) ? icon("check") : ""}
-              </button>
-            `
-          )
+          .map((item) => renderLessonListItem(item, lesson.id))
           .join("")}
       </aside>
       <article class="lesson-reader card">

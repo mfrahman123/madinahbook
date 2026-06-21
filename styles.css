@@ -2637,8 +2637,8 @@ tbody tr:hover td {
   padding: 10px;
 }
 
-.lesson-link span,
-.exercise-link span {
+.lesson-link .lesson-number,
+.exercise-link > span {
   display: grid;
   flex: 0 0 36px;
   width: 36px;
@@ -2649,8 +2649,7 @@ tbody tr:hover td {
   color: var(--accent);
 }
 
-.lesson-link svg,
-.exercise-link svg {
+.exercise-link > svg {
   margin-left: auto;
   color: var(--accent-2);
 }
@@ -5817,12 +5816,131 @@ textarea:focus-visible {
 }
 
 .lesson-link {
-  align-items: start;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-areas:
+    "number main"
+    "number meta";
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 8px;
+  min-height: 78px;
+  padding: 12px;
 }
 
-.lesson-link .mastery-chip {
-  grid-column: 2;
-  margin-top: 3px;
+.lesson-link .lesson-number {
+  grid-area: number;
+  width: 38px;
+  height: 38px;
+  font-size: 13px;
+}
+
+.lesson-link-main {
+  grid-area: main;
+  display: grid;
+  min-width: 0;
+}
+
+.lesson-link-main strong {
+  color: inherit;
+  font-size: 14px;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.lesson-progress-track {
+  display: block;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+}
+
+.lesson-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.lesson-link.needs-review .lesson-progress-track span {
+  background: var(--gold);
+}
+
+.lesson-link.mastered .lesson-progress-track span {
+  background: var(--accent-2);
+}
+
+.lesson-link-meta {
+  grid-area: meta;
+  display: grid;
+  grid-template-columns: minmax(48px, 1fr) auto auto;
+  align-items: center;
+  justify-self: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lesson-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-soft) 86%, transparent);
+  color: var(--muted);
+  line-height: 1.05;
+}
+
+.lesson-status-label,
+.lesson-status-score {
+  display: block;
+  white-space: nowrap;
+}
+
+.lesson-status-label {
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.lesson-status-score {
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.lesson-status-score::before {
+  content: "·";
+  margin-right: 4px;
+  opacity: 0.85;
+}
+
+.lesson-status.learning {
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--accent);
+}
+
+.lesson-status.needs-review {
+  border-color: color-mix(in srgb, var(--gold) 42%, transparent);
+  color: var(--gold);
+}
+
+.lesson-status.mastered {
+  border-color: color-mix(in srgb, var(--accent-2) 45%, transparent);
+  background: color-mix(in srgb, var(--accent-2) 11%, transparent);
+  color: var(--accent-2);
+}
+
+.lesson-complete-icon {
+  display: inline-flex;
+  color: var(--accent-2);
+}
+
+.lesson-complete-icon svg {
+  width: 15px;
+  height: 15px;
 }
 
 .mission-card em {
