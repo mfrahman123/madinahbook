@@ -6284,6 +6284,10 @@ textarea:focus-visible {
   .native-next-lesson-card,
   .native-flashcard-card,
   .native-tools-card,
+  .native-daily-preview,
+  .native-daily-session-card,
+  .native-streak-card,
+  .native-difficult-deck,
   .native-vocab-test-question,
   .native-tester-complete {
     display: grid;
@@ -6361,6 +6365,22 @@ textarea:focus-visible {
     align-items: start;
   }
 
+  .native-offline-badge {
+    grid-column: 1 / -1;
+    display: inline-flex;
+    width: max-content;
+    max-width: 100%;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
   .native-lesson-arabic {
     grid-column: 1 / -1;
     direction: rtl;
@@ -6383,6 +6403,22 @@ textarea:focus-visible {
     background:
       linear-gradient(180deg, color-mix(in srgb, var(--accent) 11%, transparent), transparent 54%),
       color-mix(in srgb, var(--surface) 92%, transparent);
+  }
+
+  .native-flashcard-card {
+    touch-action: pan-y;
+  }
+
+  .native-flashcard-card.session-card {
+    box-shadow: none;
+  }
+
+  .native-swipe-hint {
+    margin: -4px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 750;
+    text-align: center;
   }
 
   .native-card-topline,
@@ -6498,7 +6534,7 @@ textarea:focus-visible {
 
   .native-tab-switch {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
     gap: 6px;
     padding: 5px;
     border: 1px solid var(--line);
@@ -6535,6 +6571,159 @@ textarea:focus-visible {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
+  }
+
+  .native-daily-preview {
+    border-color: color-mix(in srgb, var(--gold) 34%, var(--line));
+    background:
+      linear-gradient(145deg, color-mix(in srgb, var(--gold) 10%, transparent), transparent 60%),
+      color-mix(in srgb, var(--surface) 92%, transparent);
+  }
+
+  .native-daily-preview h3,
+  .native-session-item h3,
+  .native-streak-card h3 {
+    margin: 0;
+    color: var(--text-strong);
+    line-height: 1.15;
+  }
+
+  .native-daily-steps {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .native-daily-steps span {
+    display: inline-flex;
+    min-height: 42px;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 10px;
+    border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+    border-radius: 13px;
+    background: color-mix(in srgb, var(--surface-soft) 76%, transparent);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 820;
+  }
+
+  .native-daily-session-card {
+    border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+  }
+
+  .native-session-item {
+    display: grid;
+    gap: 12px;
+  }
+
+  .native-session-item > .native-flashcard-card {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .native-session-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .native-daily-complete p {
+    margin: 0;
+    color: var(--muted);
+    font-weight: 750;
+  }
+
+  .native-streak-card {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
+    border-color: color-mix(in srgb, var(--gold) 42%, var(--line));
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--gold) 13%, transparent), transparent 58%),
+      color-mix(in srgb, var(--surface) 92%, transparent);
+  }
+
+  .native-streak-card p:not(.section-label) {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1.35;
+  }
+
+  .native-difficult-deck {
+    gap: 12px;
+  }
+
+  .native-difficult-deck .native-card-rail {
+    padding-bottom: 2px;
+  }
+
+  .native-audio-card {
+    min-height: 430px;
+    align-content: start;
+  }
+
+  .native-listen-button {
+    display: grid;
+    min-height: 142px;
+    place-items: center;
+    gap: 10px;
+    border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+    border-radius: 18px;
+    background:
+      radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 42%),
+      color-mix(in srgb, var(--surface-soft) 82%, transparent);
+    color: var(--text-strong);
+    font-size: 15px;
+    font-weight: 850;
+  }
+
+  .native-listen-button svg {
+    width: 34px;
+    height: 34px;
+    color: var(--accent);
+  }
+
+  .native-audio-answer {
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    padding: 12px;
+    border-radius: 15px;
+    background: color-mix(in srgb, var(--surface-soft) 82%, transparent);
+  }
+
+  .native-audio-answer p {
+    margin: 0;
+    color: var(--muted);
+    font-weight: 800;
+  }
+
+  .native-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .native-quick-actions button {
+    display: grid;
+    min-height: 70px;
+    place-items: center;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface-soft) 80%, transparent);
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 820;
+    text-align: center;
+  }
+
+  .native-quick-actions svg {
+    color: var(--accent);
   }
 
   .native-status-grid .vocab-status {

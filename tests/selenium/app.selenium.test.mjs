@@ -544,16 +544,34 @@ describe("Madinah Arabic Selenium flows", () => {
       await driver.wait(until.elementLocated(By.css(".native-app-shell")), 8000);
       await waitForText(driver, "Study companion");
       await waitForText(driver, "Phone session");
+      await waitForText(driver, "Daily 5");
       assert.equal(await driver.findElement(By.css(".native-bottom-nav")).isDisplayed(), true);
       assert.equal((await driver.findElements(By.css(".mobile-search"))).length, 0);
       assert.equal((await driver.findElements(By.css(".mobile-more-menu"))).length, 0);
       assert.equal((await driver.findElements(By.css(".mobile-sticky-action"))).length, 0);
       assert.equal(await hasHorizontalOverflow(driver), false);
 
+      await driver.findElement(By.css("[data-native-session-start]")).click();
+      await driver.wait(until.elementLocated(By.css(".native-daily-session-card")), 8000);
+      await waitForText(driver, "Lesson snippet");
+      await driver.findElement(By.css(".native-daily-session-card [data-native-session-next]")).click();
+      await driver.wait(until.elementLocated(By.css('.native-daily-session-card [data-swipe-word]')), 8000);
+      assert.ok((await driver.findElements(By.css(".native-daily-session-card [data-swipe-word]"))).length >= 1);
+
       await driver.findElement(By.css('.native-bottom-nav [data-route="vocabulary"]')).click();
       await driver.wait(until.elementLocated(By.css(".native-vocabulary-app")), 8000);
       await waitForText(driver, "Flashcards");
       assert.equal(await driver.findElement(By.css(".native-flashcard-card")).isDisplayed(), true);
+      assert.equal(await driver.findElement(By.css("[data-swipe-word]")).isDisplayed(), true);
+
+      await driver.findElement(By.css('[data-vocabulary-tab="listen"]')).click();
+      await driver.wait(until.elementLocated(By.css(".native-audio-review-app")), 8000);
+      await waitForText(driver, "Listen review");
+      assert.equal(await driver.findElement(By.css(".native-listen-button")).isDisplayed(), true);
+      await driver.findElement(By.css(".native-audio-review-app [data-audio-rate-toggle]")).click();
+      await waitForText(driver, "audio");
+      await driver.findElement(By.css(".native-audio-review-app [data-native-audio-answer]")).click();
+      await driver.wait(until.elementLocated(By.css(".native-audio-review-app .feedback")), 8000);
 
       await driver.findElement(By.css('[data-vocabulary-tab="tester"]')).click();
       await driver.wait(until.elementLocated(By.css(".native-vocab-tester-app")), 8000);

@@ -802,6 +802,31 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(blocked.body.error, /xp increase/i);
   });
 
+  it("allows one bounded mobile streak recovery from zero days only", async () => {
+    const email = uniqueEmail("streak");
+    const created = await api(server.baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ displayName: "Streak Tester", email, password: "test123" })
+    });
+
+    const restored = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      headers: authHeaders(created),
+      body: JSON.stringify({ dailyStreakDays: 1, xp: 5 })
+    });
+
+    const blockedIncrease = await api(server.baseUrl, "/api/progress", {
+      method: "PATCH",
+      headers: authHeaders(created),
+      body: JSON.stringify({ dailyStreakDays: 9, xp: 10 })
+    });
+
+    assert.equal(restored.response.status, 200);
+    assert.equal(restored.body.progress.dailyStreakDays, 1);
+    assert.equal(blockedIncrease.response.status, 200);
+    assert.equal(blockedIncrease.body.progress.dailyStreakDays, 1);
+  });
+
   it("does not persist premium progress IDs for free accounts", async () => {
     const login = await api(server.baseUrl, "/api/auth/login", {
       method: "POST",
@@ -1101,13 +1126,13 @@ describe("Madinah Arabic API and static app", () => {
 
   it("serves the account page code and cache-busted assets", async () => {
     const page = await fetch(`${server.baseUrl}/`).then((response) => response.text());
-    const app = await fetch(`${server.baseUrl}/app.js?v=20260621-vocab-prompt-dedupe`).then((response) => response.text());
-    const core = await fetch(`${server.baseUrl}/learning-core.js?v=20260621-vocab-prompt-dedupe`).then((response) => response.text());
+    const app = await fetch(`${server.baseUrl}/app.js?v=20260621-mobile-native-life`).then((response) => response.text());
+    const core = await fetch(`${server.baseUrl}/learning-core.js?v=20260621-mobile-native-life`).then((response) => response.text());
     const manifestResponse = await fetch(`${server.baseUrl}/manifest.webmanifest`);
     const manifest = await manifestResponse.json();
     const serviceWorker = await fetch(`${server.baseUrl}/service-worker.js`).then((response) => response.text());
 
-    assert.match(page, /20260621-vocab-prompt-dedupe/);
+    assert.match(page, /20260621-mobile-native-life/);
     assert.match(page, /learning-core\.js/);
     assert.match(page, /manifest\.webmanifest/);
     assert.match(app, /renderAccountPage/);
@@ -1134,8 +1159,11 @@ describe("Madinah Arabic API and static app", () => {
     assert.match(core, /createVocabularyQuestion/);
     assert.equal(manifest.name, "Madinah Arabic");
     assert.equal(manifest.display, "standalone");
+    assert.ok(manifest.shortcuts.some((shortcut) => shortcut.url.includes("vocabTab=listen")));
+    assert.ok(manifest.shortcuts.some((shortcut) => shortcut.url.includes("route=review")));
     assert.match(manifestResponse.headers.get("content-type") || "", /manifest\+json/);
     assert.match(serviceWorker, /CACHE_NAME/);
+    assert.match(serviceWorker, /notificationclick/);
     assert.match(serviceWorker, /\/api\//);
     assert.match(app, /শব্দভান্ডার/);
     assert.doesNotMatch(app, /data-language-toggle/);

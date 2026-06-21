@@ -84,6 +84,8 @@ async function main() {
     await capture(nativeMobilePage, server.baseUrl, "native-mobile-today", { nativeShell: true, viewportOnly: true });
     await gotoRoute(nativeMobilePage, server.baseUrl, "?native=1&route=vocabulary", ".native-vocabulary-app");
     await capture(nativeMobilePage, server.baseUrl, "native-mobile-flashcards", { nativeShell: true, viewportOnly: true });
+    await gotoRoute(nativeMobilePage, server.baseUrl, "?native=1&route=vocabulary&vocabTab=listen", ".native-audio-review-app");
+    await capture(nativeMobilePage, server.baseUrl, "native-mobile-listen-review", { nativeShell: true, viewportOnly: true });
     await gotoRoute(nativeMobilePage, server.baseUrl, "?native=1&route=vocabulary&vocabTab=tester", ".native-vocab-tester-app");
     await capture(nativeMobilePage, server.baseUrl, "native-mobile-vocab-tester", { nativeShell: true, viewportOnly: true });
   } finally {

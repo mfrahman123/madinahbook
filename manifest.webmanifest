@@ -25,13 +25,25 @@
     {
       "name": "Continue Learning",
       "short_name": "Continue",
-      "url": "/?route=book-1",
+      "url": "/?native=1&route=book-1",
       "icons": [{ "src": "/assets/madinah-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
     },
     {
       "name": "Vocabulary Tester",
       "short_name": "Vocab Test",
-      "url": "/?route=vocabulary&vocabTab=tester",
+      "url": "/?native=1&route=vocabulary&vocabTab=tester",
+      "icons": [{ "src": "/assets/madinah-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Listen Review",
+      "short_name": "Listen",
+      "url": "/?native=1&route=vocabulary&vocabTab=listen",
+      "icons": [{ "src": "/assets/madinah-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Mistakes",
+      "short_name": "Mistakes",
+      "url": "/?native=1&route=review",
       "icons": [{ "src": "/assets/madinah-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
     }
   ]

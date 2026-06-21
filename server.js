@@ -1684,6 +1684,14 @@ function sanitizeProgressPatch(patch, current, curriculum, user) {
     if (Number.isFinite(value)) sanitized.weeklyGoalCompleted = Math.max(0, Math.min(goal, Math.floor(value)));
   }
 
+  if (patch.dailyStreakDays !== undefined) {
+    const currentStreak = Number(current.dailyStreakDays || 0);
+    const requestedStreak = Number(patch.dailyStreakDays);
+    if (Number.isFinite(requestedStreak) && currentStreak === 0 && Math.floor(requestedStreak) === 1) {
+      sanitized.dailyStreakDays = 1;
+    }
+  }
+
   if (patch.xp !== undefined) {
     const currentXp = Number(current.xp || 0);
     const requestedXp = Number(patch.xp);

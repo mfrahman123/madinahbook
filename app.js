@@ -31,6 +31,11 @@ const state = {
   vocabTester: null,
   vocabTesterActiveIndex: 0,
   vocabTesterFeedback: {},
+  nativeDailySession: null,
+  nativeDailyStepIndex: 0,
+  nativeDailyFeedback: {},
+  nativeAudioReview: null,
+  nativeAudioFeedback: null,
   writingFeedback: {},
   checkedPracticeSelections: {},
   authMode: initialAuthMode,
@@ -2271,10 +2276,27 @@ async function requestReminderPermission() {
   }
 
   const permission = await Notification.requestPermission();
+  const dueCount = dueVocabularyItems().filter((word) => canAccessBookSlug(word.bookSlug)).length;
   state.reminderNotice = permission === "granted"
-    ? t("remindersEnabled", "Reminder permission enabled on this device.")
+    ? dueCount
+      ? `${dueCount} ${t("wordsDueTodayReminder", "words are due today. Reminder permission is enabled.")}`
+      : t("remindersEnabled", "Reminder permission enabled on this device.")
     : t("remindersNotEnabled", "Reminder permission was not enabled.");
   localStorage.setItem("madinah-reminders", state.reminderNotice);
+  if (permission === "granted") {
+    try {
+      const registration = await navigator.serviceWorker?.ready;
+      if (registration?.showNotification) {
+        registration.showNotification("Madinah Arabic", {
+          body: dueCount ? `${dueCount} words are due today.` : "Study reminder is ready.",
+          tag: "madinah-due-vocab",
+          data: { url: "/?native=1&route=vocabulary&vocabTab=listen" }
+        });
+      }
+    } catch (error) {
+      reportFrontendError(error, "notification");
+    }
+  }
   render();
 }
 
@@ -2290,12 +2312,13 @@ async function refreshOfflineCache() {
     await cache.addAll([
 	      "/",
 	      "/index.html",
-	      "/app.js?v=20260621-vocab-prompt-dedupe",
-	      "/learning-core.js?v=20260621-vocab-prompt-dedupe",
-	      "/styles.css?v=20260621-vocab-prompt-dedupe",
+	      "/app.js?v=20260621-mobile-native-life",
+	      "/learning-core.js?v=20260621-mobile-native-life",
+	      "/styles.css?v=20260621-mobile-native-life",
 	      "/api/bootstrap"
 	    ]);
     state.offlineNotice = t("offlineReady", "Offline cache refreshed for core lessons and vocabulary.");
+    localStorage.setItem(userScopedLocalKey("offline-ready"), todayKey());
   } catch {
     state.offlineNotice = t("offlineRefreshFailed", "Offline cache could not be refreshed right now.");
   }
@@ -3743,6 +3766,191 @@ function nativePriorityWords(limit = 8, bookSlug = null) {
     .slice(0, limit);
 }
 
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function userScopedLocalKey(key) {
+  return `madinah-${key}-${state.user?.userId || "guest"}`;
+}
+
+function nativeDailySessionCompletedToday() {
+  return localStorage.getItem(userScopedLocalKey("native-daily-session")) === todayKey();
+}
+
+function nativeStreakRecoveryAvailable() {
+  return isNativeApp()
+    && Number(state.progress?.dailyStreakDays || 0) === 0
+    && localStorage.getItem(userScopedLocalKey("streak-recovery")) !== todayKey();
+}
+
+function nativeOfflineStatusText() {
+  if (state.offlineNotice || localStorage.getItem(userScopedLocalKey("offline-ready"))) {
+    return t("availableOffline", "Available offline");
+  }
+  const pack = learningPreferences().offlinePack || "recent";
+  return pack === "all"
+    ? t("readyForFullDownload", "Ready for full download")
+    : t("readyForRecentDownload", "Ready for recent lessons");
+}
+
+function audioModeLabel() {
+  return Number(state.audioRate) < 0.75 ? t("slowAudio", "Slow audio") : t("normalAudio", "Normal audio");
+}
+
+function nativeDifficultWords(limit = 8, bookSlug = null) {
+  const bookmarkedIds = bookmarkRecord().vocabulary || [];
+  const bookmarked = bookmarkedIds
+    .map((id) => byId(state.data.vocabulary, id))
+    .filter((word) => word && canAccessBookSlug(word.bookSlug) && (!bookSlug || word.bookSlug === bookSlug));
+  const weak = weakVocabularyItems(limit * 2).filter((word) => canAccessBookSlug(word.bookSlug) && (!bookSlug || word.bookSlug === bookSlug));
+  const due = dueVocabularyItems().filter((word) => canAccessBookSlug(word.bookSlug) && (!bookSlug || word.bookSlug === bookSlug));
+
+  return uniqueValues([...bookmarked, ...weak, ...due].map((word) => word.id))
+    .map((id) => byId(state.data.vocabulary, id))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function createNativeAudioReview(selectedBook = currentVocabularyBook()) {
+  const bookWords = getVocabularyWordsForBook(selectedBook.slug).filter((word) => canAccessBookSlug(word.bookSlug));
+  const targetPool = nativePriorityWords(12, selectedBook.slug);
+  const word = randomItem(targetPool.length ? targetPool : bookWords);
+  if (!word) return null;
+
+  const options = buildVocabularyOptions(bookWords.length >= 4 ? bookWords : state.data.vocabulary, word, "english");
+  return {
+    id: `native-audio-${word.id}-${Date.now()}`,
+    bookSlug: selectedBook.slug,
+    wordId: word.id,
+    arabic: word.arabic,
+    answer: word.english,
+    options
+  };
+}
+
+function ensureNativeAudioReview(selectedBook = currentVocabularyBook()) {
+  if (!state.nativeAudioReview || state.nativeAudioReview.bookSlug !== selectedBook.slug) {
+    state.nativeAudioReview = createNativeAudioReview(selectedBook);
+    state.nativeAudioFeedback = null;
+  }
+  return state.nativeAudioReview;
+}
+
+function createNativeDailySession() {
+  const currentLesson = getCurrentLesson();
+  const lessonWords = getLessonVocabulary(currentLesson);
+  const priorityWords = nativePriorityWords(3, currentLesson.bookSlug);
+  const words = (priorityWords.length ? priorityWords : lessonWords).slice(0, 3);
+  const mistake = mistakeItems()[0];
+  const quizWord = words[0] || lessonWords[0] || state.data.vocabulary.find((word) => canAccessBookSlug(word.bookSlug));
+  const quiz = quizWord ? createVocabularyQuestion(quizWord, lessonWords.length >= 4 ? lessonWords : getVocabularyWordsForBook(currentLesson.bookSlug), `native-daily-${currentLesson.id}`) : null;
+  const items = [
+    { type: "lesson", lessonId: currentLesson.id },
+    ...words.map((word) => ({ type: "word", wordId: word.id })),
+    mistake ? { type: "mistake", mistakeId: mistake.id } : (words[0] ? { type: "review", wordId: words[0].id } : null),
+    quiz ? { type: "quiz", question: quiz } : null
+  ].filter(Boolean);
+
+  return {
+    id: `native-daily-${todayKey()}-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    items
+  };
+}
+
+function startNativeDailySession() {
+  state.nativeDailySession = createNativeDailySession();
+  state.nativeDailyStepIndex = 0;
+  state.nativeDailyFeedback = {};
+  state.motion.tester = true;
+  render();
+}
+
+function advanceNativeDailySession() {
+  if (!state.nativeDailySession) return;
+  state.nativeDailyStepIndex = Math.min(state.nativeDailySession.items.length, Number(state.nativeDailyStepIndex || 0) + 1);
+  state.motion.tester = true;
+  render();
+}
+
+function finishNativeDailySession() {
+  const alreadyCompleted = nativeDailySessionCompletedToday();
+  state.nativeDailySession = null;
+  state.nativeDailyStepIndex = 0;
+  state.nativeDailyFeedback = {};
+  localStorage.setItem(userScopedLocalKey("native-daily-session"), todayKey());
+  state.motion.celebration = alreadyCompleted
+    ? t("dailySessionRefreshed", "Daily 5 refreshed")
+    : t("dailySessionComplete", "Daily 5 complete · +25 XP");
+
+  if (alreadyCompleted) {
+    render();
+    return;
+  }
+
+  markMotionXp(25);
+  saveProgress({
+    weeklyGoalCompleted: Math.min(state.progress.weeklyGoalTarget || 0, Number(state.progress.weeklyGoalCompleted || 0) + 1),
+    xp: Number(state.progress.xp || 0) + 25
+  });
+}
+
+function answerNativeDailyQuiz(answer) {
+  const item = state.nativeDailySession?.items[state.nativeDailyStepIndex];
+  const question = item?.question;
+  if (!question || state.nativeDailyFeedback[question.id]) return;
+  const correct = answer === question.answer;
+  state.nativeDailyFeedback[question.id] = { status: correct ? "correct" : "incorrect", answer };
+  hapticFeedback(correct);
+
+  if (question.wordId) {
+    saveProgress({
+      learnedVocabularyIds: correct ? [question.wordId] : [],
+      vocabularyStats: { [question.wordId]: reviewStatsFor(question.wordId, correct) },
+      xp: correct ? Number(state.progress.xp || 0) + 8 : Number(state.progress.xp || 0)
+    });
+    return;
+  }
+
+  render();
+}
+
+function answerNativeAudioReview(answer) {
+  const review = state.nativeAudioReview;
+  if (!review || state.nativeAudioFeedback) return;
+  const correct = answer === review.answer;
+  state.nativeAudioFeedback = { status: correct ? "correct" : "incorrect", answer };
+  hapticFeedback(correct);
+  markReviewWord(review.wordId, correct);
+}
+
+function generateNativeAudioReview(play = false) {
+  state.nativeAudioReview = createNativeAudioReview(currentVocabularyBook());
+  state.nativeAudioFeedback = null;
+  state.motion.tester = true;
+  render();
+  if (play && state.nativeAudioReview?.arabic) {
+    window.setTimeout(() => speak(state.nativeAudioReview.arabic), 120);
+  }
+}
+
+function toggleAudioRate() {
+  state.audioRate = Number(state.audioRate) < 0.75 ? 0.9 : 0.62;
+  localStorage.setItem("madinah-audio-rate", String(state.audioRate));
+  render();
+}
+
+function restoreNativeStreak() {
+  if (!nativeStreakRecoveryAvailable()) return;
+  localStorage.setItem(userScopedLocalKey("streak-recovery"), todayKey());
+  state.motion.celebration = t("streakRestored", "Streak restored · complete a review today");
+  saveProgress({
+    dailyStreakDays: 1,
+    xp: Number(state.progress.xp || 0) + 5
+  });
+}
+
 function renderNativeTodayApp(currentLesson) {
   const preferences = learningPreferences();
   const dueWords = dueVocabularyItems().filter((word) => canAccessBookSlug(word.bookSlug));
@@ -3750,6 +3958,7 @@ function renderNativeTodayApp(currentLesson) {
   const lessonVocabulary = getLessonVocabulary(currentLesson);
   const reviewWord = nativePriorityWords(1)[0] || lessonVocabulary[0];
   const mastery = lessonMasteryStatus(currentLesson);
+  const sessionDoneToday = nativeDailySessionCompletedToday();
   const queueItems = [
     {
       label: t("nextLesson", "Next lesson"),
@@ -3786,17 +3995,21 @@ function renderNativeTodayApp(currentLesson) {
       <article class="native-hero-card">
         <div class="native-hero-copy">
           <p class="section-label">${t("phoneSession", "Phone session")}</p>
-          <h2>${t("todaysStudy", "Today's Study")}</h2>
+          <h2>${t("dailyFive", "Daily 5")}</h2>
           <div class="native-stat-row" aria-label="${t("studyStats", "Study stats")}">
             <span>${icon("flame")} ${state.progress.dailyStreakDays} ${t("days", "days")}</span>
             <span>${icon("spark")} ${state.progress.xp} XP</span>
             <span>${preferences.dailyMinutes}m</span>
+            ${sessionDoneToday ? `<span>${icon("check")} ${t("doneToday", "Done today")}</span>` : ""}
           </div>
         </div>
-        <button class="primary-button native-start-button" type="button" data-lesson="${escapeHtml(currentLesson.id)}">
-          ${t("start", "Start")} ${icon("arrow")}
+        <button class="primary-button native-start-button" type="button" data-native-session-start>
+          ${state.nativeDailySession ? t("resume", "Resume") : sessionDoneToday ? t("reviewAgain", "Review again") : t("start", "Start")} ${icon("arrow")}
         </button>
       </article>
+
+      ${state.nativeDailySession ? renderNativeDailySessionPanel() : renderNativeSessionPreview(currentLesson, dueWords, mistakes)}
+      ${nativeStreakRecoveryAvailable() ? renderNativeStreakRecoveryCard() : ""}
 
       <article class="native-next-lesson-card">
         <div>
@@ -3805,6 +4018,7 @@ function renderNativeTodayApp(currentLesson) {
         </div>
         <span class="mastery-chip ${mastery.key}">${escapeHtml(mastery.label)} · ${mastery.score}%</span>
         <button class="native-lesson-arabic" type="button" data-speak="${escapeHtml(currentLesson.arabic)}" lang="ar">${currentLesson.arabic}</button>
+        <span class="native-offline-badge">${icon("download")} ${escapeHtml(nativeOfflineStatusText())}</span>
       </article>
 
       ${reviewWord ? renderNativeFlashcardCard(reviewWord, { featured: true }) : ""}
@@ -3827,20 +4041,203 @@ function renderNativeTodayApp(currentLesson) {
           ${icon("download")}
           <span>
             <strong>${t("offlineLessonPack", "Offline lesson pack")}</strong>
-            <small>${t("refreshOffline", "Refresh offline cache")}</small>
+            <small>${escapeHtml(nativeOfflineStatusText())}</small>
           </span>
         </button>
         <button class="native-tool-button" type="button" data-request-reminders>
           ${icon("flame")}
           <span>
             <strong>${t("studyReminders", "Study reminders")}</strong>
-            <small>${t("enableReminders", "Enable reminders")}</small>
+            <small>${dueWords.length ? `${dueWords.length} ${t("wordsDueToday", "words due today")}` : t("enableReminders", "Enable reminders")}</small>
           </span>
         </button>
+        <button class="native-tool-button" type="button" data-audio-rate-toggle>
+          ${icon("speaker")}
+          <span>
+            <strong>${t("pronunciationMode", "Pronunciation mode")}</strong>
+            <small>${escapeHtml(audioModeLabel())}</small>
+          </span>
+        </button>
+        ${renderNativeQuickActions()}
         ${state.offlineNotice ? `<p class="preference-note">${escapeHtml(state.offlineNotice)}</p>` : ""}
         ${state.reminderNotice ? `<p class="preference-note">${escapeHtml(state.reminderNotice)}</p>` : ""}
       </section>
     </section>
+  `;
+}
+
+function renderNativeSessionPreview(currentLesson, dueWords, mistakes) {
+  const words = nativePriorityWords(3, currentLesson.bookSlug);
+  return `
+    <section class="native-daily-preview">
+      <div>
+        <p class="section-label">${t("fiveMinuteSession", "5-minute session")}</p>
+        <h3>${t("knowWhatToDoNext", "Know exactly what to do next")}</h3>
+      </div>
+      <div class="native-daily-steps">
+        <span>${icon("book")} ${t("lessonSnippet", "Lesson snippet")}</span>
+        <span>${icon("words")} ${Math.max(3, words.length || dueWords.length || 3)} ${t("cards", "cards")}</span>
+        <span>${icon("target")} ${mistakes.length ? t("mistakeRetry", "Mistake retry") : t("quickReview", "Quick review")}</span>
+        <span>${icon("spark")} ${t("oneQuestionQuiz", "1-question quiz")}</span>
+      </div>
+    </section>
+  `;
+}
+
+function renderNativeDailySessionPanel() {
+  const session = state.nativeDailySession;
+  const total = session?.items.length || 0;
+  const index = Math.min(Number(state.nativeDailyStepIndex || 0), total);
+  const item = session?.items[index];
+
+  if (!session) return "";
+  if (!item) return renderNativeDailySessionComplete(total);
+
+  return `
+    <section class="native-daily-session-card ${state.motion.tester ? "shuffle-in" : ""}" aria-label="${t("dailyFiveSession", "Daily 5 session")}">
+      <div class="native-question-topline">
+        <span>${String(index + 1).padStart(2, "0")} / ${total}</span>
+        <span>${t("dailyFive", "Daily 5")}</span>
+      </div>
+      ${renderNativeDailySessionItem(item)}
+    </section>
+  `;
+}
+
+function renderNativeDailySessionItem(item) {
+  if (item.type === "lesson") {
+    const lesson = byId(state.data.lessons, item.lessonId) || getCurrentLesson();
+    return `
+      <div class="native-session-item">
+        <p class="section-label">${t("lessonSnippet", "Lesson snippet")}</p>
+        <h3>${escapeHtml(localizedLessonTitle(lesson))}</h3>
+        <button class="native-lesson-arabic" type="button" data-speak="${escapeHtml(lesson.arabic)}" lang="ar">${lesson.arabic}</button>
+        <details class="answer-reveal native-answer-reveal">
+          <summary><span>${t("revealMeaning", "Reveal meaning")}</span>${icon("arrow")}</summary>
+          <p class="translation">${escapeHtml(localizedText(lesson.translation))}</p>
+        </details>
+        <button class="primary-button" type="button" data-native-session-next>${t("done", "Done")} ${icon("arrow")}</button>
+      </div>
+    `;
+  }
+
+  if (item.type === "word" || item.type === "review") {
+    const word = byId(state.data.vocabulary, item.wordId);
+    if (!word) return `<button class="primary-button" type="button" data-native-session-next>${t("continue", "Continue")}</button>`;
+    return `
+      <div class="native-session-item">
+        <p class="section-label">${item.type === "review" ? t("quickReview", "Quick review") : t("flashcard", "Flashcard")}</p>
+        ${renderNativeFlashcardCard(word, { featured: false, session: true })}
+        <div class="native-session-actions">
+          <button class="ghost-button" type="button" data-native-session-word="${escapeHtml(word.id)}" data-native-session-correct="false">${t("stillLearning", "Still learning")}</button>
+          <button class="primary-button" type="button" data-native-session-word="${escapeHtml(word.id)}" data-native-session-correct="true">${t("iKnowThis", "I know this")}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  if (item.type === "mistake") {
+    const mistake = progressRecord("mistakes")[item.mistakeId];
+    return `
+      <div class="native-session-item">
+        <p class="section-label">${t("mistakeRetry", "Mistake retry")}</p>
+        ${mistake ? `
+          <h3>${escapeHtml(localizedText(mistake.prompt || t("reviewThisItem", "Review this item.")))}</h3>
+          ${mistake.arabic ? `<button class="native-test-arabic" type="button" data-speak="${escapeHtml(mistake.arabic)}" lang="ar">${mistake.arabic}</button>` : ""}
+          <details class="answer-reveal native-answer-reveal">
+            <summary><span>${t("revealAnswer", "Reveal answer")}</span>${icon("arrow")}</summary>
+            ${renderAnswerDisplay(mistake.expected || "", { answerArabic: mistake.arabic || "" })}
+          </details>
+          <button class="primary-button" type="button" data-native-session-mistake="${escapeHtml(item.mistakeId)}">${t("markReviewed", "Mark reviewed")} ${icon("check")}</button>
+        ` : `
+          <h3>${t("reviewQueueClear", "Review queue clear")}</h3>
+          <p class="translation">${t("reviewQueueClearText", "Open a lesson or generate a vocabulary test to create new review items.")}</p>
+          <button class="primary-button" type="button" data-native-session-next>${t("continue", "Continue")} ${icon("arrow")}</button>
+        `}
+      </div>
+    `;
+  }
+
+  if (item.type === "quiz") {
+    const question = item.question;
+    const feedback = state.nativeDailyFeedback[question.id];
+    return `
+      <div class="native-session-item">
+        <p class="section-label">${t("oneQuestionQuiz", "1-question quiz")}</p>
+        <div class="vocab-test-prompt native-test-prompt">
+          <p>${escapeHtml(localizedText(normalizedQuizPrompt(question)))}</p>
+          ${question.arabic ? `<button class="native-test-arabic" type="button" data-speak="${escapeHtml(question.arabic)}" lang="ar">${question.arabic}</button>` : `
+            <span class="native-target-card">
+              <small>${t("meaning", "Meaning")}</small>
+              <strong>${escapeHtml(localizedOption(question.display))}</strong>
+            </span>
+          `}
+        </div>
+        <div class="native-test-options">
+          ${question.options.map((option) => {
+            const answered = Boolean(feedback);
+            const isCorrect = answered && feedback.status === "correct" && option === question.answer;
+            const isWrong = answered && option === feedback.answer && option !== question.answer;
+            return `
+              <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-native-session-quiz-answer="${escapeHtml(option)}" ${answered ? "disabled" : ""}>
+                <span ${hasArabic(option) ? 'class="arabic-option" lang="ar"' : ""}>${escapeHtml(localizedOption(option))}</span>
+              </button>
+            `;
+          }).join("")}
+        </div>
+        ${feedback ? `
+          <div class="feedback ${feedback.status === "correct" ? "correct" : "incorrect"}">
+            ${icon(feedback.status === "correct" ? "check" : "x")}
+            <span>${feedback.status === "correct" ? t("correct", "Correct") : t("notQuiteShort", "Not quite.")}</span>
+          </div>
+          ${renderQuestionExplanation(question, feedback.answer)}
+          <button class="primary-button" type="button" data-native-session-next>${t("continue", "Continue")} ${icon("arrow")}</button>
+        ` : ""}
+      </div>
+    `;
+  }
+
+  return "";
+}
+
+function renderNativeDailySessionComplete(total) {
+  const doneToday = nativeDailySessionCompletedToday();
+  return `
+    <article class="native-tester-complete native-daily-complete">
+      <span class="quick-icon">${icon("check")}</span>
+      <p class="section-label">${t("sessionComplete", "Session complete")}</p>
+      <h3>${t("dailyFiveFinished", "Daily 5 finished")}</h3>
+      <p>${doneToday ? t("alreadyClaimedXp", "You have already claimed today's session XP.") : t("sessionReward", "Claim 25 XP and move your weekly goal forward.")}</p>
+      <div class="native-stat-row">
+        <span>${total} ${t("steps", "steps")}</span>
+        <span>${nativePriorityWords(1)[0] ? escapeHtml(reviewScheduleText(nativePriorityWords(1)[0])) : t("nextReview", "Next review")}</span>
+      </div>
+      <button class="primary-button" type="button" data-native-session-finish>${doneToday ? t("close", "Close") : t("claimReward", "Claim reward")} ${icon("check")}</button>
+    </article>
+  `;
+}
+
+function renderNativeStreakRecoveryCard() {
+  return `
+    <section class="native-streak-card">
+      <span class="quick-icon">${icon("flame")}</span>
+      <div>
+        <p class="section-label">${t("streakRecovery", "Streak recovery")}</p>
+        <h3>${t("restoreYourStreak", "Restore your streak")}</h3>
+        <p>${t("restoreStreakText", "Complete a short review today and keep momentum without extra fuss.")}</p>
+      </div>
+      <button class="ghost-button compact-button" type="button" data-native-restore-streak>${t("restore", "Restore")}</button>
+    </section>
+  `;
+}
+
+function renderNativeQuickActions() {
+  return `
+    <div class="native-quick-actions" aria-label="${t("quickActions", "Quick actions")}">
+      <button type="button" data-lesson="${escapeHtml(getCurrentLesson().id)}">${icon("book")}<span>${t("continueLesson", "Continue lesson")}</span></button>
+      <button type="button" data-native-open-listen>${icon("speaker")}<span>${t("listenReview", "Listen review")}</span></button>
+      <button type="button" data-route="review">${icon("target")}<span>${t("mistakes", "Mistakes")}</span></button>
+    </div>
   `;
 }
 
@@ -5917,11 +6314,13 @@ function renderVocabularyPage() {
 
 function renderNativeVocabularyPage(selectedBook, words, shownCount) {
   if (state.vocabularyTab === "tester") return renderNativeVocabTester(selectedBook);
+  if (state.vocabularyTab === "listen") return renderNativeAudioReviewPage(selectedBook);
 
   const deckWords = nativePriorityWords(8, selectedBook.slug);
   const flashcards = deckWords.length ? deckWords : words.slice(0, 8);
   const [featured, ...upNext] = flashcards;
   const counts = vocabularyStatusCounts(words);
+  const difficult = nativeDifficultWords(6, selectedBook.slug);
 
   return `
     <section class="native-vocabulary-app">
@@ -5934,6 +6333,7 @@ function renderNativeVocabularyPage(selectedBook, words, shownCount) {
       </div>
       <div class="native-tab-switch" role="tablist" aria-label="${t("vocabularySections", "Vocabulary sections")}">
         <button class="active" type="button" data-vocabulary-tab="list" role="tab" aria-selected="true">${t("cards", "Cards")}</button>
+        <button type="button" data-vocabulary-tab="listen" role="tab" aria-selected="false">${t("listen", "Listen")}</button>
         <button type="button" data-vocabulary-tab="tester" role="tab" aria-selected="false">${t("vocabTester", "Vocab Tester")}</button>
       </div>
       ${renderVocabularyBookSelector(selectedBook.slug)}
@@ -5954,6 +6354,87 @@ function renderNativeVocabularyPage(selectedBook, words, shownCount) {
           ${upNext.map((word) => renderNativeMiniFlashcard(word)).join("")}
         </section>
       ` : ""}
+      ${renderNativeDifficultDeck(difficult)}
+    </section>
+  `;
+}
+
+function renderNativeDifficultDeck(words) {
+  if (!words.length) return "";
+  return `
+    <section class="native-difficult-deck">
+      <div class="native-card-topline">
+        <span>${t("difficultDeck", "Difficult deck")}</span>
+        <span>${words.length} ${t("cards", "cards")}</span>
+      </div>
+      <div class="native-card-rail">
+        ${words.map((word) => renderNativeMiniFlashcard(word)).join("")}
+      </div>
+      <button class="ghost-button compact-button" type="button" data-route="review">${t("reviewDifficult", "Review difficult items")}</button>
+    </section>
+  `;
+}
+
+function renderNativeAudioReviewPage(selectedBook) {
+  const review = ensureNativeAudioReview(selectedBook);
+  const feedback = state.nativeAudioFeedback;
+
+  return `
+    <section class="native-vocab-tester-app native-audio-review-app">
+      <div class="native-page-heading">
+        <div>
+          <p class="section-label">${escapeHtml(localizedBookTitle(selectedBook))}</p>
+          <h2>${t("listenReview", "Listen review")}</h2>
+        </div>
+        <span class="pill">${escapeHtml(audioModeLabel())}</span>
+      </div>
+      <div class="native-tab-switch" role="tablist" aria-label="${t("vocabularySections", "Vocabulary sections")}">
+        <button type="button" data-vocabulary-tab="list" role="tab" aria-selected="false">${t("cards", "Cards")}</button>
+        <button class="active" type="button" data-vocabulary-tab="listen" role="tab" aria-selected="true">${t("listen", "Listen")}</button>
+        <button type="button" data-vocabulary-tab="tester" role="tab" aria-selected="false">${t("vocabTester", "Vocab Tester")}</button>
+      </div>
+      ${renderVocabularyBookSelector(selectedBook.slug)}
+      ${review ? `
+        <article class="native-vocab-test-question native-audio-card ${state.motion.tester ? "shuffle-in" : ""}">
+          <div class="native-question-topline">
+            <span>${t("audioFirst", "Audio first")}</span>
+            <button class="ghost-button compact-button" type="button" data-audio-rate-toggle>${escapeHtml(audioModeLabel())}</button>
+          </div>
+          <button class="native-listen-button" type="button" data-native-audio-play>
+            ${icon("speaker")}
+            <span>${t("playArabicAudio", "Play Arabic audio")}</span>
+          </button>
+          <p class="translation">${t("listenChooseMeaning", "Listen to the Arabic, then choose the meaning.")}</p>
+          <div class="native-test-options">
+            ${review.options.map((option) => {
+              const answered = Boolean(feedback);
+              const isCorrect = answered && feedback.status === "correct" && option === review.answer;
+              const isWrong = answered && option === feedback.answer && option !== review.answer;
+              return `
+                <button class="option-button vocab-option ${isCorrect ? "correct-option" : ""} ${isWrong ? "incorrect-option" : ""}" type="button" data-native-audio-answer="${escapeHtml(option)}" ${answered ? "disabled" : ""}>
+                  <span>${escapeHtml(localizedOption(option))}</span>
+                </button>
+              `;
+            }).join("")}
+          </div>
+          ${feedback ? `
+            <div class="feedback ${feedback.status === "correct" ? "correct" : "incorrect"}">
+              ${icon(feedback.status === "correct" ? "check" : "x")}
+              <span>${feedback.status === "correct" ? t("correct", "Correct") : t("notQuiteShort", "Not quite.")}</span>
+            </div>
+            <div class="native-audio-answer">
+              <button class="example-arabic" type="button" data-speak="${escapeHtml(review.arabic)}" lang="ar">${review.arabic}</button>
+              <p>${escapeHtml(localizedText(review.answer))}</p>
+            </div>
+            <button class="primary-button native-next-question" type="button" data-native-audio-new>${t("nextSound", "Next sound")} ${icon("arrow")}</button>
+          ` : ""}
+        </article>
+      ` : `
+        <div class="mobile-empty-state">
+          <span class="quick-icon">${icon("speaker")}</span>
+          <h3>${t("noVocabularyMatches", "No vocabulary matches this selection.")}</h3>
+        </div>
+      `}
     </section>
   `;
 }
@@ -5972,7 +6453,7 @@ function renderNativeFlashcardCard(word, options = {}) {
   const status = vocabularyStatus(word);
   const lessonLabel = lessonLabelForWord(word);
   return `
-    <article class="native-flashcard-card ${options.featured ? "featured" : ""} status-${status}">
+    <article class="native-flashcard-card ${options.featured ? "featured" : ""} ${options.session ? "session-card" : ""} status-${status}" data-swipe-word="${escapeHtml(word.id)}">
       <div class="native-card-topline">
         <span>${escapeHtml(lessonLabel)}</span>
         <span class="vocab-status status-${status}">${vocabularyStatusLabel(status)}</span>
@@ -5982,11 +6463,16 @@ function renderNativeFlashcardCard(word, options = {}) {
         <summary><span>${t("revealMeaning", "Reveal meaning")}</span>${icon("arrow")}</summary>
         <p class="translation">${escapeHtml(localizedText(word.english))}</p>
       </details>
-      <div class="native-card-actions">
-        ${renderBookmarkButton("vocabulary", word.id)}
-        <button class="ghost-button compact-button" type="button" data-review-word-again="${escapeHtml(word.id)}">${t("reviewAgain", "Review again")}</button>
-        <button class="primary-button compact-button" type="button" data-review-word-known="${escapeHtml(word.id)}">${t("iKnowThis", "I know this")}</button>
-      </div>
+      ${options.session ? `
+        <p class="native-swipe-hint">${t("tapRevealOrSwipe", "Tap to reveal. Swipe left to review again, right if you know it.")}</p>
+      ` : `
+        <div class="native-card-actions">
+          ${renderBookmarkButton("vocabulary", word.id)}
+          <button class="ghost-button compact-button" type="button" data-review-word-again="${escapeHtml(word.id)}">${t("reviewAgain", "Review again")}</button>
+          <button class="primary-button compact-button" type="button" data-review-word-known="${escapeHtml(word.id)}">${t("iKnowThis", "I know this")}</button>
+        </div>
+        <p class="native-swipe-hint">${t("swipeFlashcardHint", "Swipe left to keep learning, right to mark known.")}</p>
+      `}
     </article>
   `;
 }
@@ -6098,6 +6584,7 @@ function renderNativeVocabTester(selectedBook = currentVocabularyBook()) {
       </div>
       <div class="native-tab-switch" role="tablist" aria-label="${t("vocabularySections", "Vocabulary sections")}">
         <button type="button" data-vocabulary-tab="list" role="tab" aria-selected="false">${t("cards", "Cards")}</button>
+        <button type="button" data-vocabulary-tab="listen" role="tab" aria-selected="false">${t("listen", "Listen")}</button>
         <button class="active" type="button" data-vocabulary-tab="tester" role="tab" aria-selected="true">${t("vocabTester", "Vocab Tester")}</button>
       </div>
       <div class="native-test-progress" aria-label="${t("testProgress", "Test progress")}">
@@ -7397,6 +7884,15 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const nativeOpenListenButton = event.target.closest("[data-native-open-listen]");
+  if (nativeOpenListenButton) {
+    state.route = "vocabulary";
+    state.vocabularyTab = "listen";
+    state.motion.view = true;
+    render();
+    return;
+  }
+
   const adminTabButton = event.target.closest("[data-admin-tab]");
   if (adminTabButton) {
     state.adminTab = adminTabButton.dataset.adminTab;
@@ -7499,6 +7995,45 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const nativeSessionStartButton = event.target.closest("[data-native-session-start]");
+  if (nativeSessionStartButton) {
+    startNativeDailySession();
+    return;
+  }
+
+  const nativeSessionNextButton = event.target.closest("[data-native-session-next]");
+  if (nativeSessionNextButton) {
+    advanceNativeDailySession();
+    return;
+  }
+
+  const nativeSessionFinishButton = event.target.closest("[data-native-session-finish]");
+  if (nativeSessionFinishButton) {
+    finishNativeDailySession();
+    return;
+  }
+
+  const nativeSessionWordButton = event.target.closest("[data-native-session-word]");
+  if (nativeSessionWordButton) {
+    const correct = nativeSessionWordButton.dataset.nativeSessionCorrect === "true";
+    markReviewWord(nativeSessionWordButton.dataset.nativeSessionWord, correct);
+    advanceNativeDailySession();
+    return;
+  }
+
+  const nativeSessionMistakeButton = event.target.closest("[data-native-session-mistake]");
+  if (nativeSessionMistakeButton) {
+    resolveMistake(nativeSessionMistakeButton.dataset.nativeSessionMistake);
+    advanceNativeDailySession();
+    return;
+  }
+
+  const nativeSessionQuizButton = event.target.closest("[data-native-session-quiz-answer]");
+  if (nativeSessionQuizButton) {
+    answerNativeDailyQuiz(nativeSessionQuizButton.dataset.nativeSessionQuizAnswer);
+    return;
+  }
+
   const vocabTesterAnswerButton = event.target.closest("[data-vocab-tester-answer]");
   if (vocabTesterAnswerButton) {
     answerVocabTester(vocabTesterAnswerButton.dataset.vocabTesterQuestion, vocabTesterAnswerButton.dataset.vocabTesterAnswer);
@@ -7508,6 +8043,25 @@ document.addEventListener("click", (event) => {
   const nativeNextQuestionButton = event.target.closest("[data-native-next-question]");
   if (nativeNextQuestionButton) {
     moveNativeTesterNext();
+    return;
+  }
+
+  const nativeAudioPlayButton = event.target.closest("[data-native-audio-play]");
+  if (nativeAudioPlayButton) {
+    if (!state.nativeAudioReview) state.nativeAudioReview = createNativeAudioReview(currentVocabularyBook());
+    if (state.nativeAudioReview?.arabic) speak(state.nativeAudioReview.arabic);
+    return;
+  }
+
+  const nativeAudioNewButton = event.target.closest("[data-native-audio-new]");
+  if (nativeAudioNewButton) {
+    generateNativeAudioReview(true);
+    return;
+  }
+
+  const nativeAudioAnswerButton = event.target.closest("[data-native-audio-answer]");
+  if (nativeAudioAnswerButton) {
+    answerNativeAudioReview(nativeAudioAnswerButton.dataset.nativeAudioAnswer);
     return;
   }
 
@@ -7608,6 +8162,12 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const nativeRestoreStreakButton = event.target.closest("[data-native-restore-streak]");
+  if (nativeRestoreStreakButton) {
+    restoreNativeStreak();
+    return;
+  }
+
   const resolveMistakeButton = event.target.closest("[data-resolve-mistake]");
   if (resolveMistakeButton) {
     resolveMistake(resolveMistakeButton.dataset.resolveMistake);
@@ -7658,6 +8218,12 @@ document.addEventListener("click", (event) => {
   const reminderButton = event.target.closest("[data-request-reminders]");
   if (reminderButton) {
     requestReminderPermission();
+    return;
+  }
+
+  const audioRateButton = event.target.closest("[data-audio-rate-toggle]");
+  if (audioRateButton) {
+    toggleAudioRate();
     return;
   }
 
@@ -7778,6 +8344,30 @@ document.addEventListener("input", (event) => {
     render();
   }
 });
+
+let nativeSwipeStart = null;
+document.addEventListener("pointerdown", (event) => {
+  const card = event.target.closest("[data-swipe-word]");
+  if (!card || !isNativeApp()) return;
+  nativeSwipeStart = {
+    wordId: card.dataset.swipeWord,
+    x: event.clientX,
+    y: event.clientY,
+    time: Date.now()
+  };
+}, { passive: true });
+
+document.addEventListener("pointerup", (event) => {
+  if (!nativeSwipeStart || !isNativeApp()) return;
+  const deltaX = event.clientX - nativeSwipeStart.x;
+  const deltaY = event.clientY - nativeSwipeStart.y;
+  const elapsed = Date.now() - nativeSwipeStart.time;
+  const wordId = nativeSwipeStart.wordId;
+  nativeSwipeStart = null;
+
+  if (!wordId || Math.abs(deltaX) < 74 || Math.abs(deltaX) < Math.abs(deltaY) * 1.4 || elapsed > 1200) return;
+  markReviewWord(wordId, deltaX > 0);
+}, { passive: true });
 
 window.addEventListener("error", (event) => {
   reportFrontendError(event.error || event.message, "error");

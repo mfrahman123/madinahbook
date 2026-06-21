@@ -1,10 +1,10 @@
-const CACHE_NAME = "madinah-arabic-shell-v11-vocab-prompt-dedupe";
+const CACHE_NAME = "madinah-arabic-shell-v12-mobile-native-life";
 const SHELL_ASSETS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260621-vocab-prompt-dedupe",
-  "/learning-core.js?v=20260621-vocab-prompt-dedupe",
-  "/app.js?v=20260621-vocab-prompt-dedupe",
+  "/styles.css?v=20260621-mobile-native-life",
+  "/learning-core.js?v=20260621-mobile-native-life",
+  "/app.js?v=20260621-mobile-native-life",
   "/manifest.webmanifest",
   "/assets/madinah-icon.svg"
 ];
@@ -64,5 +64,17 @@ self.addEventListener("fetch", (event) => {
         const cached = await caches.match(request);
         return cached || caches.match("/");
       })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification?.data?.url || "/?native=1&route=home";
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      const existing = clientList.find((client) => client.url.includes(self.location.origin));
+      if (existing) return existing.focus().then((client) => client.navigate(url));
+      return clients.openWindow(url);
+    })
   );
 });
